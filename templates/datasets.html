@@ -7,10 +7,10 @@
 
     <h1 class="fw-bold mb-3">Datasets</h1>
     <p class="lead-text mb-5">
-        El proyecto se apoya en dos conjuntos de datos abiertos del Estado colombiano. Como ninguno
-        contiene información individual de IVA, retenciones o sanciones por empresa, se usan como
-        referencia para construir un conjunto <strong>semi-sintético</strong> de 5.000 a 20.000
-        observaciones empresa-período con una variable objetivo de riesgo (bajo, medio, alto).
+        The project relies on two open datasets from the Colombian government. Since neither
+        contains company-level VAT, withholding, or penalty information, they are used as a
+        reference to build a <strong>semi-synthetic</strong> dataset of 5,000 to 20,000
+        company-period observations with a risk target variable (low, medium, high).
     </p>
 
     {% for ds in datasets %}
@@ -23,29 +23,29 @@
                     <div class="text-muted">{{ ds.fuente }}</div>
                 </div>
                 <a href="{{ ds.url }}" target="_blank" rel="noopener" class="btn btn-accent">
-                    <i class="bi bi-box-arrow-up-right"></i> Ver dataset
+                    <i class="bi bi-box-arrow-up-right"></i> View dataset
                 </a>
             </div>
 
             <p>{{ ds.descripcion }}</p>
 
             <div class="row g-3 mb-3">
-                <div class="col-sm-4"><div class="meta"><span>Formato</span>{{ ds.formato }}</div></div>
-                <div class="col-sm-4"><div class="meta"><span>Cobertura</span>{{ ds.cobertura }}</div></div>
-                <div class="col-sm-4"><div class="meta"><span>Licencia</span>{{ ds.licencia }}</div></div>
+                <div class="col-sm-4"><div class="meta"><span>Format</span>{{ ds.formato }}</div></div>
+                <div class="col-sm-4"><div class="meta"><span>Coverage</span>{{ ds.cobertura }}</div></div>
+                <div class="col-sm-4"><div class="meta"><span>License</span>{{ ds.licencia }}</div></div>
             </div>
 
             <div class="mb-3">
-                <div class="small fw-semibold text-muted mb-2">Variables principales</div>
+                <div class="small fw-semibold text-muted mb-2">Main variables</div>
                 {% for v in ds.variables %}<span class="badge var-badge">{{ v }}</span>{% endfor %}
             </div>
 
             <div class="use-box">
-                <i class="bi bi-arrow-return-right"></i> <strong>Uso en el proyecto:</strong> {{ ds.uso }}
+                <i class="bi bi-arrow-return-right"></i> <strong>Use in the project:</strong> {{ ds.uso }}
             </div>
 
             <div class="small text-muted mt-3 text-break">
-                Enlace: <a href="{{ ds.url }}" target="_blank" rel="noopener">{{ ds.url }}</a>
+                Link: <a href="{{ ds.url }}" target="_blank" rel="noopener">{{ ds.url }}</a>
             </div>
         </div>
     </div>
