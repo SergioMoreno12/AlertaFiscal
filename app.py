@@ -9,51 +9,51 @@ app = Flask(__name__)
 
 DATASETS = [
     {
-        "nombre": "10.000 Empresas más Grandes del País",
-        "fuente": "Superintendencia de Sociedades · Datos Abiertos Colombia",
+        "nombre": "10,000 Largest Companies in the Country (10.000 Empresas más Grandes del País)",
+        "fuente": "Superintendencia de Sociedades (Colombian Superintendency of Companies) · Colombia Open Data",
         "url": "https://www.datos.gov.co/Comercio-Industria-y-Turismo/10-000-Empresas-mas-Grandes-del-Pa-s/6cat-2gcs",
         "formato": "CSV / API (Socrata)",
         "licencia": "CC BY-SA 4.0",
-        "cobertura": "≈ 50.000 registros · cortes 2021 a 2025",
+        "cobertura": "≈ 50,000 records · annual cutoffs from 2021 to 2025",
         "descripcion": (
-            "Información financiera de las 10.000 empresas con mayores ingresos del país en cada año de corte. "
-            "Los valores monetarios se reportan en billones de pesos."
+            "Financial information on the 10,000 highest-revenue companies in the country for each cutoff year. "
+            "Monetary values are reported in trillions of Colombian pesos."
         ),
         "variables": [
-            "NIT", "Razón social", "Supervisor", "Región", "Departamento", "Ciudad", "CIIU",
-            "Macrosector", "Ingresos operacionales", "Ganancia (pérdida)", "Total activos",
-            "Total pasivos", "Total patrimonio", "Año de corte",
+            "NIT (Tax ID)", "Company name", "Supervisor", "Region", "Department", "City",
+            "CIIU (Industry code)", "Macrosector", "Operating revenue", "Profit (loss)",
+            "Total assets", "Total liabilities", "Total equity", "Cutoff year",
         ],
         "uso": (
-            "Calcular razones financieras (margen neto, endeudamiento, rentabilidad) y sus distribuciones por "
-            "macrosector, para generar empresas simuladas con perfiles financieros realistas."
+            "Calculate financial ratios (net margin, debt ratio, profitability) and their distributions by "
+            "macrosector, in order to generate simulated companies with realistic financial profiles."
         ),
     },
     {
-        "nombre": "Estadísticas de Recaudo Mensual por Tipo de Impuesto 2000-2026",
-        "fuente": "Dirección de Impuestos y Aduanas Nacionales (DIAN)",
+        "nombre": "Monthly Tax Collection Statistics by Type of Tax 2000-2026 (Estadísticas de Recaudo Mensual por Tipo de Impuesto 2000-2026)",
+        "fuente": "Dirección de Impuestos y Aduanas Nacionales (DIAN, Colombian tax authority)",
         "url": "https://www.dian.gov.co/dian/cifras/Paginas/EstadisticasRecaudo.aspx",
-        "formato": "Excel (.xlsx dentro de un .zip)",
-        "licencia": "Información pública (Ley 1712 de 2014)",
-        "cobertura": "Serie mensual · enero 2000 a agosto 2026",
+        "formato": "Excel (.xlsx inside a .zip)",
+        "licencia": "Public information (Law 1712 of 2014)",
+        "cobertura": "Monthly series · January 2000 to August 2026",
         "descripcion": (
-            "Recaudo bruto mensual administrado por la DIAN, en millones de pesos corrientes, desagregado por "
-            "tipo de impuesto. En la misma página se publican las series anual y por seccionales."
+            "Gross monthly tax collection administered by the DIAN, in millions of current pesos, broken down by "
+            "type of tax. The annual and regional-office series are published on the same page."
         ),
         "variables": [
-            "Año", "Mes", "Renta - cuotas", "Retención renta", "IVA - declaraciones", "Retención IVA",
-            "G.M.F.", "Timbre", "Impuesto al consumo", "Impuesto unificado RST (Simple)", "Arancel",
-            "IVA externo", "Total",
+            "Year", "Month", "Income tax - installments", "Income tax withholding", "VAT - returns",
+            "VAT withholding", "Financial transactions tax (G.M.F.)", "Stamp tax", "Consumption tax",
+            "Unified RST tax (Simple regime)", "Customs duty", "Imported VAT", "Total",
         ],
         "uso": (
-            "Calibrar la proporción entre IVA y retenciones y la estacionalidad mensual de las obligaciones "
-            "tributarias simuladas para cada pyme."
+            "Calibrate the VAT-to-withholding ratio and the monthly seasonality of the tax obligations "
+            "simulated for each SME."
         ),
     },
 ]
 
 
-# ---------- Descripción del proyecto ----------
+# ---------- Project Description ----------
 @app.route("/")
 def descripcion():
     return render_template("descripcion.html")
