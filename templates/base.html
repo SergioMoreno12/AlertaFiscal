@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AlertaFiscal{% endblock %}</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top app-navbar">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('descripcion') }}">
+                <i class="bi bi-shield-check"></i> AlertaFiscal
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'descripcion' %}active{% endif %}" href="{{ url_for('descripcion') }}">
+                            <i class="bi bi-journal-text"></i> Descripción del proyecto
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'datasets' %}active{% endif %}" href="{{ url_for('datasets') }}">
+                            <i class="bi bi-database"></i> Datasets
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-5">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="text-center text-muted py-4 border-top">
+        <small>AlertaFiscal &middot; Machine Learning &middot; Universidad de Cundinamarca &middot; Ingeniería de Sistemas y Computación</small>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

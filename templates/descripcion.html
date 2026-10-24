@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Descripción del proyecto - AlertaFiscal{% endblock %}
+
+{% block content %}
+<div class="project-page">
+
+    <div class="hero p-5 mb-5 rounded-3">
+        <span class="badge text-bg-light mb-3">Proyecto de Machine Learning</span>
+        <h1 class="display-6 fw-bold">AlertaFiscal</h1>
+        <p class="fs-5 mb-0 hero-text">
+            Módulo de Machine Learning para la gestión preventiva del riesgo de cumplimiento
+            tributario en pymes colombianas. Estima un puntaje de riesgo de 0 a 100, lo muestra
+            como un semáforo y explica qué factores lo elevan.
+        </p>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-lg-7">
+            <div class="card accent-card h-100">
+                <div class="card-body p-4">
+                    <h2><i class="bi bi-exclamation-triangle"></i> Problema</h2>
+                    <p class="lead-text">
+                        Las pymes deben gestionar periódicamente su facturación, el IVA, las retenciones
+                        en la fuente y otras obligaciones tributarias. Cuando esta información se revisa
+                        solo de forma manual, los atrasos y las variaciones atípicas pasan inadvertidos
+                        hasta convertirse en intereses, sanciones o requerimientos. Además, no existe un
+                        conjunto de datos público y etiquetado sobre incumplimientos tributarios por empresa.
+                    </p>
+                    <p class="lead-text mb-0 fst-italic">
+                        ¿Cómo puede un modelo de Machine Learning, integrado a una aplicación web,
+                        identificar patrones asociados con un mayor riesgo de incumplimiento tributario en pymes?
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card accent-card h-100">
+                <div class="card-body p-4">
+                    <h2><i class="bi bi-bullseye"></i> Objetivo general</h2>
+                    <p class="lead-text mb-0">
+                        Desarrollar un módulo de Machine Learning, desplegado en una aplicación Flask,
+                        que clasifique el riesgo de cumplimiento tributario de una pyme en
+                        <strong>bajo</strong>, <strong>medio</strong> o <strong>alto</strong> y lo presente
+                        como puntaje, semáforo y alertas explicativas.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Objetivos específicos</h2>
+    <ol class="objectives mb-5">
+        <li>Analizar los datos abiertos de la Superintendencia de Sociedades y de la DIAN para obtener distribuciones financieras y tributarias de referencia.</li>
+        <li>Construir un conjunto de datos semi-sintético, documentado y reproducible, con una variable objetivo de tres clases.</li>
+        <li>Entrenar y comparar regresión logística, árbol de decisión, Random Forest y una red neuronal MLP.</li>
+        <li>Integrar el mejor modelo a la aplicación Flask y publicarla en Render.</li>
+    </ol>
+
+    <h2 class="section-title">Metodología CRISP-ML(Q)</h2>
+    <div class="row g-3 mb-5 text-center">
+        {% for paso in [
+            ('bi-lightbulb', 'Entendimiento', 'Alcance del problema y revisión de los datos abiertos'),
+            ('bi-tools', 'Preparación', 'Limpieza, razones financieras y dataset semi-sintético'),
+            ('bi-cpu', 'Modelado', 'Cuatro clasificadores con validación cruzada estratificada'),
+            ('bi-clipboard-data', 'Evaluación', 'Recall de riesgo alto, F1 por clase y ROC-AUC'),
+            ('bi-cloud-arrow-up', 'Despliegue', 'Modelo serializado con Joblib en Flask y Render'),
+            ('bi-activity', 'Monitoreo', 'Registro de predicciones y plan de reentrenamiento'),
+        ] %}
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card step-card h-100">
+                <div class="card-body">
+                    <i class="bi {{ paso[0] }} step-icon"></i>
+                    <div class="step-name">{{ paso[1] }}</div>
+                    <small class="text-muted">{{ paso[2] }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="section-title">Puntaje y semáforo de riesgo</h2>
+    <p class="lead-text">
+        Las probabilidades del clasificador se convierten en un puntaje:
+        <code>puntaje = (0,5 × P(medio) + 1,0 × P(alto)) × 100</code>
+    </p>
+    <div class="row g-3 mb-5">
+        <div class="col-md-4">
+            <div class="card light-card light-green"><div class="card-body">
+                <div class="light-range">0 – 33</div><div class="fw-semibold">Riesgo bajo</div>
+                <small>Obligaciones al día y comportamiento estable.</small>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card light-card light-yellow"><div class="card-body">
+                <div class="light-range">34 – 66</div><div class="fw-semibold">Riesgo medio</div>
+                <small>Algún atraso o variación atípica que conviene revisar.</small>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card light-card light-red"><div class="card-body">
+                <div class="light-range">67 – 100</div><div class="fw-semibold">Riesgo alto</div>
+                <small>Varias obligaciones vencidas o retenciones pendientes.</small>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card accent-card h-100">
+                <div class="card-body p-4">
+                    <h2><i class="bi bi-diagram-3"></i> Modelos a comparar</h2>
+                    <ul class="mb-0">
+                        <li>Regresión logística multiclase (línea base)</li>
+                        <li>Árbol de decisión</li>
+                        <li>Random Forest</li>
+                        <li>Red neuronal MLP (32 y 16 neuronas, ReLU, Dropout 0,20, Softmax)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card accent-card h-100">
+                <div class="card-body p-4">
+                    <h2><i class="bi bi-info-circle"></i> Alcance</h2>
+                    <p class="mb-0">
+                        Producto mínimo viable con fines académicos. No liquida ni presenta declaraciones,
+                        no se integra con la DIAN y no garantiza resultados sobre sanciones reales: es una
+                        estimación estadística que debe revisar un contador.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title mt-5">Equipo</h2>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">Sergio Steeven Moreno Forero</li>
+    </ul>
+</div>
+{% endblock %}

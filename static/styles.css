@@ -1,0 +1,125 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.app-navbar {
+    background-color: #1F3A5F;
+    z-index: 1040;
+}
+
+.navbar-brand {
+    letter-spacing: 0.5px;
+}
+
+.app-navbar .nav-link.active {
+    color: #fff;
+    border-bottom: 2px solid #F2B134;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Shared project pages --- */
+.project-page {
+    --accent: #1F3A5F;
+    --accent-soft: #E8EEF6;
+}
+.project-page h2 {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 1.35rem;
+}
+.project-page .section-title {
+    margin-bottom: 1rem;
+}
+.project-page .lead-text {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    max-width: 75ch;
+}
+.project-page .accent-card {
+    border-left: 3px solid var(--accent);
+}
+.project-page .accent-card .lead-text {
+    max-width: none;
+}
+
+.hero {
+    background: linear-gradient(135deg, #1F3A5F 0%, #2F5D8C 100%);
+    color: #fff;
+}
+.hero .hero-text {
+    max-width: 70ch;
+    opacity: 0.92;
+}
+
+.objectives li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+/* --- CRISP-ML(Q) steps --- */
+.step-card .step-icon {
+    font-size: 1.6rem;
+    color: var(--accent);
+}
+.step-card .step-name {
+    font-weight: 600;
+    margin: 0.4rem 0 0.25rem;
+}
+
+/* --- Traffic light --- */
+.light-card {
+    border-top: 5px solid;
+}
+.light-card .light-range {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.light-green { border-top-color: #2E9E5B; }
+.light-green .light-range { color: #2E9E5B; }
+.light-yellow { border-top-color: #E0A800; }
+.light-yellow .light-range { color: #B58800; }
+.light-red { border-top-color: #D64545; }
+.light-red .light-range { color: #D64545; }
+
+/* --- Datasets page --- */
+.dataset-badge {
+    background-color: var(--accent-soft);
+    color: var(--accent);
+}
+.btn-accent {
+    background-color: var(--accent);
+    color: #fff;
+}
+.btn-accent:hover {
+    background-color: #2F5D8C;
+    color: #fff;
+}
+.meta {
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    height: 100%;
+}
+.meta span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+.var-badge {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #dee2e6;
+    font-weight: 500;
+    margin: 0 0.3rem 0.3rem 0;
+}
+.use-box {
+    background-color: var(--accent-soft);
+    border-radius: 0.5rem;
+    padding: 0.8rem 1rem;
+}

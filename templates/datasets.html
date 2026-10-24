@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Datasets - AlertaFiscal{% endblock %}
+
+{% block content %}
+<div class="project-page">
+
+    <h1 class="fw-bold mb-3">Datasets</h1>
+    <p class="lead-text mb-5">
+        El proyecto se apoya en dos conjuntos de datos abiertos del Estado colombiano. Como ninguno
+        contiene información individual de IVA, retenciones o sanciones por empresa, se usan como
+        referencia para construir un conjunto <strong>semi-sintético</strong> de 5.000 a 20.000
+        observaciones empresa-período con una variable objetivo de riesgo (bajo, medio, alto).
+    </p>
+
+    {% for ds in datasets %}
+    <div class="card accent-card mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <span class="badge dataset-badge mb-2">Dataset {{ loop.index }}</span>
+                    <h2 class="mb-1">{{ ds.nombre }}</h2>
+                    <div class="text-muted">{{ ds.fuente }}</div>
+                </div>
+                <a href="{{ ds.url }}" target="_blank" rel="noopener" class="btn btn-accent">
+                    <i class="bi bi-box-arrow-up-right"></i> Ver dataset
+                </a>
+            </div>
+
+            <p>{{ ds.descripcion }}</p>
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-4"><div class="meta"><span>Formato</span>{{ ds.formato }}</div></div>
+                <div class="col-sm-4"><div class="meta"><span>Cobertura</span>{{ ds.cobertura }}</div></div>
+                <div class="col-sm-4"><div class="meta"><span>Licencia</span>{{ ds.licencia }}</div></div>
+            </div>
+
+            <div class="mb-3">
+                <div class="small fw-semibold text-muted mb-2">Variables principales</div>
+                {% for v in ds.variables %}<span class="badge var-badge">{{ v }}</span>{% endfor %}
+            </div>
+
+            <div class="use-box">
+                <i class="bi bi-arrow-return-right"></i> <strong>Uso en el proyecto:</strong> {{ ds.uso }}
+            </div>
+
+            <div class="small text-muted mt-3 text-break">
+                Enlace: <a href="{{ ds.url }}" target="_blank" rel="noopener">{{ ds.url }}</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
