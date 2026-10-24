@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Descripción del proyecto - AlertaFiscal{% endblock %}
+{% block title %}Project Description - AlertaFiscal{% endblock %}
 
 {% block content %}
 <div class="project-page">
 
     <div class="hero p-5 mb-5 rounded-3">
-        <span class="badge text-bg-light mb-3">Proyecto de Machine Learning</span>
+        <span class="badge text-bg-light mb-3">Machine Learning Project</span>
         <h1 class="display-6 fw-bold">AlertaFiscal</h1>
         <p class="fs-5 mb-0 hero-text">
-            Módulo de Machine Learning para la gestión preventiva del riesgo de cumplimiento
-            tributario en pymes colombianas. Estima un puntaje de riesgo de 0 a 100, lo muestra
-            como un semáforo y explica qué factores lo elevan.
+            A Machine Learning module for the preventive management of tax compliance risk
+            in Colombian SMEs. It estimates a risk score from 0 to 100, displays it as a
+            traffic light, and explains which factors raise it.
         </p>
     </div>
 
@@ -19,17 +19,17 @@
         <div class="col-lg-7">
             <div class="card accent-card h-100">
                 <div class="card-body p-4">
-                    <h2><i class="bi bi-exclamation-triangle"></i> Problema</h2>
+                    <h2><i class="bi bi-exclamation-triangle"></i> Problem</h2>
                     <p class="lead-text">
-                        Las pymes deben gestionar periódicamente su facturación, el IVA, las retenciones
-                        en la fuente y otras obligaciones tributarias. Cuando esta información se revisa
-                        solo de forma manual, los atrasos y las variaciones atípicas pasan inadvertidos
-                        hasta convertirse en intereses, sanciones o requerimientos. Además, no existe un
-                        conjunto de datos público y etiquetado sobre incumplimientos tributarios por empresa.
+                        SMEs must regularly manage their invoicing, VAT, withholding taxes,
+                        and other tax obligations. When this information is reviewed only
+                        manually, delays and atypical variations go unnoticed until they
+                        turn into interest, penalties, or tax authority requests. In addition,
+                        there is no public, labeled dataset on tax noncompliance by company.
                     </p>
                     <p class="lead-text mb-0 fst-italic">
-                        ¿Cómo puede un modelo de Machine Learning, integrado a una aplicación web,
-                        identificar patrones asociados con un mayor riesgo de incumplimiento tributario en pymes?
+                        How can a Machine Learning model, integrated into a web application,
+                        identify patterns associated with a higher risk of tax noncompliance in SMEs?
                     </p>
                 </div>
             </div>
@@ -37,35 +37,35 @@
         <div class="col-lg-5">
             <div class="card accent-card h-100">
                 <div class="card-body p-4">
-                    <h2><i class="bi bi-bullseye"></i> Objetivo general</h2>
+                    <h2><i class="bi bi-bullseye"></i> General Objective</h2>
                     <p class="lead-text mb-0">
-                        Desarrollar un módulo de Machine Learning, desplegado en una aplicación Flask,
-                        que clasifique el riesgo de cumplimiento tributario de una pyme en
-                        <strong>bajo</strong>, <strong>medio</strong> o <strong>alto</strong> y lo presente
-                        como puntaje, semáforo y alertas explicativas.
+                        Develop a Machine Learning module, deployed in a Flask application,
+                        that classifies an SME's tax compliance risk as
+                        <strong>low</strong>, <strong>medium</strong>, or <strong>high</strong> and presents it
+                        as a score, a traffic light, and explanatory alerts.
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <h2 class="section-title">Objetivos específicos</h2>
+    <h2 class="section-title">Specific Objectives</h2>
     <ol class="objectives mb-5">
-        <li>Analizar los datos abiertos de la Superintendencia de Sociedades y de la DIAN para obtener distribuciones financieras y tributarias de referencia.</li>
-        <li>Construir un conjunto de datos semi-sintético, documentado y reproducible, con una variable objetivo de tres clases.</li>
-        <li>Entrenar y comparar regresión logística, árbol de decisión, Random Forest y una red neuronal MLP.</li>
-        <li>Integrar el mejor modelo a la aplicación Flask y publicarla en Render.</li>
+        <li>Analyze the open data from the Superintendencia de Sociedades (Colombian Superintendency of Companies) and the DIAN (Colombian tax authority) to obtain reference financial and tax distributions.</li>
+        <li>Build a documented, reproducible, semi-synthetic dataset with a three-class target variable.</li>
+        <li>Train and compare logistic regression, a decision tree, Random Forest, and an MLP neural network.</li>
+        <li>Integrate the best model into the Flask application and publish it on Render.</li>
     </ol>
 
-    <h2 class="section-title">Metodología CRISP-ML(Q)</h2>
+    <h2 class="section-title">CRISP-ML(Q) Methodology</h2>
     <div class="row g-3 mb-5 text-center">
         {% for paso in [
-            ('bi-lightbulb', 'Entendimiento', 'Alcance del problema y revisión de los datos abiertos'),
-            ('bi-tools', 'Preparación', 'Limpieza, razones financieras y dataset semi-sintético'),
-            ('bi-cpu', 'Modelado', 'Cuatro clasificadores con validación cruzada estratificada'),
-            ('bi-clipboard-data', 'Evaluación', 'Recall de riesgo alto, F1 por clase y ROC-AUC'),
-            ('bi-cloud-arrow-up', 'Despliegue', 'Modelo serializado con Joblib en Flask y Render'),
-            ('bi-activity', 'Monitoreo', 'Registro de predicciones y plan de reentrenamiento'),
+            ('bi-lightbulb', 'Understanding', 'Problem scope and review of the open data'),
+            ('bi-tools', 'Preparation', 'Cleaning, financial ratios, and semi-synthetic dataset'),
+            ('bi-cpu', 'Modeling', 'Four classifiers with stratified cross-validation'),
+            ('bi-clipboard-data', 'Evaluation', 'High-risk recall, per-class F1, and ROC-AUC'),
+            ('bi-cloud-arrow-up', 'Deployment', 'Model serialized with Joblib in Flask and Render'),
+            ('bi-activity', 'Monitoring', 'Prediction logging and retraining plan'),
         ] %}
         <div class="col-6 col-md-4 col-xl-2">
             <div class="card step-card h-100">
@@ -79,28 +79,28 @@
         {% endfor %}
     </div>
 
-    <h2 class="section-title">Puntaje y semáforo de riesgo</h2>
+    <h2 class="section-title">Risk Score and Traffic Light</h2>
     <p class="lead-text">
-        Las probabilidades del clasificador se convierten en un puntaje:
-        <code>puntaje = (0,5 × P(medio) + 1,0 × P(alto)) × 100</code>
+        The classifier's probabilities are converted into a score:
+        <code>score = (0.5 × P(medium) + 1.0 × P(high)) × 100</code>
     </p>
     <div class="row g-3 mb-5">
         <div class="col-md-4">
             <div class="card light-card light-green"><div class="card-body">
-                <div class="light-range">0 – 33</div><div class="fw-semibold">Riesgo bajo</div>
-                <small>Obligaciones al día y comportamiento estable.</small>
+                <div class="light-range">0 – 33</div><div class="fw-semibold">Low risk</div>
+                <small>Obligations up to date and stable behavior.</small>
             </div></div>
         </div>
         <div class="col-md-4">
             <div class="card light-card light-yellow"><div class="card-body">
-                <div class="light-range">34 – 66</div><div class="fw-semibold">Riesgo medio</div>
-                <small>Algún atraso o variación atípica que conviene revisar.</small>
+                <div class="light-range">34 – 66</div><div class="fw-semibold">Medium risk</div>
+                <small>Some delay or atypical variation worth reviewing.</small>
             </div></div>
         </div>
         <div class="col-md-4">
             <div class="card light-card light-red"><div class="card-body">
-                <div class="light-range">67 – 100</div><div class="fw-semibold">Riesgo alto</div>
-                <small>Varias obligaciones vencidas o retenciones pendientes.</small>
+                <div class="light-range">67 – 100</div><div class="fw-semibold">High risk</div>
+                <small>Several overdue obligations or pending withholdings.</small>
             </div></div>
         </div>
     </div>
@@ -109,12 +109,12 @@
         <div class="col-md-6">
             <div class="card accent-card h-100">
                 <div class="card-body p-4">
-                    <h2><i class="bi bi-diagram-3"></i> Modelos a comparar</h2>
+                    <h2><i class="bi bi-diagram-3"></i> Models to Compare</h2>
                     <ul class="mb-0">
-                        <li>Regresión logística multiclase (línea base)</li>
-                        <li>Árbol de decisión</li>
+                        <li>Multiclass logistic regression (baseline)</li>
+                        <li>Decision tree</li>
                         <li>Random Forest</li>
-                        <li>Red neuronal MLP (32 y 16 neuronas, ReLU, Dropout 0,20, Softmax)</li>
+                        <li>MLP neural network (32 and 16 neurons, ReLU, Dropout 0.20, Softmax)</li>
                     </ul>
                 </div>
             </div>
@@ -122,18 +122,19 @@
         <div class="col-md-6">
             <div class="card accent-card h-100">
                 <div class="card-body p-4">
-                    <h2><i class="bi bi-info-circle"></i> Alcance</h2>
+                    <h2><i class="bi bi-info-circle"></i> Scope</h2>
                     <p class="mb-0">
-                        Producto mínimo viable con fines académicos. No liquida ni presenta declaraciones,
-                        no se integra con la DIAN y no garantiza resultados sobre sanciones reales: es una
-                        estimación estadística que debe revisar un contador.
+                        Minimum viable product for academic purposes. It does not calculate or file
+                        tax returns, is not integrated with the DIAN, and does not guarantee outcomes
+                        regarding real penalties: it is a statistical estimate that must be reviewed
+                        by an accountant.
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <h2 class="section-title mt-5">Equipo</h2>
+    <h2 class="section-title mt-5">Team</h2>
     <ul class="list-group list-group-flush">
         <li class="list-group-item">Samuel Castellanos Rivera</li>
         <li class="list-group-item">Sergio Steeven Moreno Forero</li>
