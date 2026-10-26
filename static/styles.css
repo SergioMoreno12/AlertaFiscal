@@ -55,6 +55,15 @@ body {
     opacity: 0.92;
 }
 
+.construction {
+    padding-top: 4.5rem !important;
+    padding-bottom: 4.5rem !important;
+}
+.construction .construction-icon {
+    font-size: 4rem;
+    color: #F2B134;
+}
+
 .objectives li {
     margin-bottom: 0.5rem;
     line-height: 1.6;

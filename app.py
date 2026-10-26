@@ -53,8 +53,14 @@ DATASETS = [
 ]
 
 
-# ---------- Project Description ----------
+# ---------- Home ----------
 @app.route("/")
+def home():
+    return render_template("index.html")
+
+
+# ---------- Project Details ----------
+@app.route("/descripcion")
 def descripcion():
     return render_template("descripcion.html")
 
