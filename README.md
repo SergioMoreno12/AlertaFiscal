@@ -1,9 +1,9 @@
 # AlertaFiscal
 
-Módulo de Machine Learning para la gestión preventiva del riesgo de cumplimiento tributario en pymes colombianas.
-Proyecto de la asignatura Machine Learning, Universidad de Cundinamarca.
+Machine Learning module for the preventive management of tax compliance risk in Colombian SMEs.
+Project for the Machine Learning course, Universidad de Cundinamarca.
 
-## Ejecutar localmente
+## Run locally
 
 ```bash
 python -m venv venv
@@ -12,9 +12,9 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Abre http://127.0.0.1:5000
+Open http://127.0.0.1:5000
 
-## Despliegue en Render
+## Deploy on Render
 
 - Build command: `pip install -r requirements.txt`
 - Start command: `gunicorn app:app`
