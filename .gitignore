@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 .claude/
 *.docx
+
+.env
+ml/artifacts/*
+!ml/artifacts/candidates/
+!ml/artifacts/metrics.json
