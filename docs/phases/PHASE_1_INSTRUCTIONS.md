@@ -43,22 +43,22 @@ Important: you also own Phase 6. Phase 1 is your first job; Phase 6 starts when 
 - **Data leakage:** using information in training that would not exist at prediction time. It makes results look better than they are.
 
 ## 5. Data contract (you document this, you do not invent it)
-This is the format Samuel's scripts will produce. It freezes on November 1, 2026. Your data dictionary must match it exactly.
+This is the format Samuel's scripts produce. It freezes on November 1, 2026. Your data dictionary must match it exactly.
 
-**File `ml/data/processed/monthly_series.csv`: 6 columns, one row per company and month, 36 rows per company.**
+**File `ml/data/processed/monthly_series.csv`: 6 columns, one row per company and month. 500 companies, 36 rows each, 18,000 rows in total.**
 
 | Column | Type | Unit | Rule |
 |---|---|---|---|
-| `company_id` | text | none | Unique code such as `C0001`, never reused |
+| `company_id` | text | none | `C0001` to `C0500`, never reused |
 | `sector` | text | none | Lowercase English sector name |
-| `month` | text | `YYYY-MM` | 36 consecutive months, same calendar for all companies |
-| `income` | number | millions of COP | Zero or positive, no empty values |
-| `expenses` | number | millions of COP | Zero or positive, no empty values |
-| `origin` | text | none | Only `derived` or `simulated` |
+| `month` | text | `YYYY-MM` | 36 consecutive months, `2023-01` to `2025-12`, same for all companies |
+| `income` | number | millions of COP | Zero or positive, no empty values, two decimals |
+| `expenses` | number | millions of COP | Zero or positive, no empty values, two decimals |
+| `origin` | text | none | `derived` or `simulated`, same value for all 36 rows of a company |
 
-`origin`: Samuel writes the exact rule in Phase 2. At minimum, `derived` marks values calibrated from real aggregates and `simulated` marks values created by the random generator. Ask Samuel and document the final rule.
+**`origin` rule:** `derived` means the company's profile (sector, margin, annual growth) was taken from a real Supersociedades record. `simulated` means the profile was sampled from the sector's distributions. In both cases the monthly values are generated, and all companies are rescaled to small-business size (Samuel documents the factor).
 
-**File `ml/data/processed/split_manifest.csv`: 4 columns.**
+**File `ml/data/processed/split_manifest.csv`: 4 columns, one row per company and month.**
 
 | Column | Type | Rule |
 |---|---|---|
@@ -67,7 +67,7 @@ This is the format Samuel's scripts will produce. It freezes on November 1, 2026
 | `month_index` | integer | 1 to 36 |
 | `split` | text | `train` (months 1-24), `validation` (25-30), `test` (31-36), or `holdout` |
 
-About 15% of companies are `holdout`: all their rows are marked `holdout`. The model never trains on them. They test generalization to companies the model has never seen.
+75 of the 500 companies (15%) are `holdout`: all 36 of their rows are marked `holdout`. They are chosen randomly inside each sector. The model never trains on them. They test generalization to companies the model has never seen.
 
 ## 6. What you must do, step by step
 
@@ -84,7 +84,7 @@ About 15% of companies are `holdout`: all their rows are marked `holdout`. The m
 1. Supersociedades: some values are quantized (rounded to coarse steps) below 0.05 billion COP, which makes small companies look identical.
 2. DIAN: VAT is filed every two months, so monthly collection shows a bimonthly pattern. Seasonality must be smoothed over 2-month windows.
 3. DIAN is national, never per company. It can only be used for the shape of seasonality, never as a company's VAT.
-4. Supersociedades covers only the largest companies, while the target users are small businesses. State this limit.
+4. Supersociedades covers only the largest companies, while the target users are small businesses. State this limit and the rescaling to small-business size.
 
 **Step 5. Data dictionary.** Document the 6 columns of `monthly_series.csv` and the 4 of `split_manifest.csv` using the template in section 8. Due November 1, 2026.
 
