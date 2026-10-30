@@ -2,64 +2,162 @@
 
 - **Owner:** Sergio Steeven Moreno Forero
 - **Branch:** `phase1/business-data`
-- **Deadline:** November 3, 2026
-- **Does it need code?** Almost none. This is a documentation and analysis phase. The only optional code is one exploration notebook.
+- **Hard deadline:** November 1, 2026 for the data dictionary (it freezes the data contract). November 3, 2026 for everything else.
+- **Does it need code?** No. This is a documentation and analysis phase. The only optional code is one exploration notebook.
+
+---
 
 ## 1. Why this phase exists
-Everyone else's work depends on what you write here. Before anyone programs, the team needs a written answer to: what problem does AlertaFiscal solve, for whom, with which data, and where does it stop? If this is vague, Phases 2 to 6 will each interpret the project differently.
+Everyone else's work depends on what you write here. Before anyone programs, the team needs a written answer to: what problem does AlertaFiscal solve, for whom, with which data, and where does it stop? If this is vague, each phase will interpret the project differently and the pieces will not fit together at the end.
 
-## 2. Context you must understand first
-- AlertaFiscal helps **small businesses plan their tax burden** by forecasting monthly income and expenses.
-- The professor asked for **fiscal planning**, not risk classification. Alerts are a consequence of the plan, never the goal of the model.
-- The product is a port of the AlertaFiscalBeta ERP (built for another course). This course adds the ML forecasting module.
-- The tool is **preventive support, not accounting or tax advice**.
-- Data sources: Supersociedades "10,000 largest companies" (CSV) and DIAN monthly tax collection (Excel).
+## 2. Where you fit in the project
 
-## 3. What you must do
-1. **Problem statement** (1 page): who the user is, what they need, what the model predicts, which decision the forecast supports.
-2. **Success metrics**: MAE, RMSE and MAPE for the forecast, plus one business criterion (for example, the maximum acceptable monthly error as a percentage of income). Explain in plain words what each metric means and why MAPE can mislead when values are close to zero.
-3. **Data inventory** for each source: what it contains, what it lacks, how it was obtained, and its limits.
-4. **Known data problems** and the proposed treatment:
-   - Supersociedades: values are quantized below 0.05 billion COP.
-   - DIAN: VAT is filed every two months, so seasonality must be smoothed over 2-month windows.
-   - Neither source has company-level monthly series, so the monthly dataset is semi-synthetic.
-5. **Data dictionary** for the new dataset, which has exactly 6 columns: `company_id`, `sector`, `month`, `income`, `expenses`, `origin`. For each one: type, unit, expected range, source, and whether it is derived or simulated.
-6. **Honesty section**: say clearly what is derived from real data and what is simulated. Simulated data must never be presented as real company data.
-7. **Risks and limits**: short history, semi-synthetic data, no individual company information, no tax advice.
-8. **Out-of-scope list**: what the project will NOT do (risk scoring, sanction prediction, official tax filing).
-9. Optional: `ml/notebooks/01_eda.ipynb` with income/expense distributions by sector and the DIAN seasonality curve. Keep it short and commented.
+| Phase | Owner | Needs from you | Date |
+|---|---|---|---|
+| 2 Data preparation | Samuel | Data dictionary and list of data problems | November 1, 2026 |
+| 3 Modeling | Jonathan | Success metrics and business criterion | November 3, 2026 |
+| 4 Evaluation | Manuel | Success metrics and business criterion | November 3, 2026 |
+| 6 Monitoring | You again | Your own Phase 1 documents as the base of the final report | November 11, 2026 onward |
 
-## 4. What you must NOT do
+Important: you also own Phase 6. Phase 1 is your first job; Phase 6 starts when the app is deployed.
+
+## 3. Context you must understand before writing anything
+- **Product:** AlertaFiscal helps small businesses plan their tax burden by forecasting their monthly income and expenses. A forecast of income and expenses lets the company estimate how much to reserve for taxes.
+- **What changed:** the first plan classified companies by tax risk. The professor asked for fiscal planning with data a company actually owns. Alerts are now a consequence of the plan, never the goal of the model. Never describe the model as a risk model.
+- **Product shape:** the app is a port of the AlertaFiscalBeta ERP (built for another course). This course contributes the ML forecasting module that plugs into it.
+- **Disclaimer:** AlertaFiscal is preventive support. It is not accounting or tax advice.
+- **Data sources:**
+  1. Supersociedades, "10,000 largest companies" (CSV from datos.gov.co): annual company figures (income, expenses, assets, sector, NIT).
+  2. DIAN, monthly tax collection statistics (Excel): national totals per tax and per month, not per company.
+- **The key limit:** neither source contains monthly figures per company. So the monthly dataset is semi-synthetic: built by a generator calibrated with real aggregates. This is normal, but it must be stated openly everywhere.
+
+## 4. Glossary (put a simplified version in your documents)
+- **Time series:** values of one quantity measured month after month, such as a company's income.
+- **Forecast / projection:** estimate of future months from past months.
+- **MAE (mean absolute error):** average size of the error, in the same unit as the data. "On average the forecast misses by X million COP."
+- **RMSE:** like MAE but it punishes large errors more. If RMSE is much bigger than MAE, there are a few very bad forecasts.
+- **MAPE:** average error as a percentage of the real value. It breaks (huge numbers) when real values are close to zero.
+- **Baseline:** a very simple forecast (for example "same as last year's same month"). Any real model must beat it, otherwise it adds no value.
+- **Semi-synthetic data:** data generated by a program, shaped by real statistics.
+- **Seasonality:** repeating pattern during the year (for example, higher income in December).
+- **Data leakage:** using information in training that would not exist at prediction time. It makes results look better than they are.
+
+## 5. Data contract (you document this, you do not invent it)
+This is the format Samuel's scripts will produce. It freezes on November 1, 2026. Your data dictionary must match it exactly.
+
+**File `ml/data/processed/monthly_series.csv`: 6 columns, one row per company and month, 36 rows per company.**
+
+| Column | Type | Unit | Rule |
+|---|---|---|---|
+| `company_id` | text | none | Unique code such as `C0001`, never reused |
+| `sector` | text | none | Lowercase English sector name |
+| `month` | text | `YYYY-MM` | 36 consecutive months, same calendar for all companies |
+| `income` | number | millions of COP | Zero or positive, no empty values |
+| `expenses` | number | millions of COP | Zero or positive, no empty values |
+| `origin` | text | none | Only `derived` or `simulated` |
+
+`origin`: Samuel writes the exact rule in Phase 2. At minimum, `derived` marks values calibrated from real aggregates and `simulated` marks values created by the random generator. Ask Samuel and document the final rule.
+
+**File `ml/data/processed/split_manifest.csv`: 4 columns.**
+
+| Column | Type | Rule |
+|---|---|---|
+| `company_id` | text | Same ids as the series |
+| `month` | text | `YYYY-MM` |
+| `month_index` | integer | 1 to 36 |
+| `split` | text | `train` (months 1-24), `validation` (25-30), `test` (31-36), or `holdout` |
+
+About 15% of companies are `holdout`: all their rows are marked `holdout`. The model never trains on them. They test generalization to companies the model has never seen.
+
+## 6. What you must do, step by step
+
+**Step 1. Problem statement (1 page).** Answer in this order: who is the user (small business owner or their accountant), what is their problem, what does the model predict, over which horizon (6 months), which decision it supports (how much to reserve for taxes), and what the system will not do.
+
+**Step 2. Success metrics.**
+- Technical: MAE and RMSE as main metrics, MAPE as secondary with its caveat.
+- Reference: the chosen model must beat the baseline on the validation months.
+- Business criterion: propose one measurable number, for example "the average monthly error must stay below X% of the company's average monthly income". Propose a value and explain why. Agree it with Jonathan and Manuel, because Manuel will use it as an acceptance criterion.
+
+**Step 3. Data inventory.** For each source, write: name, publisher, format, what it contains, what it lacks, time range, and its limits. Ask Samuel for the raw files (he has them). Do not commit raw files to the repository unless the team agrees.
+
+**Step 4. Known data problems.** For each one write the problem, why it matters and the proposed treatment:
+1. Supersociedades: some values are quantized (rounded to coarse steps) below 0.05 billion COP, which makes small companies look identical.
+2. DIAN: VAT is filed every two months, so monthly collection shows a bimonthly pattern. Seasonality must be smoothed over 2-month windows.
+3. DIAN is national, never per company. It can only be used for the shape of seasonality, never as a company's VAT.
+4. Supersociedades covers only the largest companies, while the target users are small businesses. State this limit.
+
+**Step 5. Data dictionary.** Document the 6 columns of `monthly_series.csv` and the 4 of `split_manifest.csv` using the template in section 8. Due November 1, 2026.
+
+**Step 6. Honesty section.** One page: what is real (annual aggregates, sector margins, seasonality shape), what is simulated (monthly values per company), and how the team will present it ("semi-synthetic data calibrated with public statistics").
+
+**Step 7. Risks and limits.** At least: short history (36 months), semi-synthetic data, no individual company data, large-company data used to represent small companies, no tax advice.
+
+**Step 8. Out-of-scope list.** What the project will not do: risk scoring, sanction prediction, filing taxes, replacing an accountant.
+
+**Step 9 (optional). Notebook** `ml/notebooks/01_eda.ipynb`: income and expense distribution by sector, and the DIAN seasonality curve. Short and commented.
+
+## 7. What you must NOT do
 - Do not train models or choose hyperparameters (Phase 3).
-- Do not edit anything in `ml/src/` (owned by Samuel and Jonathan).
-- Do not present a risk score or "risk classification" as the model objective.
+- Do not edit anything in `ml/src/`.
+- Do not describe the model as a risk model or risk classifier.
 - Do not describe simulated data as real.
+- Do not change the data contract. If you think it is wrong, tell Samuel before November 1, 2026.
 - Do not commit directly to `main` or `develop`.
-- Do not write anything in Spanish. All files and commits are in English.
+- Do not write anything in Spanish. Files, commits and branch names are in English.
 
-## 5. Deliverables
-- `docs/01_business_and_data.md`
-- `docs/02_data_dictionary.md`
-- Optional: `ml/notebooks/01_eda.ipynb`
-- Receivers: Samuel (Phase 2) and Jonathan (Phase 3).
+## 8. Deliverables and templates
 
-## 6. How to work in the branch
-1. `git checkout phase1/business-data`
-2. `git pull origin phase1/business-data`
-3. Create the files and commit in small steps, in English (example: `docs: add data dictionary`).
-4. `git push origin phase1/business-data`
-5. When finished, open a Pull Request into `develop` and ask a teammate to review it.
+**`docs/01_business_and_data.md`** must have these sections, in this order:
+1. Problem statement
+2. Users and use case
+3. Objective of the model
+4. Success metrics (technical and business)
+5. Data inventory (one table: source, content, range, limits)
+6. Known data problems and treatment (one table: problem, impact, treatment)
+7. Real vs simulated: honesty statement
+8. Risks and limits
+9. Out of scope
 
-## 7. Definition of done
-- [ ] The model objective and the metrics are written and consistent.
-- [ ] All 6 columns are documented with type, unit and source.
-- [ ] Each known data problem has a proposed treatment.
-- [ ] The derived vs simulated distinction is explicit.
-- [ ] A teammate read the documents and understood them without asking you questions.
+**`docs/02_data_dictionary.md`**, one table per file with these columns:
+
+| Column | Type | Unit | Allowed values or range | Source | Derived or simulated | Notes |
+|---|---|---|---|---|---|---|
+
+Optional: `ml/notebooks/01_eda.ipynb`.
+
+## 9. Work plan
+
+| Date | Task |
+|---|---|
+| October 30-31, 2026 | Steps 1-4 (problem, metrics, inventory, data problems) |
+| November 1, 2026 | Step 5 done and shared with Samuel: data contract frozen |
+| November 2, 2026 | Steps 6-8, ask a teammate to review |
+| November 3, 2026 | Pull Request into `develop` |
+
+## 10. Git workflow
+```
+git checkout phase1/business-data
+git pull origin phase1/business-data
+git add docs/01_business_and_data.md
+git commit -m "docs: add business and data understanding"
+git push origin phase1/business-data
+```
+Use one small commit per document (example: `docs: add data dictionary`). Open a Pull Request into `develop` when done.
+
+## 11. Definition of done
+- [ ] Problem statement, metrics and business criterion are written and agreed with Jonathan and Manuel.
+- [ ] Data dictionary matches the data contract column by column.
+- [ ] Each of the 4 data problems has a proposed treatment.
+- [ ] The real vs simulated statement is explicit.
+- [ ] A teammate read everything and understood it without asking you anything.
 - [ ] Pull Request merged into `develop`.
 
-## 8. What you must be able to explain at the final presentation
+## 12. What you must be able to explain at the final presentation
 - Why the project moved from risk classification to fiscal planning.
 - Which datasets were used, where they come from and their limits.
-- Why the dataset is semi-synthetic and how the team avoids misleading anyone with it.
-- What each metric means and when a forecast is good enough.
+- Why the data is semi-synthetic and how the team avoids misleading anyone.
+- What MAE, RMSE and MAPE mean and when a forecast is good enough.
+- Likely professor questions: "Why not use real company data?", "Is simulated data valid for a model?", "Who is the user?".
+
+## 13. If you get stuck
+Ask Samuel about files and data format, Jonathan or Manuel about metrics. Do not guess the data contract: ask.
