@@ -89,7 +89,7 @@ Manuel (Phase 4) uses this criterion as the acceptance test. If the team agrees 
 
 ## 5. Data inventory
 
-Both datasets were downloaded on **October 28, 2026**. Raw files are not committed to the repository; Samuel keeps them and the processed files are produced by the Phase 2 scripts.
+Both datasets were downloaded on **October 30, 2026**. Raw files are not committed to the repository; Samuel keeps them and the processed files are produced by the Phase 2 scripts.
 
 | | Supersociedades — 10,000 largest companies | DIAN — Monthly tax collection by type of tax |
 |---|---|---|

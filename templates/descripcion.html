@@ -9,9 +9,9 @@
         <span class="badge text-bg-light mb-3">Machine Learning Project</span>
         <h1 class="display-6 fw-bold">AlertaFiscal</h1>
         <p class="fs-5 mb-0 hero-text">
-            A Machine Learning module for the preventive management of tax compliance risk
-            in Colombian SMEs. It estimates a risk score from 0 to 100, displays it as a
-            traffic light, and explains which factors raise it.
+            A Machine Learning module that helps small businesses plan their tax burden. It forecasts
+            a company's monthly income and expenses for the next 6 months, so the business can
+            estimate how much cash to reserve for taxes before the obligations are due.
         </p>
     </div>
 
@@ -21,15 +21,16 @@
                 <div class="card-body p-4">
                     <h2><i class="bi bi-exclamation-triangle"></i> Problem</h2>
                     <p class="lead-text">
-                        SMEs must regularly manage their invoicing, VAT, withholding taxes,
-                        and other tax obligations. When this information is reviewed only
-                        manually, delays and atypical variations go unnoticed until they
-                        turn into interest, penalties, or tax authority requests. In addition,
-                        there is no public, labeled dataset on tax noncompliance by company.
+                        Small businesses pay VAT, income tax, and withholdings out of the same cash they
+                        use to operate. They usually find out how much they owe when the filing date
+                        arrives, not months before. When income drops or expenses rise unexpectedly,
+                        the money for taxes has not been set aside, and the business must borrow,
+                        pay late, or pay interest.
                     </p>
                     <p class="lead-text mb-0 fst-italic">
-                        How can a Machine Learning model, integrated into a web application,
-                        identify patterns associated with a higher risk of tax noncompliance in SMEs?
+                        How can a Machine Learning model, integrated into a web application, forecast
+                        a small business's monthly income and expenses accurately enough to plan its
+                        tax reserve?
                     </p>
                 </div>
             </div>
@@ -39,10 +40,10 @@
                 <div class="card-body p-4">
                     <h2><i class="bi bi-bullseye"></i> General Objective</h2>
                     <p class="lead-text mb-0">
-                        Develop a Machine Learning module, deployed in a Flask application,
-                        that classifies an SME's tax compliance risk as
-                        <strong>low</strong>, <strong>medium</strong>, or <strong>high</strong> and presents it
-                        as a score, a traffic light, and explanatory alerts.
+                        Develop a time-series forecasting module, deployed in a Flask application,
+                        that estimates a company's monthly <strong>income</strong> and
+                        <strong>expenses</strong> for a <strong>6-month horizon</strong> and turns
+                        that forecast into a tax-reserve plan with explanatory alerts.
                     </p>
                 </div>
             </div>
@@ -51,21 +52,41 @@
 
     <h2 class="section-title">Specific Objectives</h2>
     <ol class="objectives mb-5">
-        <li>Analyze the open data from the Superintendencia de Sociedades (Colombian Superintendency of Companies) and the DIAN (Colombian tax authority) to obtain reference financial and tax distributions.</li>
-        <li>Build a documented, reproducible, semi-synthetic dataset with a three-class target variable.</li>
-        <li>Train and compare logistic regression, a decision tree, Random Forest, and an MLP neural network.</li>
-        <li>Integrate the best model into the Flask application and publish it on Render.</li>
+        <li>Analyze the open data from the Superintendencia de Sociedades (Colombian Superintendency of Companies) and the DIAN (Colombian tax authority) to obtain real sector margins, growth rates, and seasonality.</li>
+        <li>Build a documented, reproducible, semi-synthetic dataset of 500 small businesses with 36 months of income and expenses each.</li>
+        <li>Train forecasting models and compare them against a seasonal baseline using MAE and RMSE.</li>
+        <li>Integrate the best model into the Flask application, publish it on Render, and log every forecast for monitoring.</li>
     </ol>
+
+    <h2 class="section-title">How It Works</h2>
+    <div class="row g-3 mb-5">
+        {% for paso in [
+            ('bi-journal-text', '1. Monthly records', 'The business records its monthly income and expenses in the AlertaFiscal ERP.'),
+            ('bi-graph-up-arrow', '2. 6-month forecast', 'The model projects income and expenses for each of the next 6 months.'),
+            ('bi-piggy-bank', '3. Tax-reserve plan', 'The forecast estimates how much cash to set aside each month for upcoming taxes.'),
+            ('bi-bell', '4. Plan-based alerts', 'Simple documented rules flag tight months, for example projected expenses above income.'),
+        ] %}
+        <div class="col-sm-6 col-lg-3">
+            <div class="card step-card h-100">
+                <div class="card-body">
+                    <i class="bi {{ paso[0] }} step-icon"></i>
+                    <div class="step-name">{{ paso[1] }}</div>
+                    <small class="text-muted">{{ paso[2] }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 
     <h2 class="section-title">CRISP-ML(Q) Methodology</h2>
     <div class="row g-3 mb-5 text-center">
         {% for paso in [
-            ('bi-lightbulb', 'Understanding', 'Problem scope and review of the open data'),
-            ('bi-tools', 'Preparation', 'Cleaning, financial ratios, and semi-synthetic dataset'),
-            ('bi-cpu', 'Modeling', 'Four classifiers with stratified cross-validation'),
-            ('bi-clipboard-data', 'Evaluation', 'High-risk recall, per-class F1, and ROC-AUC'),
-            ('bi-cloud-arrow-up', 'Deployment', 'Model serialized with Joblib in Flask and Render'),
-            ('bi-activity', 'Monitoring', 'Prediction logging and retraining plan'),
+            ('bi-lightbulb', 'Understanding', 'Problem, users, success metrics, and review of the open data'),
+            ('bi-tools', 'Preparation', 'Semi-synthetic monthly series and a time-based train, validation, and test split'),
+            ('bi-cpu', 'Modeling', 'Forecasting models compared against a seasonal baseline'),
+            ('bi-clipboard-data', 'Evaluation', 'MAE, RMSE, and MAPE on test months and unseen companies'),
+            ('bi-cloud-arrow-up', 'Deployment', 'Model served from Flask and published on Render'),
+            ('bi-activity', 'Monitoring', 'Forecast logging and retraining criteria'),
         ] %}
         <div class="col-6 col-md-4 col-xl-2">
             <div class="card step-card h-100">
@@ -79,43 +100,45 @@
         {% endfor %}
     </div>
 
-    <h2 class="section-title">Risk Score and Traffic Light</h2>
-    <p class="lead-text">
-        The classifier's probabilities are converted into a score:
-        <code>score = (0.5 × P(medium) + 1.0 × P(high)) × 100</code>
-    </p>
+    <h2 class="section-title">How We Measure Success</h2>
     <div class="row g-3 mb-5">
         <div class="col-md-4">
-            <div class="card light-card light-green"><div class="card-body">
-                <div class="light-range">0 – 33</div><div class="fw-semibold">Low risk</div>
-                <small>Obligations up to date and stable behavior.</small>
+            <div class="card h-100"><div class="card-body">
+                <div class="fw-semibold">MAE (main)</div>
+                <small>Average size of the error in millions of COP: "on average, the forecast misses by X million per month".</small>
             </div></div>
         </div>
         <div class="col-md-4">
-            <div class="card light-card light-yellow"><div class="card-body">
-                <div class="light-range">34 – 66</div><div class="fw-semibold">Medium risk</div>
-                <small>Some delay or atypical variation worth reviewing.</small>
+            <div class="card h-100"><div class="card-body">
+                <div class="fw-semibold">RMSE (main)</div>
+                <small>Like MAE, but large misses weigh more. It reveals a few very bad forecasts.</small>
             </div></div>
         </div>
         <div class="col-md-4">
-            <div class="card light-card light-red"><div class="card-body">
-                <div class="light-range">67 – 100</div><div class="fw-semibold">High risk</div>
-                <small>Several overdue obligations or pending withholdings.</small>
+            <div class="card h-100"><div class="card-body">
+                <div class="fw-semibold">MAPE (secondary)</div>
+                <small>Error as a percentage of the real value. Unreliable when real values are close to zero.</small>
             </div></div>
         </div>
     </div>
+    <p class="lead-text mb-5">
+        <strong>Baseline:</strong> the model must beat a <em>seasonal naive</em> forecast ("same value
+        as the same month last year"). <strong>Business criterion (proposed):</strong> the average
+        monthly error must stay below <strong>15&nbsp;%</strong> of the company's average monthly income.
+    </p>
 
     <div class="row g-4">
         <div class="col-md-6">
             <div class="card accent-card h-100">
                 <div class="card-body p-4">
-                    <h2><i class="bi bi-diagram-3"></i> Models to Compare</h2>
-                    <ul class="mb-0">
-                        <li>Multiclass logistic regression (baseline)</li>
-                        <li>Decision tree</li>
-                        <li>Random Forest</li>
-                        <li>MLP neural network (32 and 16 neurons, ReLU, Dropout 0.20, Softmax)</li>
-                    </ul>
+                    <h2><i class="bi bi-database-check"></i> Real vs Simulated Data</h2>
+                    <p class="mb-0">
+                        No public dataset contains monthly figures per company, so the training data is
+                        <strong>semi-synthetic</strong>: annual company aggregates, sector margins, and the
+                        shape of seasonality are real; every monthly value per company is generated by a
+                        program calibrated with those public statistics. Results show that the method works
+                        technically; they do not prove accuracy for a real business.
+                    </p>
                 </div>
             </div>
         </div>
@@ -124,10 +147,10 @@
                 <div class="card-body p-4">
                     <h2><i class="bi bi-info-circle"></i> Scope</h2>
                     <p class="mb-0">
-                        Minimum viable product for academic purposes. It does not calculate or file
-                        tax returns, is not integrated with the DIAN, and does not guarantee outcomes
-                        regarding real penalties: it is a statistical estimate that must be reviewed
-                        by an accountant.
+                        Preventive support for academic purposes, not accounting or tax advice. It does not
+                        classify companies by tax risk, predict penalties, compute or file tax returns, or
+                        connect to the DIAN, and it does not replace an accountant. Every forecast is an
+                        estimate that must be reviewed by the owner or their accountant.
                     </p>
                 </div>
             </div>
