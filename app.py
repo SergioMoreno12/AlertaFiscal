@@ -15,7 +15,7 @@ DATASETS = [
         "formato": "CSV / API (Socrata)",
         "licencia": "CC BY-SA 4.0",
         "cobertura": "≈ 50,000 records · annual cutoffs from 2021 to 2025",
-        "descarga": "October 28, 2026",
+        "descarga": "October 30, 2026",
         "descripcion": (
             "Financial information on the 10,000 highest-revenue companies in the country for each cutoff year. "
             "Monetary values are reported in trillions of Colombian pesos (Spanish \"billones\")."
@@ -38,7 +38,7 @@ DATASETS = [
         "formato": "Excel (.xlsx inside a .zip)",
         "licencia": "Public information (Law 1712 of 2014)",
         "cobertura": "Monthly series · January 2000 to August 2026",
-        "descarga": "October 28, 2026",
+        "descarga": "October 30, 2026",
         "descripcion": (
             "Gross monthly tax collection administered by the DIAN, in millions of current pesos, broken down by "
             "type of tax. The annual and regional-office series are published on the same page."
