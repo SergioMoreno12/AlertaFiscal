@@ -15,9 +15,10 @@ DATASETS = [
         "formato": "CSV / API (Socrata)",
         "licencia": "CC BY-SA 4.0",
         "cobertura": "≈ 50,000 records · annual cutoffs from 2021 to 2025",
+        "descarga": "October 28, 2026",
         "descripcion": (
             "Financial information on the 10,000 highest-revenue companies in the country for each cutoff year. "
-            "Monetary values are reported in trillions of Colombian pesos."
+            "Monetary values are reported in trillions of Colombian pesos (Spanish \"billones\")."
         ),
         "variables": [
             "NIT (Tax ID)", "Company name", "Supervisor", "Region", "Department", "City",
@@ -25,8 +26,9 @@ DATASETS = [
             "Total assets", "Total liabilities", "Total equity", "Cutoff year",
         ],
         "uso": (
-            "Calculate financial ratios (net margin, debt ratio, profitability) and their distributions by "
-            "macrosector, in order to generate simulated companies with realistic financial profiles."
+            "Build realistic company profiles: sector, net margin and annual growth, taken from real records "
+            "or sampled from each sector's distributions, then rescaled to small-business size. It does not "
+            "provide monthly figures, so the monthly income and expenses are simulated."
         ),
     },
     {
@@ -36,6 +38,7 @@ DATASETS = [
         "formato": "Excel (.xlsx inside a .zip)",
         "licencia": "Public information (Law 1712 of 2014)",
         "cobertura": "Monthly series · January 2000 to August 2026",
+        "descarga": "October 28, 2026",
         "descripcion": (
             "Gross monthly tax collection administered by the DIAN, in millions of current pesos, broken down by "
             "type of tax. The annual and regional-office series are published on the same page."
@@ -46,8 +49,9 @@ DATASETS = [
             "Unified RST tax (Simple regime)", "Customs duty", "Imported VAT", "Total",
         ],
         "uso": (
-            "Calibrate the VAT-to-withholding ratio and the monthly seasonality of the tax obligations "
-            "simulated for each SME."
+            "Give the shape of the yearly seasonality (which months are higher or lower), smoothed over "
+            "2-month windows because VAT is filed bimonthly. Its values are national totals and are never "
+            "used as any company's figures."
         ),
     },
 ]
