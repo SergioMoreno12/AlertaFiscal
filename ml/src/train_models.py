@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import platform
 import time
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,8 +11,12 @@ import joblib
 import numpy as np
 import pandas as pd
 import sklearn
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LinearRegression
+from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from features import (
     FEATURE_COLUMNS,
@@ -35,6 +40,17 @@ BLOCKED_SPLITS = ("test", "holdout")
 
 CANDIDATES = {
     "linear_regression": [{}],
+    "random_forest": [
+        {"n_estimators": n, "max_depth": depth, "min_samples_leaf": leaf}
+        for n in (100, 300)
+        for depth in (4, 8, 12)
+        for leaf in (1, 10)
+    ],
+    "mlp": [
+        {"hidden_layer_sizes": hidden, "alpha": alpha}
+        for hidden in ((16,), (32,), (32, 16))
+        for alpha in (0.0001, 0.001, 0.01, 0.1)
+    ],
 }
 
 
@@ -142,13 +158,36 @@ def actual_values(data, split, target, start, end):
 def build_estimator(kind, params):
     if kind == "linear_regression":
         return Pipeline([("model", LinearRegression(**params))])
+    if kind == "random_forest":
+        return Pipeline(
+            [("model", RandomForestRegressor(random_state=SEED, n_jobs=-1, **params))]
+        )
+    if kind == "mlp":
+        return Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "model",
+                    MLPRegressor(
+                        hidden_layer_sizes=params["hidden_layer_sizes"],
+                        alpha=params["alpha"],
+                        early_stopping=True,
+                        max_iter=3000,
+                        n_iter_no_change=20,
+                        random_state=SEED,
+                    ),
+                ),
+            ]
+        )
     raise ValueError(f"unknown model: {kind}")
 
 
 def fit_model(kind, params, target, data):
     rows = build_training_frame(data[data["split"] == "train"], target)
     model = build_estimator(kind, params)
-    model.fit(rows[FEATURE_COLUMNS], rows[TARGET])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ConvergenceWarning)
+        model.fit(rows[FEATURE_COLUMNS], rows[TARGET])
     return model
 
 
