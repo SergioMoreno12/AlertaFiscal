@@ -75,7 +75,8 @@ def load_data():
     if allowed.empty:
         raise ValueError("split_manifest.csv has no train or validation rows")
 
-    keys = allowed[["company_id", "month", "month_index"]]
+    
+    keys = allowed[["company_id", "month", "month_index", "split"]]
     parts = []
     for chunk in pd.read_csv(
         series_path,
