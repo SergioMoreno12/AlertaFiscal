@@ -11,6 +11,8 @@
 
 **The model is not yet exportable.** Five points must be resolved by Jonathan (and two by Samuel) before November 9, 2026, or the official run cannot start (the parity gate of the protocol would stop it).
 
+**Update, November 3, 2026 (commit `9406af5` of `phase3/modeling`):** the artifact is exported and passes parity, and findings 1, 2, 4 and 6 are resolved (see the exportability table). Finding 3 is still open for Samuel: Jonathan's own parity checker compares in double precision and passes on its 50 cases, but the backend must still cast to float32, because the difference appears only in a few company-months of the full validation set.
+
 ## Leakage questions
 
 | Question | Answer | Evidence (file and line) |
@@ -26,8 +28,9 @@
 | Question | Answer | Evidence |
 |---|---|---|
 | Is the final model one of the three exportable types? | **Yes.** The selected model is a random forest, which the backend supports. The MLP and the linear regression were not selected. | `docs/03_model_selection.md`, section 4; `metrics.json` → `selection.recommended_model = "random_forest"` |
-| Does `model_global.json` exist? | **No, pending.** The models are saved as `.joblib` files, which the backend cannot load (no scikit-learn in the backend). | `ml/artifacts/candidates/*.joblib`; `forecast.py:34-38` |
-| Does `parity_cases.json` pass (relative difference ≤ 1e-6)? | **Pending: the file does not exist yet.** The reproduction above shows the pure-Python predictor can reach 2e-15 once the points below are applied. | Reproduction described above |
+| Does `model_global.json` exist? | **Yes** (re-checked November 3, 2026, commit `9406af5`). `model_version` `global-20261103-84df89b5`, 1.48 MB, SHA-256 `18e6872588ec387e853d11665f354c37312a8188893c93f204a6bbc9aeb0663e`. Features are `t`, `month_sin`, `month_cos`, `lag1`, `lag2`, `lag3`, normalization `mean_last_n` with `n = 3`; both targets are random forests of 100 trees. | `ml/artifacts/model_global.json` on `phase3/modeling` |
+| Does `parity_cases.json` pass (relative difference ≤ 1e-6)? | **Yes.** 50 cases, histories from months 1–24 of `train` companies; `evaluate.py` gives a maximum relative difference of 0.0. In validation mode it reproduces Phase 3 exactly: income MAE 17.223, expenses 17.368. | `ml/artifacts/parity_cases.json`; `python ml/src/evaluate.py` |
+| Does the artifact use the key names of Appendix A of the protocol? | **No, and the reader was adapted** (allowed by Appendix A, before the official run). The export stores each target as `selected_model` plus `models[selected_model].params` (linear coefficients under `coefficients`), and each parity case as `history: {income, expenses}`. `evaluate.py` reads both layouts; the forecasting logic did not change. | `evaluate.py`, `Predictor.__init__` and `check_parity` |
 
 ## Findings to resolve before the official run
 

@@ -121,6 +121,11 @@ class Predictor:
             block = artifact.get("targets", {}).get(target)
             if block is None:
                 raise ValueError(f"artifact has no model for target '{target}'")
+            if "selected_model" in block:  # Phase 3 export: models[selected_model]["params"]
+                kind = block["selected_model"]
+                block = dict(block.get("models", {}).get(kind, {}).get("params") or {}, model_type=kind)
+                if "coefficients" in block:
+                    block["coef"] = block["coefficients"]
             kind = block.get("model_type", artifact.get("model_type"))
             if kind not in SUPPORTED_MODELS:
                 raise ValueError(f"{target}: model_type {kind!r} is not supported by the backend")
@@ -197,7 +202,10 @@ def check_parity(predictor, parity_path):
     cases = cases.get("cases", cases) if isinstance(cases, dict) else cases
     worst = 0.0
     for case in cases:
-        histories = {"income": case["income_history"], "expenses": case["expense_history"]}
+        if "history" in case:  # Phase 3 export
+            histories = case["history"]
+        else:
+            histories = {"income": case["income_history"], "expenses": case["expense_history"]}
         for target in TARGETS:
             expected = case["expected"][target]
             got = predictor.forecast(histories[target], case["last_month"], target, len(expected))
