@@ -16,6 +16,7 @@
 | 4. Tests (38 passed, 10 skipped), frontend build, Pull Request | Blocked by Step 2 |
 | 5-16 | Not started |
 | Phase 2 correction (16.2 % → validation reference) | Done, merged in Pull Request #3 |
+| **Raw data committed by mistake** | **To fix.** Commit `6cd63fc` on `phase5/flask-api` added `ml/data/raw/dian_monthly_collection_2000_2026.xlsx` and `ml/data/raw/supersociedades_10000_companies.csv`. Section 7 forbids committing `ml/data/raw` (the DIAN license is uncertain). Remove them from Git, keeping the local copies: `git rm --cached ml/data/raw/dian_monthly_collection_2000_2026.xlsx ml/data/raw/supersociedades_10000_companies.csv`, commit `chore: remove raw data from git`, push. They stay in the branch history, so this branch must never be merged as it is into `develop` without that removal |
 
 **Most urgent:** Step 2 and Step 4 (planned for November 3-4). Everything else depends on them, and the placeholder artifact of Step 10 is due on **November 6, 2026** (Sergio needs it for Phase 6).
 
