@@ -3,7 +3,7 @@
 - **Project:** AlertaFiscal, Machine Learning course, Universidad de Cundinamarca
 - **Owner:** Sergio Steeven Moreno Forero
 - **Branch:** `phase1/business-data`
-- **Status:** draft for team review (metrics and business criterion to be agreed with Jonathan and Manuel)
+- **Status:** ready for team review; the success criterion waits for the approval record in section 4.4
 
 > AlertaFiscal is preventive support for tax planning. It is not accounting or tax advice. Every number it shows is an estimate that the business owner or their accountant must review.
 
@@ -42,7 +42,7 @@
 Build a time-series forecasting model that, for each company, estimates monthly `income` and `expenses` for a **6-month horizon** from its previous months, and that is **more accurate than a simple baseline** on months and companies it has not seen during training.
 
 - **Type of problem:** supervised regression over time series (forecasting), not classification.
-- **Input:** the company's past monthly `income` and `expenses`, its `sector` and the month of the year.
+- **Input:** the company's own past monthly `income` and `expenses`, and the month of the year. `sector` is not used as a feature because the ERP does not guarantee it for every company.
 - **Output:** 6 monthly values of `income` and 6 of `expenses`, in millions of COP.
 - **Baseline to beat:** *seasonal naive*, that is, "the same value as the same month of last year". A second reference is the average of the last 3 months.
 
@@ -68,13 +68,16 @@ The chosen model must have a **lower MAE than the seasonal naive baseline** on t
 
 > **The average monthly forecast error (MAE) must stay below 15 % of the company's average monthly income**, measured on the test months and on the holdout companies.
 
-Formally, for each company *c*:
+Formally, for each company *c* and each target (`income` and `expenses`):
 
 ```
-relative_error(c) = MAE(c) / mean_monthly_income(c)
+normalized_MAE(c) = MAE(c) / mean_monthly_income(c)
 ```
 
-The criterion is met when the **median** `relative_error` across companies is **≤ 15 %**, and the 90th percentile is ≤ 30 %.
+- `MAE(c)` is the mean absolute error over the 6 forecast months.
+- `mean_monthly_income(c)` is the mean of the company's **income** over the months given to the model as history: months 1–24 when forecasting validation, months 1–30 when forecasting test and holdout. Only past months are used, so the denominator never contains the months being scored. Expenses are also divided by income, so both errors are read as "share of what the company sells".
+
+The criterion is met when the **median** `normalized_MAE` across companies is **≤ 15 %** and the **90th percentile is ≤ 30 %**, for both targets and in both scenarios (temporal test and holdout). It is applied together with section 4.2: the model must pass both.
 
 **Why 15 %?**
 
@@ -83,9 +86,20 @@ The criterion is met when the **median** `relative_error` across companies is **
 - It is normalized by income, so it is comparable between a company that sells COP 20 million per month and one that sells COP 300 million.
 - Using the median (not the mean) prevents a few very small companies from dominating the result. The 90th percentile limit ensures the model is not useless for a large group of companies.
 
-**Reference point from the generated dataset:** on the test months, the seasonal naive baseline already has a median relative error of **16.2 %** (90th percentile 34.6 %). Beating the baseline by 10 % (section 4.2) brings the median to about 14.6 %, so the 15 % criterion is demanding but reachable.
+**Reference point (validation months only):** on months 25–30 of the 425 regular companies, the seasonal naive baseline has a median `normalized_MAE` of **12.5 %** for income (90th percentile 28.0 %) and **12.3 %** for expenses (90th percentile 27.1 %). The test months are not used to compute any reference: they are opened once, by Manuel, in the official evaluation.
 
-Manuel (Phase 4) uses this criterion as the acceptance test. If the team agrees on a different value, this section is updated before November 3, 2026.
+**What each condition does.** The baseline already stays under 15 %, so the 15 % limit is a **business ceiling**, not the hard part: it guarantees that the error is small enough to plan a reserve with. The demanding condition is section 4.2 (at least 10 % better than the baseline), which on validation means a median of about 11 % or less. A model that passes 4.2 but breaks the 15 % ceiling on holdout companies is not accepted, because it would not generalize to new businesses.
+
+### 4.4 Approval record
+
+Manuel (Phase 4) copies this criterion into his evaluation protocol, with this record, before running anything on test data.
+
+| Item | Value |
+|---|---|
+| Criterion approved | Sections 4.2 and 4.3 as written above |
+| Approved by | *pending* (Sergio Steeven Moreno Forero, Jonathan Alejandro Yacuma Rivera, Manuel Eduardo Alarcon Aza, Samuel Castellanos Rivera) |
+| Date | *pending* |
+| Changes after approval | Only before Manuel tags the protocol; any later change voids the evaluation |
 
 ## 5. Data inventory
 

@@ -90,10 +90,12 @@ Phase 2 also writes these files to `ml/data/processed/`. They document how the d
 |---|---|---|
 | `sector_profiles.csv` | Real margin and growth per sector (median and robust spread), from Supersociedades records with income ≥ 0.5 trillion COP | `sector`, `share`, `margin_median`, `margin_spread`, `growth_median`, `growth_spread` |
 | `seasonality.csv` | 12 factors (mean 1.0) from DIAN VAT returns, years 2015–2019 and 2022–2025, smoothed by bimonthly pairs and shifted 2 months back | `month_of_year`, `factor` (0.79 in January–February to 1.23 in November–December) |
-| `companies_base.csv` | 608 real records eligible for `derived` companies | `nit`, `sector`, `margin`, `growth`, `size_pct` |
-| `company_profiles.csv` | Hidden parameters of each generated company (true margin, growth, rescaling factor, noise) | `company_id`, `origin`, `margin`, `growth`, `rescale_factor` |
+| `companies_base.csv` | 608 real records eligible for `derived` companies | `record_id` (`R0001` to `R0608`), `sector`, `margin`, `growth`, `size_pct` |
+| `company_profiles.csv` | Hidden parameters of each generated company (true margin, growth, rescaling factor, noise) | `company_id`, `origin`, `source_record_id` (empty for `simulated`), `margin`, `growth`, `rescale_factor` |
 
 > **`company_profiles.csv` must never be used as a model input.** It contains the true parameters behind each series, so using it would be data leakage.
+
+> **Privacy:** no output file contains a real tax id (NIT) or company name. The NIT is used only in memory by `prepare_data.py` to sort records and match years, and is replaced by the anonymous `record_id`.
 
 ---
 
