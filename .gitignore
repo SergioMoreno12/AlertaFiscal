@@ -13,3 +13,16 @@ ml/artifacts/*
 ml/data/raw/*
 !ml/data/raw/.gitkeep
 __pycache__/
+
+# --- ERP port ---
+.env.*
+!.env.example
+!.env.*.example
+node_modules*/
+.venv*/
+.pytest_cache/
+backend/instance/
+*.db
+dist/
+.vscode/
+*.zip
