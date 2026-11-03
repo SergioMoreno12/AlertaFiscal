@@ -69,13 +69,13 @@ def build_profiles(rng, sectors, base):
     rows = []
     for sector in sorted(counts.index):
         n = int(counts[sector])
-        candidates = base[base["sector"] == sector].sort_values("nit")
+        candidates = base[base["sector"] == sector].sort_values("record_id")
         n_derived = min(int(round(n * DERIVED_SHARE)), len(candidates))
 
         picked = candidates.iloc[rng.choice(len(candidates), size=n_derived, replace=False)]
         for rec in picked.itertuples():
             rows.append({
-                "sector": sector, "origin": "derived", "source_nit": rec.nit,
+                "sector": sector, "origin": "derived", "source_record_id": rec.record_id,
                 "source_income_m": rec.income_m / 12,  # real monthly average, millions of COP
                 "margin": rec.margin, "growth": rec.growth, "size_pct": rec.size_pct,
             })
@@ -83,7 +83,7 @@ def build_profiles(rng, sectors, base):
         prof = sectors.set_index("sector").loc[sector]
         for _ in range(n - n_derived):
             rows.append({
-                "sector": sector, "origin": "simulated", "source_nit": "",
+                "sector": sector, "origin": "simulated", "source_record_id": "",
                 "source_income_m": np.nan,
                 "margin": rng.normal(prof["margin_median"], prof["margin_spread"]),
                 "growth": rng.normal(prof["growth_median"], prof["growth_spread"]),
@@ -140,7 +140,7 @@ def generate(processed_dir=PROCESSED_DIR):
     """Return (monthly_series, company_profiles). Deterministic for a given set of inputs."""
     sectors = pd.read_csv(processed_dir / "sector_profiles.csv")
     seasonality = pd.read_csv(processed_dir / "seasonality.csv")
-    base = pd.read_csv(processed_dir / "companies_base.csv", dtype={"nit": str})
+    base = pd.read_csv(processed_dir / "companies_base.csv", dtype={"record_id": str})
 
     rng = np.random.default_rng(SEED)
     profiles = build_profiles(rng, sectors, base)

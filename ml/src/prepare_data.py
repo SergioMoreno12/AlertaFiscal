@@ -164,8 +164,11 @@ def build_companies_base(df, margins, growths):
     # placed at the top of the small-business range.
     base["size_pct"] = base["income_m"].rank(pct=True)
 
-    base = base[["nit", "sector", "year", "income_m", "expenses_m", "margin", "growth", "size_pct"]]
     base = base.sort_values("nit").reset_index(drop=True)
+    # Pseudonymize: record_id follows the sorted NIT order, so sorting by record_id gives the same
+    # order as sorting by NIT. The real NIT is not written to disk.
+    base.insert(0, "record_id", [f"R{i:04d}" for i in range(1, len(base) + 1)])
+    base = base[["record_id", "sector", "year", "income_m", "expenses_m", "margin", "growth", "size_pct"]]
     for col in ["margin", "growth", "size_pct"]:
         base[col] = base[col].round(4)
     return base
