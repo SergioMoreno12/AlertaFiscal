@@ -2,11 +2,27 @@
 
 **Reviewed on November 3, 2026**
 
+- **Who does it:** Manuel Eduardo Alarcon Aza, from November 3, 2026 (Phase 5 was handed over from Samuel Castellanos Rivera).
+- **Reviewer:** Sergio Steeven Moreno Forero.
+- **Same content as:** section 6.1 of `docs/phases/PHASE_5_INSTRUCTIONS.md` on `phase5/flask-api`. If the two differ, that file wins.
+
 ---
 
-Samuel, the `erp-port` branch already contains the old website in `legacy_flask_site/` and the ERP `.gitignore` file. The remaining tasks are to bring in the ERP (steps 1–5), test it, and open the PR (step 11). Everything else in Phase 5 depends on this, and the temporary placeholder model is due on November 6.
+## Current status of `erp-port`
 
-In the commands below, replace `ERP_PATH` with the folder containing `PROYECTO_FINAL_MACHINE` (for example, `C:\Users\samuel\Desktop\PROYECTO_FINAL_MACHINE`).
+| Item | Status |
+|---|---|
+| Branch created from `develop` | Done (Samuel) |
+| Old Flask site moved to `legacy_flask_site/` | Done (Samuel, commit `f3ff356`) |
+| ERP `.gitignore` | Done (Samuel, commit `36ea70c`) |
+| ERP code (`backend/`, `frontend/`, `ml/company_trainer/`, `docs/erp/`, deployment files) | **Missing: steps 0-6 below** |
+| Backend tests and frontend build | **Missing: steps 7-9** |
+| Commits and Pull Request into `develop` | **Missing: steps 10-11** |
+| Raw data committed on `phase5/flask-api` | **Missing: step 12** |
+
+Manuel, the `erp-port` branch already contains the old website in `legacy_flask_site/` and the ERP `.gitignore` file. The remaining tasks are to bring in the ERP (steps 1–5), test it, and open the PR (step 11). Everything else in Phase 5 depends on this, and the temporary placeholder model is due on November 6.
+
+In the commands below, replace `ERP_PATH` with the folder containing `PROYECTO_FINAL_MACHINE` (for example, `C:\Users\manuel\Desktop\PROYECTO_FINAL_MACHINE`). If you do not have that folder, ask Samuel for it (the ERP zip he received). Do not copy it from the repository of anyone else.
 
 All commands are for PowerShell and must be run from the root directory of the AlertaFiscal repository.
 
@@ -134,9 +150,11 @@ git commit -m "feat: add per-company trainer from the ERP"
 git add docs/erp/
 git commit -m "docs: add ERP documentation"
 
-git add render.yaml compose.yaml docker/ .github/
+git add render.yaml compose.yaml docker/ .github/ .env.docker.example
 git commit -m "chore: add deployment and CI files"
 ```
+
+(If `.env.docker.example` does not exist, leave it out of the `git add`.)
 
 If you changed anything to make the tests pass:
 
@@ -163,7 +181,7 @@ On GitHub, go to **Pull requests > New pull request**.
 
 In the description, include the test results (**38 passed, 10 skipped**) and confirm that the frontend builds successfully.
 
-Request a review from Manuel or Sergio. **Do not merge it yourself.**
+Request a review from Sergio. **Do not merge it yourself.**
 
 ## 12. SEPARATELY: REMOVE RAW DATA FROM `phase5/flask-api`
 
@@ -172,7 +190,9 @@ Commit `6cd63fc` (`feat: update Phase 5 implementation`) accidentally included t
 - `ml/data/raw/dian_monthly_collection_2000_2026.xlsx`
 - `ml/data/raw/supersociedades_10000_companies.csv`
 
-Committing files under `ml/data/raw` is prohibited. To remove them from Git without deleting your local copies, run:
+Committing files under `ml/data/raw` is prohibited. To remove them from Git without deleting your local copies, run the commands below.
+
+**Warning:** while these files are tracked on `phase5/flask-api`, switching from that branch to any other branch makes Git delete your local copies of them. If you already have the files locally, copy them to a folder outside the repository first (for example `Copy-Item ml\data\raw\*.xlsx, ml\data\raw\*.csv C:\Users\<you>\Desktop\raw_backup\`), and copy them back after the last `git checkout`.
 
 ```powershell
 git checkout phase5/flask-api
@@ -183,8 +203,10 @@ git push origin phase5/flask-api
 git checkout erp-port
 ```
 
+After the `git rm --cached` commit, switching branches no longer deletes the local copies.
+
 ## WHEN EVERYTHING IS READY
 
-Continue with steps 5 and 6 of Phase 5 (the traceability matrix and translation), followed by the `forecasting.py` changes using the placeholder model (due November 6).
+Tell Sergio that the Pull Request is open. Then continue with steps 5 and 6 of Phase 5 (the traceability matrix and translation), followed by the `forecasting.py` changes using the placeholder model (due November 6).
 
 Jonathan's actual model is already available in `phase3/modeling`. The instructions for loading it are in section 5.1 of `docs/phases/PHASE_5_INSTRUCTIONS.md` (on the `phase5/flask-api` branch).
