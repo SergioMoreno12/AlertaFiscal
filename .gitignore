@@ -9,6 +9,9 @@ __pycache__/
 ml/artifacts/*
 !ml/artifacts/candidates/
 !ml/artifacts/metrics.json
+!ml/artifacts/model_global.json
+!ml/artifacts/parity_cases.json
+!ml/artifacts/test_report.json
 
 ml/data/raw/*
 !ml/data/raw/.gitkeep
