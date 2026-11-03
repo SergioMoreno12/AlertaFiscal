@@ -38,3 +38,16 @@ Both were downloaded on October 30, 2026. Raw files are never edited by hand.
 - **Phase 3 and 4** use only `monthly_series.csv` and `split_manifest.csv` (join on `company_id` and `month`).
 - `company_profiles.csv` holds the hidden parameters of each simulated company (true margin, growth, rescaling factor). It exists only to audit the generator. **Never use it as a model input**: it would be data leakage.
 - The column-by-column description is in `docs/02_data_dictionary.md` (Phase 1).
+
+
+## Reproducibility log
+
+After the four scripts, run this inside a clean virtual environment to write `docs/02_run_log.md` (Python and package versions, SHA-256 of every raw and processed file, and the output of the checks):
+
+```
+python ml/src/make_run_log.py
+```
+
+## Privacy
+
+Real tax ids (NIT) are not written to any output file. In `companies_base.csv` each real record is identified by an anonymous `record_id` (`R0001`, `R0002`, ...), and `company_profiles.csv` references it in the column `source_record_id`.

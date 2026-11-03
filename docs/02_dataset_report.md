@@ -129,3 +129,8 @@ Output of `python ml/src/check_dataset.py`:
 - **One seasonal shape for all sectors.** DIAN collection is national; sectors differ only through each company's random amplitude.
 - **Short history.** 36 months gives only three observations of each calendar month.
 - **No real validation.** Testing with anonymized, authorized data from real small businesses is future work.
+
+
+## 7. Privacy
+
+Real tax ids (NIT) are used only inside `prepare_data.py` to sort records and match years. They are not written to any output file: `companies_base.csv` uses an anonymous `record_id` and `company_profiles.csv` uses `source_record_id`. The record id follows the sorted NIT order, so the change did not alter any generated value: `monthly_series.csv` and `split_manifest.csv` are identical before and after it. See `docs/02_run_log.md` for the hashes and `docs/02_dataset_card.md` for intended use and limits.
