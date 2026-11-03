@@ -51,7 +51,7 @@ Agriculture has only 13 eligible real records, so all of them are used and the r
 
 For each company *c* and month *t* (0 to 35):
 
-```
+```text
 income[c,t]   = base_monthly_income[c] × (1 + growth[c])^(t/12) × seasonal[c,t] × shift[c,t] × exp(noise_income)
 expenses[c,t] = income[c,t] × (1 − margin[c]) × exp(noise_expenses)
 seasonal[c,t] = 1 + amplitude[c] × (factor[month_of_year(t)] − 1)
@@ -71,7 +71,7 @@ seasonal[c,t] = 1 + amplitude[c] × (factor[month_of_year(t)] − 1)
 | Expense noise | Additional log-normal, σ uniform 0.02 – 0.05 per company | Generator |
 | Level shifts (hard cases) | 72 companies (≈ 15 %) get a permanent ±10–25 % change starting at a random month between 7 and 34 | Generator |
 
-**Is the generator too easy?** A seasonal naive forecast ("same month last year") has a median error of **16.2 %** of the company's average monthly income on the test months (90th percentile: 34.6 %). The noise and level shifts keep the problem non-trivial while seasonality is still visible.
+**Is the generator too easy?** On the validation months (25–30) of the 425 regular companies, a seasonal naive forecast ("same month last year") has a median error of **12.5 %** of the company's average monthly income over months 1–24 (90th percentile: 28.0 %); for expenses the median is 12.3 % (90th percentile: 27.1 %). The test months are not used for any reference number: they are opened once, in the Phase 4 evaluation. The noise and level shifts keep the problem non-trivial while seasonality is still visible.
 
 ## 4. Split design
 
