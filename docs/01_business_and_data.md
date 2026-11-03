@@ -3,7 +3,7 @@
 - **Project:** AlertaFiscal, Machine Learning course, Universidad de Cundinamarca
 - **Owner:** Sergio Steeven Moreno Forero
 - **Branch:** `phase1/business-data`
-- **Status:** ready for team review; the success criterion waits for the approval record in section 4.4
+- **Status:** ready for team review; success criterion approved on November 3, 2026 (section 4.4)
 
 > AlertaFiscal is preventive support for tax planning. It is not accounting or tax advice. Every number it shows is an estimate that the business owner or their accountant must review.
 
@@ -96,9 +96,10 @@ Manuel (Phase 4) copies this criterion into his evaluation protocol, with this r
 
 | Item | Value |
 |---|---|
-| Criterion approved | Sections 4.2 and 4.3 as written above |
-| Approved by | *pending* (Sergio Steeven Moreno Forero, Jonathan Alejandro Yacuma Rivera, Manuel Eduardo Alarcon Aza, Samuel Castellanos Rivera) |
-| Date | *pending* |
+| Criterion approved | Sections 4.2 and 4.3 as written above (option A: keep 15 % / 30 % as the business ceiling; the 10 % improvement over the baseline is the demanding condition) |
+| Option discarded | Option B: lower the ceiling to 12 % / 25 %. Rejected because the baseline already sits near 12.5 %, so the model could fail on holdout companies for reasons unrelated to its quality |
+| Approved by | Sergio Steeven Moreno Forero, Jonathan Alejandro Yacuma Rivera, Manuel Eduardo Alarcon Aza, Samuel Castellanos Rivera |
+| Date | November 3, 2026 (team decision; each member confirms with a comment on Pull Request #2) |
 | Changes after approval | Only before Manuel tags the protocol; any later change voids the evaluation |
 
 ## 5. Data inventory
