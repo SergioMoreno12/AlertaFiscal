@@ -1,0 +1,31 @@
+{
+  "source_code": "supersociedades_top10000",
+  "dataset_id": "6cat-2gcs",
+  "metadata_url": "https://www.datos.gov.co/api/views/6cat-2gcs.json",
+  "retrieved_at": "2026-10-30T22:11:06Z",
+  "license_id": {
+    "field": "licenseId",
+    "value": "CC_40_BY_SA"
+  },
+  "license_name": {
+    "field": "license.name",
+    "value": "Creative Commons Attribution | Share Alike 4.0 International"
+  },
+  "license_terms": {
+    "field": "license.termsLink",
+    "value": "http://creativecommons.org/licenses/by-sa/4.0/legalcode"
+  },
+  "attribution": {
+    "field": "attribution",
+    "value": "Superintendencia de Sociedades SuperSociedades, Bogotá D.C."
+  },
+  "attribution_link": {
+    "field": "attributionLink",
+    "value": "https://www.supersociedades.gov.co/"
+  },
+  "conclusion": "CC BY-SA 4.0 (Creative Commons Atribución-CompartirIgual 4.0 Internacional)",
+  "caveats": [
+    "El campo license.logoUrl apunta a un archivo llamado cc30bysa.png; se prioriza licenseId=CC_40_BY_SA y termsLink=by-sa/4.0/legalcode.",
+    "La atribución debe conservarse y las adaptaciones deben compartirse bajo la misma licencia."
+  ]
+}
