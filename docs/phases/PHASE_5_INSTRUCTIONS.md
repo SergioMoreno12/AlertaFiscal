@@ -5,6 +5,22 @@
 - **Deadlines:** ERP ported with tests passing on November 3-4, 2026. Skeleton with a placeholder model on November 6, 2026. Real model on November 10-12, 2026. Deployed on Render and Supabase by November 15, 2026.
 - **Does it need code?** Yes. Adapting an existing ERP, one set of backend changes, tests and deployment.
 
+## Status on November 3, 2026 (review by Sergio)
+
+| Step | Status |
+|---|---|
+| 1. `erp-port` branch | Done |
+| 2. Copy the clean ERP code | **Missing.** `erp-port` has no `backend/`, `frontend/`, `ml/company_trainer/`, `docs/erp/`, `render.yaml`, `compose.yaml`, `docker/` or `.github/` yet |
+| 3. Old Flask site in `legacy_flask_site/` | Done (`app.py`, `templates/`, `static/`, `requirements.txt`) |
+| `.gitignore` for the ERP | Done, with two notes in Step 2 |
+| 4. Tests (38 passed, 10 skipped), frontend build, Pull Request | Blocked by Step 2 |
+| 5-16 | Not started |
+| Phase 2 correction (16.2 % → validation reference) | Done, merged in Pull Request #3 |
+
+**Most urgent:** Step 2 and Step 4 (planned for November 3-4). Everything else depends on them, and the placeholder artifact of Step 10 is due on **November 6, 2026** (Sergio needs it for Phase 6).
+
+**News from Phase 3:** Jonathan's real artifact is already on `phase3/modeling` (commit `9406af5`) and passes the Phase 4 checks (see section 5.1). It can be used from Step 7 on, instead of waiting for November 10.
+
 ---
 
 ## 1. Why this phase exists
@@ -15,8 +31,8 @@ The product of this course is the AlertaFiscal ERP with the machine learning for
 | Phase | Owner | Relation to you | Date |
 |---|---|---|---|
 | 2 Data preparation | You | Dataset, merged into `develop` first | Done |
-| 3 Modeling | Jonathan | Gives you `model_global.json` and `parity_cases.json` | November 9, 2026 |
-| 4 Evaluation | Manuel | Gives you the artifact SHA-256 and the verdict | November 10, 2026 |
+| 3 Modeling | Jonathan | Gives you `model_global.json` and `parity_cases.json` | Delivered November 3, 2026 (commit `9406af5`) |
+| 4 Evaluation | Manuel (run by Sergio) | Gives you the artifact SHA-256 and the verdict | November 10, 2026 |
 | **5 Integration** | **You** | Port, adapt, integrate, deploy | **November 3-15, 2026** |
 | 1 and 6 | Sergio | Alert rule (Phase 1) and monitoring (Phase 6), built on your app | From November 6, 2026 |
 
@@ -50,6 +66,27 @@ The product of this course is the AlertaFiscal ERP with the machine learning for
 - `data_provenance`: `kind: "semi_synthetic"` and `is_demo: true`.
 - File size: about 5 MB at most.
 
+### 5.1 The delivered artifact and what the backend must do with it
+
+Checked by Phase 4 on November 3, 2026 (`docs/04_leakage_review.md` on `phase4/evaluation`):
+
+| Item | Value |
+|---|---|
+| File | `ml/artifacts/model_global.json` on `phase3/modeling` |
+| `model_version` | `global-20261103-84df89b5` |
+| Size | 1.48 MB |
+| SHA-256 | `18e6872588ec387e853d11665f354c37312a8188893c93f204a6bbc9aeb0663e` |
+| Models | `random_forest` for income and for expenses, 100 trees each |
+| Parity | 50 cases, maximum relative difference 0.0 with the Phase 4 predictor |
+
+**Layout.** Each target is stored as `targets[target].selected_model` plus `targets[target].models[selected_model].params`. A random forest has `params.trees`, each tree with the arrays `children_left`, `children_right`, `feature`, `threshold` and `value` (leaf when `children_left` is −1; go left when `x[feature] <= threshold`; the prediction is the mean of the leaves). A linear regression has `params.coefficients` and `params.intercept`. `parity_cases.json` has `cases`, each with `history: {income, expenses}` (24 months), `last_month`, `expected` (unrounded, used for the 1e-6 test) and `expected_rounded` (2 decimals, what the API returns). `ml/src/check_export_parity.py` on `phase3/modeling` is a pure-Python reference reader.
+
+**Rules the backend must follow:**
+1. **Cast the features to float32 before walking the trees.** scikit-learn compares tree inputs in single precision. Without the cast, a few company-months give slightly different forecasts (validation income MAE 17.205 instead of 17.203 in the Phase 4 reproduction). See `float32()` in `ml/src/evaluate.py` on `phase4/evaluation`.
+2. **Zero or negative scale** (mean of the last 3 months ≤ 0): treat it as insufficient history, exactly like fewer than 6 months. Reject the request and fall back to manual mode. Do not divide by 1.0 or any fallback value. Phase 3 and Phase 4 already apply this rule; it never occurs in the dataset (minimum income 9.16, minimum expenses 9.93).
+3. **Recursion and clip:** forecast 6 months, append each prediction to the history before the next one, and clip negatives to 0. Round to 2 decimals only after the recursion.
+4. **Do not retrain or re-export.** Every run of `train_models.py` changes `trained_at` and therefore the SHA-256. The file to deploy is the one with the hash above (or the one recorded in Phase 4's `test_report.json`, if it ever differs).
+
 ## 6. What you must do, step by step
 
 **Step 1. Create the `erp-port` branch from `develop`** (after the Phase 1-3 Pull Requests are merged, if possible):
@@ -72,6 +109,11 @@ git push -u origin erp-port
 | `README.md` | repository root | Replace it after Step 16 |
 
 **Do NOT copy:** the zip's own `.git`, `.venv*`, `node_modules*`, `backend/.env`, `.env.docker` (keep only `.env.docker.example`), `backend/instance/dev.db`, `ml/data/raw/` (the DIAN license is uncertain and the ERP decisions say not to redistribute it), `PROTOTIPO_ALERTA_FISCAL.zip`, `Guia_Pruebas_Locales_AlertaFiscal.docx`, the PDF, `session_checkpoint.md`. Add `node_modules*/` to `.gitignore`.
+
+Notes on the `.gitignore` already on `erp-port` (review of November 3, 2026):
+- It ignores `.vscode/`, but the table above says to copy `.vscode/`. Decide one: either remove `.vscode/` from `.gitignore` and commit it, or do not copy it and remove it from the table.
+- It does **not** ignore the PDF or `session_checkpoint.md`. Do not copy them (or add them to `.gitignore`). The `.docx`, the zips, `.env.docker` (only `.env.docker.example` is allowed), `dev.db`, `instance/` and `ml/data/raw/` are already ignored.
+- Commit by folder (`git add backend/ frontend/`), never `git add .`, and run `git status` before committing to check that nothing forbidden appears.
 
 **Step 3. Move the old Flask site** (`app.py`, `templates/`, `static/` and the old root `requirements.txt`) to `legacy_flask_site/`. Do not delete it.
 
@@ -108,7 +150,7 @@ git push -u origin erp-port
 
 **Step 12. Demo data command.** A command that loads about 5 holdout companies of different sectors from `monthly_series.csv` into the ERP as monthly income and expense documents, plus one company with 4 months to show manual mode. Label them as semi-synthetic. This data is also used by Sergio's tests.
 
-**Step 13. Real model (November 10-12, 2026).** Copy Jonathan's `model_global.json` and `parity_cases.json` into the repository. Verify the SHA-256 with Manuel. Run all tests. Do not edit the file by hand: any change breaks the evaluation.
+**Step 13. Real model (November 10-12, 2026; the file is available since November 3).** Copy Jonathan's `model_global.json` and `parity_cases.json` from `phase3/modeling` into `backend/model_artifacts/` (Step 9). Verify the SHA-256 against section 5.1 and against Phase 4's `test_report.json`. Run all tests. Do not edit the file by hand: any change breaks the evaluation.
 
 **Step 14. Alerts.** Implement Sergio's loss-month rule (`docs/03_alert_rules.md`) in `alerts/rules.py`, with its tests.
 
@@ -172,7 +214,8 @@ Commit examples: `chore: move legacy flask site`, `chore: translate ERP to Engli
 |---|---|
 | Tests fail after copying | Check the Python version, `requirements.txt` and the paths to `ml/` |
 | `model_not_trained` in production | The artifact is not committed or the directory variable is wrong (Step 9) |
-| Parity test fails | Compare the features one by one: `t` starts at 0, normalization, clip at zero, rounding |
+| Parity test fails | Compare the features one by one: `t` starts at 0, normalization, clip at zero, rounding. Check the float32 cast before the trees (section 5.1) |
+| `model_type` or `coef` not found in the artifact | The export uses `selected_model` and `models[...].params` (`coefficients` for linear). See section 5.1 |
 | Translation breaks a test | A message text was asserted. Update the test, not the `code` |
 | Frontend cannot reach the API | Check `VITE_API_BASE_URL` and `FRONTEND_ORIGIN` (CORS and cookies) |
 | First request takes a minute | Render free plan cold start. Open the app before the demo |
