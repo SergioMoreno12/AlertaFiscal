@@ -1,0 +1,143 @@
+/**
+ * Cliente HTTP centralizado.
+ *
+ * - La URL base sale de VITE_API_BASE_URL (vacía = mismo origen + proxy de Vite).
+ * - Las cookies de sesión viajan con `credentials: "include"`.
+ * - El token CSRF se mantiene en memoria (nunca en localStorage).
+ */
+
+const RAW_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+export const API_BASE_URL = RAW_BASE.replace(/\/$/, '')
+
+const DEFAULT_TIMEOUT_MS = 15000
+
+let csrfToken: string | null = null
+let unauthorizedHandler: (() => void) | null = null
+
+export class ApiError extends Error {
+  status: number
+  code: string
+  requestId?: string
+
+  constructor(status: number, code: string, message: string, requestId?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+    this.requestId = requestId
+  }
+}
+
+export function onUnauthorized(handler: (() => void) | null) {
+  unauthorizedHandler = handler
+}
+
+export function setCsrfToken(token: string | null) {
+  csrfToken = token
+}
+
+function readCsrfCookie(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)(?:__Host-)?af_csrf=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+export async function ensureCsrf(force = false): Promise<string> {
+  if (!force) {
+    if (csrfToken) return csrfToken
+    const fromCookie = readCsrfCookie()
+    if (fromCookie) {
+      csrfToken = fromCookie
+      return fromCookie
+    }
+  }
+  const response = await request<{ csrf_token: string }>('/api/v1/auth/csrf', { method: 'GET', skipCsrf: true })
+  csrfToken = response.csrf_token
+  return response.csrf_token
+}
+
+type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  body?: unknown
+  headers?: Record<string, string>
+  timeoutMs?: number
+  skipCsrf?: boolean
+  signal?: AbortSignal
+}
+
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const method = options.method ?? 'GET'
+  const mutating = method !== 'GET'
+
+  const headers: Record<string, string> = { Accept: 'application/json', ...(options.headers ?? {}) }
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (mutating && !options.skipCsrf) headers['X-CSRF-Token'] = await ensureCsrf()
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true })
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      credentials: 'include',
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    clearTimeout(timeout)
+    const aborted = error instanceof DOMException && error.name === 'AbortError'
+    throw new ApiError(
+      0,
+      aborted ? 'timeout' : 'network_error',
+      aborted
+        ? 'La solicitud tardó demasiado. Verifica tu conexión.'
+        : 'No se pudo conectar con el servidor.',
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
+
+  if (response.status === 401) {
+    unauthorizedHandler?.()
+  }
+
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    if (!response.ok) {
+      throw new ApiError(response.status, 'http_error', 'La operación no se pudo completar.')
+    }
+    return undefined as T
+  }
+
+  const text = await response.text()
+  let payload: unknown = null
+  if (text) {
+    try {
+      payload = JSON.parse(text)
+    } catch {
+      payload = null
+    }
+  }
+
+  if (!response.ok) {
+    const err = (payload as { error?: { code?: string; message?: string; request_id?: string } } | null)?.error
+    throw new ApiError(
+      response.status,
+      err?.code ?? 'http_error',
+      err?.message ?? `Error HTTP ${response.status}`,
+      err?.request_id,
+    )
+  }
+
+  return payload as T
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
+  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+}
