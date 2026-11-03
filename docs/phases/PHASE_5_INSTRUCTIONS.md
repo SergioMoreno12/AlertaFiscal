@@ -12,7 +12,7 @@
 | 1. `erp-port` branch | Done (Samuel) |
 | 2. Copy the clean ERP code | **Missing.** `erp-port` has no `backend/`, `frontend/`, `ml/company_trainer/`, `docs/erp/`, `render.yaml`, `compose.yaml`, `docker/` or `.github/` yet |
 | 3. Old Flask site in `legacy_flask_site/` | Done by Samuel (`app.py`, `templates/`, `static/`, `requirements.txt`) |
-| `docs/phases/INSTRUCCIONES_ERP_PORT.md` on `erp-port` | Added by Samuel (commit `74004aa`). The file name is in Spanish; section 6.1 below replaces it. Delete it (`git rm docs/phases/INSTRUCCIONES_ERP_PORT.md`) before opening the `erp-port` Pull Request |
+| `docs/phases/INSTRUCCIONES_ERP_PORT.md` on `erp-port` | Added by Samuel (commit `74004aa`), updated for Manuel (commit `1d26572`). It has the same steps as section 6.1, as a checklist inside the `erp-port` branch. If the two differ, section 6.1 wins |
 | `.gitignore` for the ERP | Done, with two notes in Step 2 |
 | 4. Tests (38 passed, 10 skipped), frontend build, Pull Request | Blocked by Step 2 |
 | 5-16 | Not started |
@@ -201,9 +201,6 @@ The list must not contain `.env`, `.venv`, `node_modules`, `dist`, `dev.db`, `in
 
 **k. Commits by folder, never `git add .`**
 ```
-git rm docs/phases/INSTRUCCIONES_ERP_PORT.md
-git commit -m "docs: remove spanish port instructions (moved to phase 5 instructions)"
-
 git add backend/ frontend/
 git commit -m "feat: port ERP backend and frontend"
 
@@ -231,6 +228,7 @@ git commit -m "chore: remove raw data from git"
 git push origin phase5/flask-api
 git checkout erp-port
 ```
+Warning: while the files are tracked on `phase5/flask-api`, leaving that branch makes Git delete the local copies. Copy them to a folder outside the repository first and copy them back after the last `git checkout`.
 
 **Step 5. Traceability matrix** (`docs/erp/traceability_base_vs_ported.md`). Compare the base ERP with the ported one. Columns: item (module, endpoint, table, migration, test), base, ported, status (kept, changed, added or removed), evidence (test name). Claude can build the first version from the two folders. The technical review requires it.
 
