@@ -137,7 +137,8 @@ class Predictor:
         n = self.norm_n
         scale = mean(history[-n:]) if n else 1.0
         if scale is None or scale <= 0:
-            return None, scale
+            # same rule as Phase 3 and the backend: treated as insufficient history
+            raise ValueError("the mean of the last months is zero or negative: insufficient history")
         angle = 2.0 * math.pi * month_number / 12.0
         values = {
             "t": float(len(history)),
@@ -179,7 +180,7 @@ class Predictor:
         for _ in range(horizon):
             month = next_month(month)
             row, scale = self._row(history, int(month[5:]))
-            value = 0.0 if row is None else max(0.0, self._output(block, row) * scale)
+            value = max(0.0, self._output(block, row) * scale)
             result.append(value)
             history.append(value)
         return result
