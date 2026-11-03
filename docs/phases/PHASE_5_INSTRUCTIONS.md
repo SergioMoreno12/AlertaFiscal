@@ -1,6 +1,6 @@
 # PHASE 5 — ERP Port, Model Integration and Deployment
 
-- **Owner:** Samuel Castellanos Rivera (support: Manuel and Sergio, because this is the heaviest phase)
+- **Owner:** Manuel Eduardo Alarcon Aza since November 3, 2026 (taken over from Samuel Castellanos Rivera, who did Steps 1 and 3). Support: Sergio, because this is the heaviest phase.
 - **Branches:** `erp-port` (copy, clean and translate the ERP) and `phase5/flask-api` (model integration and deployment)
 - **Deadlines:** ERP ported with tests passing on November 3-4, 2026. Skeleton with a placeholder model on November 6, 2026. Real model on November 10-12, 2026. Deployed on Render and Supabase by November 15, 2026.
 - **Does it need code?** Yes. Adapting an existing ERP, one set of backend changes, tests and deployment.
@@ -9,16 +9,17 @@
 
 | Step | Status |
 |---|---|
-| 1. `erp-port` branch | Done |
+| 1. `erp-port` branch | Done (Samuel) |
 | 2. Copy the clean ERP code | **Missing.** `erp-port` has no `backend/`, `frontend/`, `ml/company_trainer/`, `docs/erp/`, `render.yaml`, `compose.yaml`, `docker/` or `.github/` yet |
-| 3. Old Flask site in `legacy_flask_site/` | Done (`app.py`, `templates/`, `static/`, `requirements.txt`) |
+| 3. Old Flask site in `legacy_flask_site/` | Done by Samuel (`app.py`, `templates/`, `static/`, `requirements.txt`) |
+| `docs/phases/INSTRUCCIONES_ERP_PORT.md` on `erp-port` | Added by Samuel (commit `74004aa`). The file name is in Spanish; section 6.1 below replaces it. Delete it (`git rm docs/phases/INSTRUCCIONES_ERP_PORT.md`) before opening the `erp-port` Pull Request |
 | `.gitignore` for the ERP | Done, with two notes in Step 2 |
 | 4. Tests (38 passed, 10 skipped), frontend build, Pull Request | Blocked by Step 2 |
 | 5-16 | Not started |
 | Phase 2 correction (16.2 % → validation reference) | Done, merged in Pull Request #3 |
 | **Raw data committed by mistake** | **To fix.** Commit `6cd63fc` on `phase5/flask-api` added `ml/data/raw/dian_monthly_collection_2000_2026.xlsx` and `ml/data/raw/supersociedades_10000_companies.csv`. Section 7 forbids committing `ml/data/raw` (the DIAN license is uncertain). Remove them from Git, keeping the local copies: `git rm --cached ml/data/raw/dian_monthly_collection_2000_2026.xlsx ml/data/raw/supersociedades_10000_companies.csv`, commit `chore: remove raw data from git`, push. They stay in the branch history, so this branch must never be merged as it is into `develop` without that removal |
 
-**Most urgent:** Step 2 and Step 4 (planned for November 3-4). Everything else depends on them, and the placeholder artifact of Step 10 is due on **November 6, 2026** (Sergio needs it for Phase 6).
+**Most urgent (Manuel, today):** Step 2 and Step 4, with the exact commands of section 6.1. Everything else depends on them, and the placeholder artifact of Step 10 is due on **November 6, 2026** (Sergio needs it for Phase 6).
 
 **News from Phase 3:** Jonathan's real artifact is already on `phase3/modeling` (commit `9406af5`) and passes the Phase 4 checks (see section 5.1). It can be used from Step 7 on, instead of waiting for November 10.
 
@@ -31,10 +32,10 @@ The product of this course is the AlertaFiscal ERP with the machine learning for
 
 | Phase | Owner | Relation to you | Date |
 |---|---|---|---|
-| 2 Data preparation | You | Dataset, merged into `develop` first | Done |
+| 2 Data preparation | Samuel | Dataset, merged into `develop` first | Done |
 | 3 Modeling | Jonathan | Gives you `model_global.json` and `parity_cases.json` | Delivered November 3, 2026 (commit `9406af5`) |
 | 4 Evaluation | Manuel (run by Sergio) | Gives you the artifact SHA-256 and the verdict | November 10, 2026 |
-| **5 Integration** | **You** | Port, adapt, integrate, deploy | **November 3-15, 2026** |
+| **5 Integration** | **You (Manuel; Steps 1 and 3 by Samuel)** | Port, adapt, integrate, deploy | **November 3-15, 2026** |
 | 1 and 6 | Sergio | Alert rule (Phase 1) and monitoring (Phase 6), built on your app | From November 6, 2026 |
 
 ## 3. Glossary
@@ -118,7 +119,118 @@ Notes on the `.gitignore` already on `erp-port` (review of November 3, 2026):
 
 **Step 3. Move the old Flask site** (`app.py`, `templates/`, `static/` and the old root `requirements.txt`) to `legacy_flask_site/`. Do not delete it.
 
-**Step 4. Run the tests and make them pass.** Expected: 38 passed and 10 skipped on SQLite. Then run `npm ci && npm run build` in `frontend/`. Fix only what the move broke (paths in `train.py`, `FORECAST_ARTIFACT_DIR`). Commit and open a Pull Request from `erp-port` into `develop`, and ask Manuel or Sergio to review it.
+**Step 4. Run the tests and make them pass.** Expected: 38 passed and 10 skipped on SQLite. Then run `npm ci && npm run build` in `frontend/`. Fix only what the move broke (paths in `train.py`, `FORECAST_ARTIFACT_DIR`). Commit and open a Pull Request from `erp-port` into `develop`, and ask Sergio to review it. The exact commands for Steps 2-4 are in section 6.1.
+
+### 6.1 Steps 2-4 on `erp-port`: exact commands (PowerShell)
+
+Run everything from the root of the AlertaFiscal repository. Replace `ERP_PATH` with the folder that holds `PROYECTO_FINAL_MACHINE` (for example `C:\Users\manuel\Desktop\PROYECTO_FINAL_MACHINE`). If you do not have that folder, ask Samuel for it.
+
+**a. Start clean**
+```
+git checkout erp-port
+git pull origin erp-port
+git status
+```
+`git status` must show no changes. If it shows something, stop and ask.
+
+**b. Backend, without local files**
+```
+robocopy "ERP_PATH\backend" "backend" /E /XD .venv* instance __pycache__ .pytest_cache node_modules* /XF .env *.db *.pyc
+```
+
+**c. Frontend, without `node_modules` or `dist`**
+```
+robocopy "ERP_PATH\frontend" "frontend" /E /XD node_modules* dist .vite
+```
+The pattern `node_modules*` also excludes `node_modules_incompatible_otro_pc`.
+
+**d. Per-company trainer into `ml/company_trainer/`**
+```
+New-Item -ItemType Directory -Force ml\company_trainer
+Copy-Item "ERP_PATH\ml\train.py", "ERP_PATH\ml\requirements.txt", "ERP_PATH\ml\README.md" ml\company_trainer\
+robocopy "ERP_PATH\ml\sources" "ml\company_trainer\sources" /E /XD __pycache__
+```
+Do not copy the ERP's `ml\data\raw`. Do not touch our `ml\src`, `ml\data` or `ml\artifacts`. Then open `ml\company_trainer\train.py` and fix the paths that pointed to `ml/...`.
+
+**e. ERP documentation into `docs/erp/`**
+```
+New-Item -ItemType Directory -Force docs\erp
+Copy-Item "ERP_PATH\docs\*.md" docs\erp\
+robocopy "ERP_PATH\docs\evidence" "docs\erp\evidence" /E
+```
+
+**f. Deployment and CI files at the root**
+```
+Copy-Item "ERP_PATH\render.yaml", "ERP_PATH\compose.yaml" .
+robocopy "ERP_PATH\docker" "docker" /E
+robocopy "ERP_PATH\.github" ".github" /E
+Copy-Item "ERP_PATH\.env.docker.example" .
+```
+- Check that the paths to `backend/` and `frontend/` in `.github/workflows` are still correct.
+- Do not copy `.vscode/` (the `.gitignore` already ignores it).
+- Do not replace the root `README.md` yet: it is rewritten in Step 16.
+
+**g. Never copied:** the zip's `.git`, `.venv*`, `node_modules*`, `dist/`, `backend\.env`, `.env.docker`, `backend\instance\dev.db`, `ml\data\raw\`, `PROTOTIPO_ALERTA_FISCAL.zip`, `Guia_Pruebas_Locales_AlertaFiscal.docx`, the PDF and `session_checkpoint.md`. The `.gitignore` does **not** block the PDF or `session_checkpoint.md`.
+
+**h. Backend tests**
+```
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m pytest
+deactivate
+cd ..
+```
+Expected: 38 passed, 10 skipped (SQLite). If something fails, fix only what the move broke (paths to `ml/company_trainer`, `FORECAST_ARTIFACT_DIR`). Do not change the logic.
+
+**i. Frontend build**
+```
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+It must finish without errors. `dist/` is not committed.
+
+**j. Check that nothing forbidden is staged**
+```
+git status
+```
+The list must not contain `.env`, `.venv`, `node_modules`, `dist`, `dev.db`, `instance`, `ml/data/raw`, `.zip`, `.docx`, `.pdf` or `session_checkpoint.md`.
+
+**k. Commits by folder, never `git add .`**
+```
+git rm docs/phases/INSTRUCCIONES_ERP_PORT.md
+git commit -m "docs: remove spanish port instructions (moved to phase 5 instructions)"
+
+git add backend/ frontend/
+git commit -m "feat: port ERP backend and frontend"
+
+git add ml/company_trainer/
+git commit -m "feat: add per-company trainer from the ERP"
+
+git add docs/erp/
+git commit -m "docs: add ERP documentation"
+
+git add render.yaml compose.yaml docker/ .github/ .env.docker.example
+git commit -m "chore: add deployment and CI files"
+
+git push origin erp-port
+```
+If you had to change something to make the tests pass, commit it separately: `git add <files>` and `git commit -m "fix: update paths after the ERP move"`.
+
+**l. Pull Request.** On GitHub: base `develop`, compare `erp-port`, title "Port the AlertaFiscal ERP". In the description, write the test result (38 passed, 10 skipped) and that the frontend builds. Ask Sergio to review it. Do not merge it yourself.
+
+**m. Separate fix: raw data on `phase5/flask-api`.** Remove the two raw files from Git, keeping the local copies:
+```
+git checkout phase5/flask-api
+git pull origin phase5/flask-api
+git rm --cached ml/data/raw/dian_monthly_collection_2000_2026.xlsx ml/data/raw/supersociedades_10000_companies.csv
+git commit -m "chore: remove raw data from git"
+git push origin phase5/flask-api
+git checkout erp-port
+```
 
 **Step 5. Traceability matrix** (`docs/erp/traceability_base_vs_ported.md`). Compare the base ERP with the ported one. Columns: item (module, endpoint, table, migration, test), base, ported, status (kept, changed, added or removed), evidence (test name). Claude can build the first version from the two folders. The technical review requires it.
 
@@ -147,7 +259,7 @@ Notes on the `.gitignore` already on `erp-port` (review of November 3, 2026):
 - fewer than 6 months returns `insufficient_history`;
 - an invalid or unsupported artifact returns `artifact_invalid`;
 - **parity:** load `parity_cases.json` and compare with the backend (maximum relative difference 1e-6);
-- **hash:** the deployed `model_global.json` has the SHA-256 recorded in Manuel's `test_report.json`.
+- **hash:** the deployed `model_global.json` has the SHA-256 recorded in Phase 4's `test_report.json`.
 
 **Step 12. Demo data command.** A command that loads about 5 holdout companies of different sectors from `monthly_series.csv` into the ERP as monthly income and expense documents, plus one company with 4 months to show manual mode. Label them as semi-synthetic. This data is also used by Sergio's tests.
 
@@ -167,7 +279,7 @@ Notes on the `.gitignore` already on `erp-port` (review of November 3, 2026):
 ## 7. What you must NOT do
 - Do not rewrite the ERP from scratch. Copy, clean and adapt.
 - Do not import scikit-learn or joblib in the backend.
-- Do not edit `model_global.json` by hand or after Manuel evaluated it.
+- Do not edit `model_global.json` by hand or after Phase 4 evaluated it.
 - Do not require a form with 12 fields. Inputs come from the company's own history.
 - Do not forecast with fewer than 6 months of history (return "insufficient history" and offer manual mode).
 - Do not store monitoring data in local files.
@@ -240,4 +352,4 @@ Commit examples: `chore: move legacy flask site`, `chore: translate ERP to Engli
 - Likely professor questions: "Why a global model?", "What happens with a new company?", "How do you know the app uses the model you evaluated?".
 
 ## 14. If you get stuck
-Ask Claude for the exact code of each step and for its explanation. Manuel or Sergio review and test. Jonathan answers about the artifact.
+Ask Claude for the exact code of each step and for its explanation. Sergio reviews and tests. Jonathan answers about the artifact. Samuel answers about the dataset and the ERP folder he received.
