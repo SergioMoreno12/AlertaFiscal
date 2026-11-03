@@ -1,28 +1,39 @@
+# Python
 .venv/
 venv/
+.venv*/
 __pycache__/
 *.pyc
-.claude/
-*.docx
 
+# Secrets and local config
 .env
-ml/artifacts/*
-!ml/artifacts/candidates/
-!ml/artifacts/metrics.json
-
-ml/data/raw/*
-!ml/data/raw/.gitkeep
-__pycache__/
-
-# --- ERP port ---
 .env.*
 !.env.example
 !.env.*.example
+
+# Tools and editors
+.claude/
+.vscode/
+
+# Documents
+*.docx
+
+# ML artifacts (only these are tracked)
+ml/artifacts/*
+!ml/artifacts/candidates/
+!ml/artifacts/metrics.json
+!ml/artifacts/model_global.json
+!ml/artifacts/parity_cases.json
+!ml/artifacts/test_report.json
+
+# Raw datasets (share outside Git)
+ml/data/raw/*
+!ml/data/raw/.gitkeep
+
+# --- ERP port ---
 node_modules*/
-.venv*/
 .pytest_cache/
 backend/instance/
 *.db
 dist/
-.vscode/
 *.zip
