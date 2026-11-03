@@ -1,0 +1,58 @@
+services:
+  # ── API Flask (monolito modular) ────────────────────────────────────────
+  - type: web
+    name: alertafiscal-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    # Solo arranca el servidor. Las migraciones y la semilla son pasos
+    # controlados y separados (ver docs/deployment.md). No se ejecuta
+    # `flask seed-demo` en cada arranque.
+    startCommand: gunicorn wsgi:app -c gunicorn.conf.py
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # Secreto EXTERNO: cadena de conexión de Supabase (o del proveedor
+      # PostgreSQL elegido). Se define manualmente en el dashboard de Render.
+      # No se crea ninguna base de datos en Render.
+      - key: DATABASE_URL
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      # Frontend y API están en dominios distintos (*.onrender.com):
+      # SameSite=None exige Secure (ya forzado en producción).
+      - key: COOKIE_SAMESITE
+        value: None
+      # Se completa con la URL del Static Site después del primer despliegue.
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: SESSION_IDLE_MINUTES
+        value: "120"
+      - key: SESSION_ABSOLUTE_HOURS
+        value: "12"
+      # Presupuesto de conexiones: 1 worker x (5 + 5) = 10 máximo.
+      # Ajústalo al límite real del proyecto Supabase.
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "5"
+      - key: DB_CONNECT_TIMEOUT
+        value: "5"
+
+  # ── Frontend React (Static Site) ────────────────────────────────────────
+  - type: web
+    name: alertafiscal-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      # URL pública del backend. Se define en el dashboard antes del build.
+      - key: VITE_API_BASE_URL
+        sync: false
