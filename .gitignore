@@ -12,4 +12,3 @@ ml/artifacts/*
 
 ml/data/raw/*
 !ml/data/raw/.gitkeep
-__pycache__/
