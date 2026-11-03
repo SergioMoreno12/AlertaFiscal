@@ -38,13 +38,17 @@ TARGETS = ("income", "expenses")
 ALLOWED_SPLITS = ("train", "validation")
 BLOCKED_SPLITS = ("test", "holdout")
 
+EXPORTABLE_MODELS = ("seasonal_naive", "linear_regression", "random_forest")
+NON_EXPORTABLE_MODELS = ("mlp",)
+MODEL_ORDER = EXPORTABLE_MODELS + NON_EXPORTABLE_MODELS
+
 CANDIDATES = {
     "linear_regression": [{}],
     "random_forest": [
         {"n_estimators": n, "max_depth": depth, "min_samples_leaf": leaf}
-        for n in (100, 300)
-        for depth in (4, 8, 12)
-        for leaf in (1, 10)
+        for n in (100,)
+        for depth in (4, 6, 8)
+        for leaf in (5, 10)
     ],
     "mlp": [
         {"hidden_layer_sizes": hidden, "alpha": alpha}
@@ -75,7 +79,6 @@ def load_data():
     if allowed.empty:
         raise ValueError("split_manifest.csv has no train or validation rows")
 
-    
     keys = allowed[["company_id", "month", "month_index", "split"]]
     parts = []
     for chunk in pd.read_csv(
@@ -129,6 +132,29 @@ def check_contract(data):
     for split in ALLOWED_SPLITS:
         if data.loc[data["split"] == split, "company_id"].nunique() != companies:
             raise ValueError(f"not every company has {split} rows")
+
+
+def company_context(data):
+    train = data[data["split"] == "train"]
+    income_mean = train.groupby("company_id")["income"].mean()
+    sector = data.groupby("company_id")["sector"].first()
+    low, high = income_mean.quantile([1.0 / 3.0, 2.0 / 3.0])
+
+    def tercile(value):
+        if value <= low:
+            return "small"
+        if value <= high:
+            return "medium"
+        return "large"
+
+    return {
+        "income_mean": {company: float(value) for company, value in income_mean.items()},
+        "sector": {company: str(value) for company, value in sector.items()},
+        "size_tercile": {
+            company: tercile(float(value)) for company, value in income_mean.items()
+        },
+        "tercile_bounds": {"p33": float(low), "p67": float(high)},
+    }
 
 
 def histories_up_to(data, target, origin):
@@ -192,16 +218,33 @@ def fit_model(kind, params, target, data):
     return model
 
 
-def score(forecasts, actual):
+def _summary(values):
+    values = np.asarray(list(values), dtype=float)
+    return {
+        "companies": int(values.size),
+        "mean": round(float(values.mean()), 4),
+        "median": round(float(np.median(values)), 4),
+        "p90": round(float(np.percentile(values, 90)), 4),
+    }
+
+
+def score(forecasts, actual, context):
     errors = [[] for _ in range(HORIZON)]
+    normalized = {}
     predicted_all, real_all = [], []
     for company, real in actual.items():
         if company not in forecasts:
             raise KeyError(f"missing forecast for {company}")
         if len(forecasts[company]) != len(real):
             raise ValueError(f"{company}: forecast and actual lengths differ")
+        scale = context["income_mean"][company]
+        if scale <= 0.0:
+            raise ValueError(f"{company}: mean monthly income must be greater than zero")
+        normalized[company] = []
         for step, (predicted, observed) in enumerate(zip(forecasts[company], real)):
-            errors[step].append(abs(predicted - observed))
+            error = abs(predicted - observed)
+            errors[step].append(error)
+            normalized[company].append(error / scale * 100.0)
             predicted_all.append(predicted)
             real_all.append(observed)
 
@@ -216,22 +259,51 @@ def score(forecasts, actual):
         if nonzero.any()
         else None
     )
+
+    per_company = {company: float(np.mean(values)) for company, values in normalized.items()}
+    by_sector = {}
+    for sector in sorted(set(context["sector"].values())):
+        values = [per_company[c] for c in per_company if context["sector"][c] == sector]
+        if values:
+            by_sector[sector] = _summary(values)
+    by_tercile = {}
+    for name in ("small", "medium", "large"):
+        values = [per_company[c] for c in per_company if context["size_tercile"][c] == name]
+        if values:
+            by_tercile[name] = _summary(values)
+
     return {
         "mae": round(mae, 4),
         "rmse": round(rmse, 4),
         "mape_pct": None if mape is None else round(mape, 4),
         "n_points": int(real_all.size),
         "per_horizon_mae": [round(float(np.mean(step_errors)), 4) for step_errors in errors],
+        "normalized_mae_pct": {
+            "definition": (
+                "absolute error divided by the company's mean monthly income "
+                "(train months 1-24), in percent"
+            ),
+            "per_horizon": [
+                {
+                    "horizon": step + 1,
+                    **_summary([normalized[c][step] for c in normalized]),
+                }
+                for step in range(HORIZON)
+            ],
+            "overall": _summary(per_company.values()),
+            "by_sector": by_sector,
+            "by_size_tercile": by_tercile,
+        },
     }
 
 
-def validation_metrics(model, target, data):
+def validation_metrics(model, target, data, context):
     histories = histories_up_to(data, target, VALIDATION_ORIGIN)
     actual = actual_values(
         data, "validation", target, VALIDATION_ORIGIN + 1, VALIDATION_ORIGIN + HORIZON
     )
     forecasts = recursive_forecast(model.predict, histories, VALIDATION_ORIGIN, HORIZON)
-    return score(forecasts, actual)
+    return score(forecasts, actual, context)
 
 
 def _fmt(value, digits=3):
@@ -239,24 +311,56 @@ def _fmt(value, digits=3):
 
 
 def print_tables(results):
-    print("\n| Model | Target | MAE | RMSE | MAPE (%) | Best hyperparameters |")
-    print("|---|---|---|---|---|---|")
-    for kind, per_target in results.items():
+    print("\n| Model | Target | MAE | RMSE | MAPE (%) | Normalized MAE (%) | Best hyperparameters |")
+    print("|---|---|---|---|---|---|---|")
+    for kind in MODEL_ORDER:
         for target in TARGETS:
-            row = per_target[target]
+            row = results[kind][target]
             params = row.get("hyperparameters")
             params_text = "none" if params is None else json.dumps(params, separators=(",", ":"))
             print(
                 f"| {kind} | {target} | {_fmt(row['mae'])} | {_fmt(row['rmse'])} | "
-                f"{_fmt(row['mape_pct'], 2)} | {params_text} |"
+                f"{_fmt(row['mape_pct'], 2)} | "
+                f"{_fmt(row['normalized_mae_pct']['overall']['mean'], 2)} | {params_text} |"
             )
 
     print("\n| Model | Target | +1 | +2 | +3 | +4 | +5 | +6 |")
     print("|---|---|---|---|---|---|---|---|")
-    for kind, per_target in results.items():
+    for kind in MODEL_ORDER:
         for target in TARGETS:
-            values = per_target[target]["per_horizon_mae"]
+            values = results[kind][target]["per_horizon_mae"]
             print(f"| {kind} | {target} | " + " | ".join(f"{v:.2f}" for v in values) + " |")
+
+
+def print_extra_tables(results, best_kind):
+    for target in TARGETS:
+        block = results[best_kind][target]["normalized_mae_pct"]
+        print(f"\n### {best_kind} / {target} - normalized MAE (%) by horizon")
+        print("| Horizon | Mean | Median | P90 |")
+        print("|---|---|---|---|")
+        for row in block["per_horizon"]:
+            print(
+                f"| +{row['horizon']} | {row['mean']:.2f} | {row['median']:.2f} | "
+                f"{row['p90']:.2f} |"
+            )
+
+        print(f"\n### {best_kind} / {target} - normalized MAE (%) by sector")
+        print("| Sector | Companies | Mean | Median | P90 |")
+        print("|---|---|---|---|---|")
+        for sector, row in block["by_sector"].items():
+            print(
+                f"| {sector} | {row['companies']} | {row['mean']:.2f} | "
+                f"{row['median']:.2f} | {row['p90']:.2f} |"
+            )
+
+        print(f"\n### {best_kind} / {target} - normalized MAE (%) by size tercile")
+        print("| Tercile | Companies | Mean | Median | P90 |")
+        print("|---|---|---|---|---|")
+        for name, row in block["by_size_tercile"].items():
+            print(
+                f"| {name} | {row['companies']} | {row['mean']:.2f} | "
+                f"{row['median']:.2f} | {row['p90']:.2f} |"
+            )
 
 
 def main():
@@ -266,16 +370,19 @@ def main():
     print(f"scikit-learn {sklearn.__version__} | random_state={SEED}")
     data, total_rows = load_data()
     companies = int(data["company_id"].nunique())
+    context = company_context(data)
     print(f"loaded {len(data)} rows, {companies} companies, train and validation only")
     print(f"{total_rows - len(data)} rows marked test or holdout were discarded before use")
 
-    results = {"baseline": {}}
+    results = {"seasonal_naive": {}}
     for target in TARGETS:
         histories = histories_up_to(data, target, VALIDATION_ORIGIN)
         actual = actual_values(
             data, "validation", target, VALIDATION_ORIGIN + 1, VALIDATION_ORIGIN + HORIZON
         )
-        results["baseline"][target] = score(seasonal_naive(histories, HORIZON), actual)
+        results["seasonal_naive"][target] = score(
+            seasonal_naive(histories, HORIZON), actual, context
+        )
 
     search_log = []
     for kind, space in CANDIDATES.items():
@@ -284,7 +391,7 @@ def main():
             best = None
             for params in space:
                 model = fit_model(kind, params, target, data)
-                metrics = validation_metrics(model, target, data)
+                metrics = validation_metrics(model, target, data, context)
                 search_log.append(
                     {
                         "model": kind,
@@ -307,12 +414,11 @@ def main():
 
     mean_scores = {
         kind: round((results[kind]["income"]["mae"] + results[kind]["expenses"]["mae"]) / 2.0, 4)
-        for kind in CANDIDATES
+        for kind in MODEL_ORDER
     }
-    baseline_score = round(
-        (results["baseline"]["income"]["mae"] + results["baseline"]["expenses"]["mae"]) / 2.0, 4
-    )
-    best_kind = min(mean_scores, key=mean_scores.get)
+    baseline_score = mean_scores["seasonal_naive"]
+    exportable_scores = {kind: mean_scores[kind] for kind in EXPORTABLE_MODELS}
+    best_kind = min(exportable_scores, key=exportable_scores.get)
 
     report = {
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -323,6 +429,11 @@ def main():
             "numpy": np.__version__,
         },
         "random_state": SEED,
+        "features": {
+            "columns": list(FEATURE_COLUMNS),
+            "normalization": {"type": "mean_last_n", "n": 3},
+            "sector_used_as_feature": False,
+        },
         "data": {
             "rows_used": int(len(data)),
             "companies": companies,
@@ -331,6 +442,7 @@ def main():
             "splits_blocked": list(BLOCKED_SPLITS),
             "train_months": [1, 24],
             "validation_months": [25, 30],
+            "size_tercile_bounds_income_mean": context["tercile_bounds"],
         },
         "protocol": {
             "validation_origin_month_index": VALIDATION_ORIGIN,
@@ -338,13 +450,30 @@ def main():
             "recursive": True,
             "targets": list(TARGETS),
         },
+        "constraints": {
+            "exportable_models": list(EXPORTABLE_MODELS),
+            "non_exportable_models": list(NON_EXPORTABLE_MODELS),
+            "random_forest_limits": {
+                "n_estimators_max": 100,
+                "max_depth_max": 8,
+                "min_samples_leaf_min": 5,
+            },
+        },
         "search": search_log,
         "validation": results,
-        "scores": {"mean_mae": mean_scores, "baseline_mean_mae": baseline_score},
+        "scores": {
+            "mean_mae": mean_scores,
+            "exportable_mean_mae": exportable_scores,
+            "baseline_mean_mae": baseline_score,
+        },
         "selection": {
-            "criterion": "mean of income and expenses MAE on validation months 25-30",
+            "criterion": (
+                "lowest mean of income and expenses MAE on validation months 25-30, "
+                "restricted to models the backend can evaluate"
+            ),
             "recommended_model": best_kind,
-            "beats_baseline": bool(mean_scores[best_kind] < baseline_score),
+            "beats_baseline": bool(exportable_scores[best_kind] < baseline_score),
+            "experiments_not_exportable": list(NON_EXPORTABLE_MODELS),
         },
     }
 
@@ -353,14 +482,15 @@ def main():
     )
 
     print_tables(results)
+    print_extra_tables(results, best_kind)
     print(
         "\nMean validation MAE: "
         + ", ".join(f"{kind}={value:.3f}" for kind, value in mean_scores.items())
         + f"; baseline={baseline_score:.3f}"
     )
-    print(f"Recommended model for now: {best_kind}")
-    if mean_scores[best_kind] >= baseline_score:
-        print("WARNING: no candidate beats the seasonal naive baseline so far.")
+    print(f"Recommended exportable model: {best_kind}")
+    if not exportable_scores[best_kind] < baseline_score:
+        print("WARNING: no exportable candidate beats the seasonal naive baseline.")
     print(f"\nartifacts: {ARTIFACT_DIR}")
     print(f"elapsed: {time.perf_counter() - started:.1f} s")
 

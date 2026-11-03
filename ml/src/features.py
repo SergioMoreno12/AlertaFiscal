@@ -11,8 +11,10 @@ HORIZON = 6
 MIN_HISTORY = 6
 MIN_LAGS = 3
 
-FEATURE_COLUMNS = ["lag_1", "lag_2", "lag_3", "trend", "sin_month", "cos_month"]
+FEATURE_COLUMNS = ["t", "month_sin", "month_cos", "lag1", "lag2", "lag3"]
 TARGET = "ratio"
+
+NORMALIZATION = {"type": "mean_last_n", "n": MIN_LAGS}
 
 
 def month_of_year(month_index: int) -> int:
@@ -56,13 +58,15 @@ def _denominator(history: Sequence[float]) -> float:
 
 def prediction_row(history: Sequence[float], month_index: int) -> tuple[list[float], float]:
     denominator = _denominator(history)
+    sin_month, cos_month = seasonal_terms(month_index)
     row = [
+        float(len(history)),
+        sin_month,
+        cos_month,
         float(history[-1]) / denominator,
         float(history[-2]) / denominator,
         float(history[-3]) / denominator,
     ]
-    sin_month, cos_month = seasonal_terms(month_index)
-    row.extend([float(month_index), sin_month, cos_month])
     return row, denominator
 
 
@@ -79,23 +83,24 @@ def build_training_frame(series: pd.DataFrame, target: str) -> pd.DataFrame:
         .copy()
     )
 
-    grouped = frame.groupby("company_id", sort=False)[target]
-    frame["lag_1"] = grouped.shift(1)
-    frame["lag_2"] = grouped.shift(2)
-    frame["lag_3"] = grouped.shift(3)
-    frame["_denominator"] = frame[["lag_1", "lag_2", "lag_3"]].mean(axis=1)
+    frame["t"] = frame.groupby("company_id", sort=False).cumcount().astype(float)
 
-    frame = frame.dropna(subset=["lag_1", "lag_2", "lag_3", "_denominator"]).copy()
+    grouped = frame.groupby("company_id", sort=False)[target]
+    frame["lag1"] = grouped.shift(1)
+    frame["lag2"] = grouped.shift(2)
+    frame["lag3"] = grouped.shift(3)
+    frame["_denominator"] = frame[["lag1", "lag2", "lag3"]].mean(axis=1)
+
+    frame = frame.dropna(subset=["lag1", "lag2", "lag3", "_denominator"]).copy()
     frame = frame[frame["_denominator"] > 0.0].copy()
 
-    for lag in ("lag_1", "lag_2", "lag_3"):
+    for lag in ("lag1", "lag2", "lag3"):
         frame[lag] = frame[lag] / frame["_denominator"]
     frame[TARGET] = frame[target] / frame["_denominator"]
-    frame["trend"] = frame["month_index"].astype(float)
 
     months = ((frame["month_index"].astype(int) - 1) % 12) + 1
-    frame["sin_month"] = np.sin(2.0 * np.pi * months / 12.0)
-    frame["cos_month"] = np.cos(2.0 * np.pi * months / 12.0)
+    frame["month_sin"] = np.sin(2.0 * np.pi * months / 12.0)
+    frame["month_cos"] = np.cos(2.0 * np.pi * months / 12.0)
 
     columns = ["company_id", "month_index", target, TARGET] + FEATURE_COLUMNS
     return frame[columns].reset_index(drop=True)

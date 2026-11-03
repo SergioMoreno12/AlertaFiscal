@@ -1,6 +1,2 @@
 Flask==3.0.3
 gunicorn==22.0.0
-joblib==1.6.0
-numpy==2.5.4
-pandas==2.3.3
-scikit-learn==1.9.1
