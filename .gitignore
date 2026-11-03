@@ -9,3 +9,7 @@ __pycache__/
 ml/artifacts/*
 !ml/artifacts/candidates/
 !ml/artifacts/metrics.json
+
+ml/data/raw/*
+!ml/data/raw/.gitkeep
+__pycache__/
