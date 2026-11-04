@@ -398,7 +398,7 @@ def forecast_run_dict(run: ForecastRun) -> dict:
                 "random_forest": "random_forest",
                 "seasonal_naive": "seasonal_naive",
             }.get(run.method, run.method),
-            "Promedio manual" if run.method == "manual" else run.method,
+            "Manual average" if run.method == "manual" else run.method,
         ),
         "horizon_months": run.horizon_months,
         "cutoff_date": iso(run.cutoff_date),
