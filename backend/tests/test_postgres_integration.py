@@ -46,7 +46,7 @@ def test_database_is_postgresql_and_migrated(app):
         assert {"alembic_version", "companies", "income_documents", "fiscal_plans"} <= tables
         version = db.session.execute(text("select version_num from alembic_version")).scalar()
         # The Alembic head includes the seasonal forecast method.
-        assert version == "c7d2e5a9b1f3"
+        assert version == "d4e8a1b2c3f5"
         assert {"external_sources", "external_dataset_versions", "tax_collections", "sector_benchmarks"} <= tables
 
 
