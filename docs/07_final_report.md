@@ -148,7 +148,7 @@ Database:  PostgreSQL (Docker locally, Supabase in the cloud)
 
 **Privacy (`docs/06_privacy_and_retention.md`).** Only aggregated monthly amounts are stored, with no personal data, and only members of the company can read them. Monitoring rows are kept for 24 months and service events for 90 days (`flask monitoring-purge`).
 
-**Tests (`docs/06_test_cases.md`).** The backend suite gives **84 passed, 0 failed, 10 skipped**. The skipped tests are the PostgreSQL integration tests, run in CI. Of the 15 required cases, **14 passed** and 1 is **not run**: case 14, persistence across a Render redeploy, which needs the deployed app.
+**Tests (`docs/06_test_cases.md`).** The backend suite gives **84 passed, 0 failed, 10 skipped**. The skipped tests are the PostgreSQL integration tests, run in CI. All **15 required cases passed**. Case 14, persistence across a Render redeploy, was checked by hand on the deployed app.
 
 ## 7. Limitations and next steps
 
@@ -159,7 +159,7 @@ Database:  PostgreSQL (Docker locally, Supabase in the cloud)
 - **No reaction to sudden changes.** New contracts or lost clients are not predicted; monitoring is how the app notices them.
 - **Loss months fire often.** About 30 % of company-months are losses. A1 fires on any projected gap, and its message reminds the user of the model error.
 - **History rule.** The alert rule A6 in `docs/03_alert_rules.md` asked for 12 months of history. The model needs and was evaluated with 6 months as the minimum, so the app uses 6.
-- **Not verified yet.** The frontend build was not run on the team's machines without Node.js; CI builds it. The Render deployment and case 14 are pending at the time of writing.
+- **Deployment.** The app runs on Render's free plan (backend https://alertafiscal-backend-h4ip.onrender.com, frontend https://alertafiscal-frontend-wyyn.onrender.com), which sleeps after inactivity: the first request can take about a minute. The frontend build is checked in CI.
 
 **Next steps.**
 

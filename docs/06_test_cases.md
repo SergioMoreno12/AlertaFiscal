@@ -5,7 +5,7 @@
 - **Result of the whole suite:** 84 passed, 0 failed, 10 skipped. The 10 skipped tests are `test_postgres_integration.py`; they need `TEST_DATABASE_URL` and run in CI against a PostgreSQL service.
 - Test files: `backend/tests/test_forecasting_ml.py`, `test_forecasting.py`, `test_monitoring.py`, `test_isolation.py`, `test_demo_data.py`.
 
-A case is **passed** only when every automated test listed for it passed in this run. Case 14 needs the deployed app and is marked as not run until it is checked on Render.
+A case is **passed** only when every automated test listed for it passed in this run. Case 14 was checked by hand on the Render deployment on November 4, 2026.
 
 | ID | Case | Steps | Expected result | Actual result | Status |
 |---|---|---|---|---|---|
@@ -22,10 +22,10 @@ A case is **passed** only when every automated test listed for it passed in this
 | 11 | "Inputs changed since training" flag | Run marked as having inputs changed after training (`test_inputs_changed_flag_is_reported`); history changed after a forecast (`test_stale_forecast_alert_after_inputs_change`). | The monitoring view shows the flag; a stale-forecast alert is raised. | `inputs_changed_since_training: true` in the view; the stale alert is created. | Passed |
 | 12 | Model file missing or invalid | No artifact (`test_model_forecast_missing_artifact_is_explicit`); artifact with wrong scope, features, normalization, model type or schema (`test_invalid_global_artifact_returns_artifact_invalid`, 5 variants); file that is not JSON (`test_corrupt_global_artifact_keeps_the_erp_working`). | Explicit error code, manual mode offered, the rest of the ERP keeps working. | `model_not_trained` / `artifact_invalid` with `manual_available: true`; dashboard returns 200 and a manual forecast is created. | Passed |
 | 13 | Deployed file has the evaluated SHA-256 | Hash `backend/model_artifacts/model_global.json` (`test_deployed_artifact_has_the_evaluated_sha256`); parity with scikit-learn on the 50 Phase 3 cases (`test_parity_with_scikit_learn`). | `18e6872588ec387e853d11665f354c37312a8188893c93f204a6bbc9aeb0663e`; parity within 1e-6. | Same SHA-256; parity passes. The forecast response also returns `artifact_sha256`. | Passed |
-| 14 | Redeploy on Render keeps monitoring data | Deploy, create a model forecast, trigger a manual redeploy from the Render dashboard, open History → Monitoring again. | The rows and the service events are still there, because they live only in PostgreSQL (Supabase). | Not run yet: the app is not deployed. By design the monitoring module writes nothing to disk (section 7 of `06_monitoring.md`). | Not run |
+| 14 | Redeploy on Render keeps monitoring data | Deployed on November 4, 2026. Created a model forecast for the demo company C0017 (3 months), then ran Manual Deploy → Deploy latest commit on `alertafiscal-backend` and counted the rows in Supabase before and after. | The rows and the service events are still there, because they live only in PostgreSQL (Supabase). | Before and after the redeploy: 2 forecast runs, 6 monitoring rows (`pending`, 2026-11 to 2027-01, version `global-20261103-84df89b5`, SHA-256 `18e68725…0663e`), 1 service event (`success`, 523 ms). `/health/ready` returned `ready` after the redeploy. | Passed |
 | 15 | Two companies never see each other's data | Read the monitoring of a company the user does not belong to (`test_monitoring_of_another_company_is_forbidden`); company list, other company and missing company (`test_isolation.py`); forecast list isolation (`test_list_forecasts_isolated_between_companies`). | HTTP 403 for another company; lists show only the user's companies. | 403 for monitoring and the other company; isolation tests pass. | Passed |
 
-**Summary:** 14 passed, 0 failed, 1 not run (case 14, needs the deployment).
+**Summary:** 15 passed, 0 failed.
 
 ## How to repeat
 

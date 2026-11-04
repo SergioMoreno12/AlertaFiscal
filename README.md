@@ -4,6 +4,8 @@ AlertaFiscal is an ERP for Colombian small businesses with a machine learning fo
 
 Project for the Machine Learning course, Universidad de Cundinamarca. The data behind the model is **semi-synthetic** (built from public DIAN and Supersociedades aggregates); no real company is represented.
 
+**Live demo:** https://alertafiscal-frontend-wyyn.onrender.com (API: https://alertafiscal-backend-h4ip.onrender.com). Free Render plan: the first request after inactivity can take about a minute.
+
 **Final report:** [`docs/07_final_report.md`](docs/07_final_report.md). **Handover and open points:** [`docs/handover.md`](docs/handover.md).
 
 ## Results
