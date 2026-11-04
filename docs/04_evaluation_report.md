@@ -180,7 +180,7 @@ Allowed by protocol section 4.2: `shock_month` was read only after the tag `eval
 - **A shift inside the forecast window cannot be predicted:** the 7 companies have about twice the normalized error (16–22 %) and, in the temporal test, a strong negative bias. No model can see a shift that has not happened yet; the baseline is worse still (22–37 %).
 - These 7 companies are 1.4 % of the evaluated companies, so they barely move the overall medians.
 
-**Losses.** About 30 % of company-months show a loss (expenses above income). The model forecasts income and expenses separately, and both errors are of similar size (around 10–12 % normalized), so a forecast loss month is only reliable when the forecast gap is clearly larger than that error. This is why Phase 1's alert rule needs a margin and not a bare "expenses > income" test.
+**Losses.** About 30 % of company-months show a loss (expenses above income). The model forecasts income and expenses separately, and both errors are of similar size (around 10–12 % normalized), so a forecast loss month is only reliable when the forecast gap is clearly larger than that error. The app implements Phase 1's rule A1 as documented (a bare "expenses > income" test on the forecast), but its message states the typical model error, so a small projected gap is read as a month to review, not a certain loss. A margin equal to the model error would be a stricter option for a later version.
 
 ## 7. Limitations and consequences for a real small business
 
