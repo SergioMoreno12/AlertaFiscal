@@ -14,6 +14,7 @@ import {
 import { login as apiLogin, logout as apiLogout, me as apiMe, type SessionUser } from "../api/auth.api";
 import { backendStatus } from "../api/system.api";
 import { ApiError, onUnauthorized } from "../api/client";
+import { getLang, setLang, tr, uiLocale, type Lang } from "../i18n";
 import {
   getContextSummary,
   type ContextBenchmark,
@@ -92,11 +93,11 @@ type BackendState = { online: boolean; database: string | null; checked: boolean
 
 // ─── Constants & Demo Data ────────────────────────────────────────────────────
 const fmt = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat(uiLocale(), { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 const fmtM = (n: number) => {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)} M COP`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)} K COP`;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toLocaleString(uiLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M COP`;
+  if (n >= 1_000) return `$${(n / 1_000).toLocaleString(uiLocale(), { maximumFractionDigits: 0 })} K COP`;
   return fmt(n);
 };
 
@@ -115,13 +116,13 @@ const fmtDate = (value: string | null | undefined) => {
     ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
     : new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
+  return date.toLocaleDateString(uiLocale(), { day: "2-digit", month: "short", year: "numeric" });
 };
 
 const shortMonth = (period: string) => {
   const [year, month] = period.split("-").map(Number);
   if (!year || !month) return period;
-  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short" });
+  return new Date(year, month - 1, 1).toLocaleDateString(uiLocale(), { month: "short" });
 };
 
 const errorMessage = (error: unknown) =>
@@ -129,7 +130,7 @@ const errorMessage = (error: unknown) =>
 
 const downloadCsv = (filename: string, headers: string[], rows: Array<Array<string | number>>) => {
   const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
-  const content = [headers, ...rows].map((row) => row.map(escape).join(";")).join("\r\n");
+  const content = [headers.map(tr), ...rows].map((row) => row.map(escape).join(";")).join("\r\n");
   const blob = new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -227,14 +228,14 @@ const INGRESOS_TABLE = [
   { id: 1, fecha: "02/10/2026", cliente: "Central Hardware", doc: "FE-2026-1101", desc: "Sale of goods", base: 5000000, iva: 950000, total: 5950000, estado: "Collected" },
   { id: 2, fecha: "05/10/2026", cliente: "North Distribution", doc: "FE-2026-1102", desc: "Sale of products", base: 8400000, iva: 1596000, total: 9996000, estado: "Pending" },
   { id: 3, fecha: "10/10/2026", cliente: "South Trading", doc: "FE-2026-1103", desc: "Wholesale", base: 12000000, iva: 2280000, total: 14280000, estado: "Collected" },
-  { id: 4, fecha: "14/10/2026", cliente: "Minimarket Express", doc: "FE-2026-1104", desc: "Venta surtido", base: 3800000, iva: 722000, total: 4522000, estado: "Collected" },
+  { id: 4, fecha: "14/10/2026", cliente: "Minimarket Express", doc: "FE-2026-1104", desc: "Assorted sale", base: 3800000, iva: 722000, total: 4522000, estado: "Collected" },
   { id: 5, fecha: "17/10/2026", cliente: "Andean Stores", doc: "FE-2026-1105", desc: "Wholesale sale", base: 5800000, iva: 1102000, total: 6902000, estado: "Pending" },
 ];
 
 const GASTOS_TABLE = [
   { id: 1, fecha: "01/10/2026", proveedor: "Andean Imports", doc: "FC-20261001", cat: "Goods", base: 9500000, iva: 1805000, total: 11305000, pago: "Paid", revision: "Reviewed" },
   { id: 2, fecha: "05/10/2026", proveedor: "Logistics Services S.A.", doc: "FC-20261042", cat: "Logistics", base: 2100000, iva: 399000, total: 2499000, pago: "Pending", revision: "Not reviewed" },
-  { id: 3, fecha: "08/10/2026", proveedor: "Arrendadora Central", doc: "RC-20261008", cat: "Arrendamiento", base: 3500000, iva: 0, total: 3500000, pago: "Paid", revision: "Reviewed" },
+  { id: 3, fecha: "08/10/2026", proveedor: "Arrendadora Central", doc: "RC-20261008", cat: "Rent", base: 3500000, iva: 0, total: 3500000, pago: "Paid", revision: "Reviewed" },
   { id: 4, fecha: "12/10/2026", proveedor: "Utilities", doc: "SV-20261012", cat: "Services", base: 450000, iva: 0, total: 450000, pago: "Paid", revision: "Not reviewed" },
   { id: 5, fecha: "15/10/2026", proveedor: "Office Supplies", doc: "FC-20261055", cat: "Admin. expenses", base: 280000, iva: 53200, total: 333200, pago: "Paid", revision: "Not reviewed" },
 ];
@@ -250,7 +251,7 @@ const OBLIGACIONES_DATA = [
   { id: 1, obligacion: "Bimonthly VAT (Sep-Oct 2026)", periodo: "Sep-Oct 2026", vencimiento: "28/10/2026", fuente: "Recorded by the accountant", estimado: "$2,550,000", presentacion: "Pending", pago: "Pending", revision: "In review" },
   { id: 2, obligacion: "Withholding tax (Oct 2026)", periodo: "Oct 2026", vencimiento: "12/11/2026", fuente: "Recorded by the accountant", estimado: "To be defined", presentacion: "Pending", pago: "Pending", revision: "Not reviewed" },
   { id: 3, obligacion: "ICA (Bogota - annual)", periodo: "2026", vencimiento: "15/03/2027", fuente: "Recorded by the accountant", estimado: "Estimate pending", presentacion: "Pending", pago: "Pending", revision: "Not reviewed" },
-  { id: 4, obligacion: "IVA bimestral (Jul-Ago 2026)", periodo: "Jul-Ago 2026", vencimiento: "28/08/2026", fuente: "Recorded by the accountant", estimado: "$3.200.000", presentacion: "Filed", pago: "Paid", revision: "Reviewed" },
+  { id: 4, obligacion: "Bimonthly VAT (Jul-Aug 2026)", periodo: "Jul-Aug 2026", vencimiento: "28/08/2026", fuente: "Recorded by the accountant", estimado: "$3.200.000", presentacion: "Filed", pago: "Paid", revision: "Reviewed" },
 ];
 
 const HISTORIAL_DATA = [
@@ -293,6 +294,25 @@ const Btn = ({ children, variant = "primary", onClick, icon, small, fullWidth, d
   return (
     <button onClick={onClick} disabled={disabled} style={{ ...styles[variant], borderRadius: 9, padding: small ? "7px 14px" : "10px 18px", fontSize: small ? 12 : 13, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity 0.15s", width: fullWidth ? "100%" : undefined, justifyContent: fullWidth ? "center" : undefined }}>
       {icon}{children}
+    </button>
+  );
+};
+
+const LanguageToggle = ({ lang, onChange, onDark }: { lang: Lang; onChange: (lang: Lang) => void; onDark?: boolean }) => {
+  const next: Lang = lang === "es" ? "en" : "es";
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(next)}
+      aria-label={next === "es" ? "Switch to Spanish" : "Switch to English"}
+      title={next === "es" ? "Switch to Spanish" : "Switch to English"}
+      style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: 3, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", border: onDark ? "1px solid rgba(255,255,255,0.25)" : "1px solid rgba(0,0,0,0.1)", backgroundColor: onDark ? "rgba(255,255,255,0.08)" : "#fff" }}
+    >
+      {(["es", "en"] as const).map((option) => (
+        <span key={option} style={{ padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.3px", backgroundColor: option === lang ? "#1B5E3F" : "transparent", color: option === lang ? "#fff" : onDark ? "rgba(255,255,255,0.7)" : "#78909C" }}>
+          {option.toUpperCase()}
+        </span>
+      ))}
     </button>
   );
 };
@@ -433,7 +453,7 @@ const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, ap
 );
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
-const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demoMode, onLogout, compact }: { sidebarOpen: boolean; onToggle: () => void; empresa: string; companySubtitle: string; backend: BackendState; demoMode: boolean; onLogout: () => void; compact: boolean }) => (
+const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demoMode, onLogout, compact, lang, onLang }: { sidebarOpen: boolean; onToggle: () => void; empresa: string; companySubtitle: string; backend: BackendState; demoMode: boolean; onLogout: () => void; compact: boolean; lang: Lang; onLang: (lang: Lang) => void }) => (
   <header style={{ backgroundColor: "#fff", borderBottom: "1px solid rgba(0,0,0,0.07)", padding: compact ? "10px 14px" : "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, position: "sticky", top: 0, zIndex: 5 }}>
     <div style={{ display: "flex", alignItems: "center", gap: compact ? 10 : 14, minWidth: 0 }}>
       <button onClick={onToggle} aria-label={sidebarOpen ? "Close menu" : "Open menu"} style={{ flexShrink: 0, background: sidebarOpen ? "#E8F5E9" : "#1B5E3F", border: "none", borderRadius: 9, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: sidebarOpen ? "#1B5E3F" : "#fff" }}>
@@ -453,6 +473,7 @@ const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demo
         {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API unavailable") : "Checking API"}
       </span>}
       {demoMode && !compact && <DemoBanner />}
+      <LanguageToggle lang={lang} onChange={onLang} />
       <button onClick={onLogout} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#78909C", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
         <LogOut size={12} /> {compact ? "" : "Sign out"}
       </button>
@@ -467,10 +488,14 @@ const LoginScreen = ({
   onLogin,
   onDemo,
   backend,
+  lang,
+  onLang,
 }: {
   onLogin: (user: SessionUser) => void;
   onDemo: () => void;
   backend: BackendState;
+  lang: Lang;
+  onLang: (lang: Lang) => void;
 }) => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -506,7 +531,10 @@ const LoginScreen = ({
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#F5F7F6", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#F5F7F6", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+      <div style={{ position: "absolute", top: 16, right: 16 }}>
+        <LanguageToggle lang={lang} onChange={onLang} />
+      </div>
       <div style={{ backgroundColor: "#fff", borderRadius: 20, padding: "48px 44px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", width: "100%", maxWidth: 420 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ width: 52, height: 52, backgroundColor: "#E8F5E9", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -744,7 +772,7 @@ const ResumenScreen = ({
 
   return (
     <div style={{ padding: "28px 32px" }}>
-      <SectionHeader title="Overview" subtitle={`${companyName} · Cutoff: ${new Date().toLocaleDateString("en-US")}`}
+      <SectionHeader title="Overview" subtitle={`${companyName} · Cutoff: ${new Date().toLocaleDateString(uiLocale())}`}
         actions={
           <>
             <Btn variant="ghost" icon={<RefreshCw size={13} />} small onClick={() => setReloadKey((key) => key + 1)}>Refresh</Btn>
@@ -1323,7 +1351,7 @@ const DEMO_EXPENSE_ROWS: ExpenseDisplayRow[] = GASTOS_TABLE.map((row) => ({
   party: row.proveedor,
   doc: row.doc,
   category: row.cat,
-  description: "Compra operativa",
+  description: "Operating purchase",
   subtotal: row.base,
   tax: row.iva,
   total: row.total,
@@ -1461,7 +1489,7 @@ const GastosScreen = ({
           party: form.party || "Demo supplier",
           doc: form.doc_number,
           category: form.category || "Other",
-          description: form.description || "Compra registrada",
+          description: form.description || "Recorded purchase",
           subtotal: Number(subtotal),
           tax: Number(tax),
           total: Number(total),
@@ -2104,10 +2132,10 @@ const DEMO_OBLIGATIONS: Obligation[] = [
 const unitLabel = (unit: string) => ({ percent: "Percent", cop: "COP", months: "Months", count: "Count" } as Record<string, string>)[unit] ?? unit;
 
 const parameterValue = (row: ParameterRow) => {
-  if (row.unit === "percent") return `${Number(row.value).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
+  if (row.unit === "percent") return `${Number(row.value).toLocaleString(uiLocale(), { maximumFractionDigits: 2 })}%`;
   if (row.unit === "cop") return fmt(Number(row.value));
-  if (row.unit === "months") return `${Number(row.value).toLocaleString("en-US")} months`;
-  return Number(row.value).toLocaleString("en-US");
+  if (row.unit === "months") return `${Number(row.value).toLocaleString(uiLocale())} months`;
+  return Number(row.value).toLocaleString(uiLocale());
 };
 
 const PlanificacionScreen = ({
@@ -2138,7 +2166,7 @@ const PlanificacionScreen = ({
   const [reservesTotal, setReservesTotal] = useState(0);
 
   const [form, setForm] = useState({
-    name: `Plan fiscal ${currentPeriod()}`,
+    name: `Tax plan ${currentPeriod()}`,
     period: currentPeriod(),
     projected_income: demoMode ? "55000000" : "",
     projected_expenses: demoMode ? "37000000" : "",
@@ -2218,7 +2246,7 @@ const PlanificacionScreen = ({
             : fallbackExpenses;
 
         setForm({
-          name: currentPlan?.name ?? `Plan fiscal ${currentPeriod()}`,
+          name: currentPlan?.name ?? `Tax plan ${currentPeriod()}`,
           period: draft?.period ?? currentPlan?.period ?? currentPeriod(),
           projected_income: draft?.projected_income ?? String(Math.round(projectedIncome)),
           projected_expenses: draft?.projected_expenses ?? String(Math.round(projectedExpenses)),
@@ -2463,7 +2491,7 @@ const PlanificacionScreen = ({
               {pendingObligations.map((obligation) => (
                 <div key={obligation.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#37474F" }}>{obligation.name}</div>
-                  <div style={{ fontSize: 11, color: "#E53935", marginTop: 2 }}>Vence: {fmtDate(obligation.due_date)}</div>
+                  <div style={{ fontSize: 11, color: "#E53935", marginTop: 2 }}>Due: {fmtDate(obligation.due_date)}</div>
                   <div style={{ fontSize: 11, color: "#78909C" }}>Estimate: {obligation.estimated_amount ? fmt(num(obligation.estimated_amount)) : "To be defined"}</div>
                 </div>
               ))}
@@ -2683,7 +2711,7 @@ const EscenariosScreen = ({ companyName }: { companyName: string }) => {
         {[
           { label: "Projected income", value: fmtM(sc.ingresos), note: "Simulated forecast" },
           { label: "Projected expenses", value: fmtM(sc.gastos), note: "Simulated forecast" },
-          { label: "Diferencia ingr. − gast.", value: fmtM(sc.ingresos - sc.gastos), note: "No equivale a utilidad fiscal ni a impuesto a pagar" },
+          { label: "Income − expenses", value: fmtM(sc.ingresos - sc.gastos), note: "Not equivalent to taxable profit or to a tax payable" },
         ].map((item) => (
           <Card key={item.label} style={{ padding: "20px 22px" }}>
             <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
@@ -2697,7 +2725,7 @@ const EscenariosScreen = ({ companyName }: { companyName: string }) => {
         <Card>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 16 }}>Scenario assumptions</div>
           <div style={{ backgroundColor: "#F5F7F6", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#37474F", lineHeight: 1.8 }}>
-            <strong>Escenario:</strong> {sc.label}<br />
+            <strong>Scenario:</strong> {sc.label}<br />
             <strong>Adjusted income:</strong> {fmtM(sc.ingresos)}<br />
             <strong>Adjusted expenses:</strong> {fmtM(sc.gastos)}<br />
             <strong>Assumption:</strong> Illustrative demo figures<br />
@@ -2730,7 +2758,7 @@ const DEMO_TRACKED_OBLIGATIONS: Obligation[] = [
   { id: 1, name: "Bimonthly VAT", period: "Sep-Oct 2026", due_date: "2026-10-28", estimated_amount: "2550000.00", status: "pending", notes: "Date recorded manually." },
   { id: 2, name: "Withholding tax", period: "Oct 2026", due_date: "2026-11-12", estimated_amount: null, status: "pending", notes: "Amount pending." },
   { id: 3, name: "Annual ICA", period: "2026", due_date: "2027-03-15", estimated_amount: null, status: "pending", notes: "Estimate pending." },
-  { id: 4, name: "Bimonthly VAT", period: "Jul-Ago 2026", due_date: "2026-08-28", estimated_amount: "3200000.00", status: "paid", notes: "Filed and paid." },
+  { id: 4, name: "Bimonthly VAT", period: "Jul-Aug 2026", due_date: "2026-08-28", estimated_amount: "3200000.00", status: "paid", notes: "Filed and paid." },
 ];
 
 const obligationBadgeStyle = (status: string) => {
@@ -2944,14 +2972,14 @@ const ObligacionesScreen = ({
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {row.status === "pending" && (
                             <button onClick={() => changeStatus(row, "filed")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#1565C0", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
-                              Presentar
+                              File
                             </button>
                           )}
                           <button onClick={() => changeStatus(row, "paid")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#1B5E3F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
-                            Pagar
+                            Pay
                           </button>
                           <button onClick={() => changeStatus(row, "void")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#78909C", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
-                            Anular
+                            Void
                           </button>
                         </div>
                       )}
@@ -2992,7 +3020,7 @@ const ObligacionesScreen = ({
               <Field label="Period">
                 <input value={form.period} onChange={(event) => setForm({ ...form, period: event.target.value })} placeholder="Sep-Oct 2026" style={inputStyle} />
               </Field>
-              <Field label="Vencimiento *">
+              <Field label="Due date *">
                 <input type="date" value={form.due_date} onChange={(event) => setForm({ ...form, due_date: event.target.value })} style={inputStyle} />
               </Field>
             </div>
@@ -3451,7 +3479,7 @@ const AlertaDetalleScreen = ({
                   style={{ ...inputStyle, flex: 1, minWidth: 200 }}
                   onKeyDown={(event) => event.key === "Enter" && postComment()}
                 />
-                <Btn variant="primary" icon={<MessageSquare size={13} />} onClick={postComment}>{posting ? "Guardando…" : "Add"}</Btn>
+                <Btn variant="primary" icon={<MessageSquare size={13} />} onClick={postComment}>{posting ? "Saving…" : "Add"}</Btn>
               </div>
             </Card>
           </div>
@@ -3599,12 +3627,12 @@ const ContextoSourceCard = ({ source }: { source: ContextSource }) => {
       <p style={{ fontSize: 12, color: "#546E7A", margin: "10px 0 12px", lineHeight: 1.5 }}>{source.description}</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 11, color: "#78909C" }}>
-        <div><strong style={{ color: "#37474F" }}>Cadencia:</strong> {source.cadence}</div>
-        <div><strong style={{ color: "#37474F" }}>Licencia:</strong> {source.license.name || "No declarada"}</div>
+        <div><strong style={{ color: "#37474F" }}>Cadence:</strong> {source.cadence}</div>
+        <div><strong style={{ color: "#37474F" }}>License:</strong> {source.license.name || "Not declared"}</div>
         <div><strong style={{ color: "#37474F" }}>Current version:</strong> {version?.version_label ?? "Not loaded"}</div>
-        <div><strong style={{ color: "#37474F" }}>Adquirida:</strong> {version ? fmtDate(version.acquired_at) : "—"}</div>
+        <div><strong style={{ color: "#37474F" }}>Acquired:</strong> {version ? fmtDate(version.acquired_at) : "—"}</div>
         <div><strong style={{ color: "#37474F" }}>Cutoff:</strong> {version?.cutoff_date ? fmtDate(version.cutoff_date) : "—"}</div>
-        <div><strong style={{ color: "#37474F" }}>Source rows:</strong> {version ? version.row_count.toLocaleString("en-US") : "—"}</div>
+        <div><strong style={{ color: "#37474F" }}>Source rows:</strong> {version ? version.row_count.toLocaleString(uiLocale()) : "—"}</div>
       </div>
 
       {version && (version.is_partial || version.is_preliminary) && (
@@ -3626,7 +3654,7 @@ const ContextoSourceCard = ({ source }: { source: ContextSource }) => {
         <span style={{ color: "#B0BEC5" }}>Attribution: {source.attribution || "—"}</span>
       </div>
       {source.license.evidence_path && (
-        <div style={{ marginTop: 6, fontSize: 10, color: "#B0BEC5" }}>Evidencia local: {source.license.evidence_path}</div>
+        <div style={{ marginTop: 6, fontSize: 10, color: "#B0BEC5" }}>Local evidence: {source.license.evidence_path}</div>
       )}
     </Card>
   );
@@ -3666,7 +3694,7 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
   const benchmarks: ContextBenchmark[] = summary?.benchmarks ?? [];
   const benchmarkYear = benchmarks[0]?.year;
   const monthName = tax?.monthly
-    ? new Date(tax.monthly.year, tax.monthly.month - 1, 1).toLocaleDateString("en-US", { month: "long" })
+    ? new Date(tax.monthly.year, tax.monthly.month - 1, 1).toLocaleDateString(uiLocale(), { month: "long" })
     : "";
 
   return (
@@ -3776,12 +3804,12 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
                         {benchmarks.map((row) => (
                           <tr key={row.metric}>
                             <td style={{ padding: "10px 14px", fontWeight: 600, color: "#37474F" }}>{row.metric_label}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.sample_size.toLocaleString("en-US")}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.sample_size.toLocaleString(uiLocale())}</td>
                             <td style={{ padding: "10px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.total_cop))}</td>
                             <td style={{ padding: "10px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.median_cop))}</td>
                             <td style={{ padding: "10px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.mean_cop))}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.zero_count.toLocaleString("en-US")}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.negative_count.toLocaleString("en-US")}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.zero_count.toLocaleString(uiLocale())}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.negative_count.toLocaleString(uiLocale())}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -4171,6 +4199,12 @@ export default function App() {
   const [companies, setCompanies] = useState<CompanyCard[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
   const narrow = useIsNarrow();
+  const [lang, setLangState] = useState<Lang>(getLang());
+  // The DOM texts switch at once; the state change re-renders numbers and dates in the new locale.
+  const changeLang = (next: Lang) => {
+    setLang(next);
+    setLangState(next);
+  };
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" || !window.matchMedia(NARROW_QUERY).matches);
   const mainRef = useRef<HTMLElement | null>(null);
   const [alertDetailId, setAlertDetailId] = useState<number>(1);
@@ -4380,7 +4414,7 @@ export default function App() {
   }
 
   if (!loggedIn) {
-    return <LoginScreen onLogin={handleLogin} onDemo={handleDemo} backend={backend} />;
+    return <LoginScreen onLogin={handleLogin} onDemo={handleDemo} backend={backend} lang={lang} onLang={changeLang} />;
   }
 
   return (
@@ -4388,7 +4422,7 @@ export default function App() {
       <Sidebar open={sidebarOpen} overlay={narrow} onClose={() => setSidebarOpen(false)} screen={screen} onNav={handleNav} userName={userName} userRole={userRole} apiOnline={backend.online} />
 
       <main ref={mainRef} className={narrow ? "af-main af-narrow" : "af-main"} style={{ height: "100vh", overflowY: "auto", marginLeft: sidebarOpen && !narrow ? 240 : 0, transition: "margin-left 0.28s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column" }}>
-        <Topbar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} empresa={needsCompany ? "AlertaFiscal" : companyName} companySubtitle={companySubtitle} backend={backend} demoMode={demoMode} onLogout={handleLogout} compact={narrow} />
+        <Topbar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} empresa={needsCompany ? "AlertaFiscal" : companyName} companySubtitle={companySubtitle} backend={backend} demoMode={demoMode} onLogout={handleLogout} compact={narrow} lang={lang} onLang={changeLang} />
 
         <div style={{ flex: 1 }}>
           {screen === "empresas" && <EmpresasScreen companies={companies} onSelect={handleSelectCompany} />}
