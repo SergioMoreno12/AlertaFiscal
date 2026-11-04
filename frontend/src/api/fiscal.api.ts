@@ -427,3 +427,48 @@ export const createModelForecast = (companyId: number, payload: { horizon_months
 
 export const listAudit = (companyId: number) =>
   api.get<PaginatedResponse<AuditEvent>>(`/api/v1/companies/${companyId}/audit`)
+
+export type MonitoringStatus = 'pending' | 'normal' | 'watch' | 'degraded'
+
+export type MonitoringTarget = {
+  status: MonitoringStatus
+  rolling_normalized_error_pct: number | null
+  ratio_to_reference: number | null
+  reference_normalized_error_pct: number
+  months_used: string[]
+  pending_months: string[]
+}
+
+export type MonitoringRow = {
+  forecast_run_id: number
+  target: 'income' | 'expenses'
+  forecast_month: string
+  horizon_step: number
+  predicted_value: string
+  actual_value: string | null
+  absolute_error: string | null
+  normalized_error_pct: number | null
+  status: MonitoringStatus
+  model_version: string | null
+}
+
+export type MonitoringView = {
+  status: MonitoringStatus
+  targets: Record<'income' | 'expenses', MonitoringTarget>
+  model_version: string | null
+  last_forecast_at: string | null
+  inputs_changed_since_training: boolean
+  reference: string
+  thresholds: { normal: string; watch: string; degraded: string; rolling_months: number }
+  rows: MonitoringRow[]
+  operations: {
+    requests: number
+    outcomes: Record<string, number>
+    latency_ms: { p50: number | null; p95: number | null }
+    last_model_version: string | null
+    last_request_at: string | null
+  }
+}
+
+export const getMonitoring = (companyId: number) =>
+  api.get<MonitoringView>(`/api/v1/companies/${companyId}/monitoring`)

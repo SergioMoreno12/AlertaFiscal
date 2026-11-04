@@ -38,6 +38,7 @@ import {
   getDashboard,
   getPlan,
   listAlerts,
+  getMonitoring,
   listAudit,
   listCounterparties,
   listExpenses,
@@ -53,6 +54,8 @@ import {
   updateObligation,
   type Alert as ApiAlert,
   type AuditEvent,
+  type MonitoringStatus,
+  type MonitoringView,
   type Company,
   type Counterparty,
   type Dashboard,
@@ -204,7 +207,7 @@ const HISTORICO = [
   { mes: "May", ingresos: 42000000, gastos: 28000000 },
   { mes: "Jun", ingresos: 51000000, gastos: 34000000 },
   { mes: "Jul", ingresos: 48500000, gastos: 32000000 },
-  { mes: "Ago", ingresos: 62300000, gastos: 41000000 },
+  { mes: "Aug", ingresos: 62300000, gastos: 41000000 },
   { mes: "Sep", ingresos: 57800000, gastos: 38500000 },
   { mes: "Oct*", ingresos: 35000000, gastos: 23000000, proyIngreso: 55000000, proyGasto: 37000000 },
 ];
@@ -213,7 +216,7 @@ const PROYECCION_DATA = [
   { mes: "May", ingresos: 42000000, gastos: 28000000, tipo: "obs" },
   { mes: "Jun", ingresos: 51000000, gastos: 34000000, tipo: "obs" },
   { mes: "Jul", ingresos: 48500000, gastos: 32000000, tipo: "obs" },
-  { mes: "Ago", ingresos: 62300000, gastos: 41000000, tipo: "obs" },
+  { mes: "Aug", ingresos: 62300000, gastos: 41000000, tipo: "obs" },
   { mes: "Sep", ingresos: 57800000, gastos: 38500000, tipo: "obs" },
   { mes: "Oct", ingresos: null, gastos: null, proyIngreso: 55000000, proyGasto: 37000000, tipo: "proy" },
   { mes: "Nov", ingresos: null, gastos: null, proyIngreso: 58000000, proyGasto: 39000000, tipo: "proy" },
@@ -3749,6 +3752,119 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
   );
 };
 
+const monitoringUi = (status: MonitoringStatus) =>
+  ({
+    pending: { label: "Pending", color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" },
+    normal: { label: "Normal", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" },
+    watch: { label: "Watch", color: "#E65100", bg: "#FFF8E1", border: "#FFE082" },
+    degraded: { label: "Degraded", color: "#C62828", bg: "#FFEBEE", border: "#EF9A9A" },
+  })[status];
+
+const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | null; error: string | null; demoMode: boolean }) => {
+  if (demoMode) {
+    return (
+      <Card>
+        <div style={{ fontSize: 12, color: "#78909C" }}>
+          Monitoring compares stored model forecasts with the real values registered in the ERP, so it is only shown with live data.
+        </div>
+      </Card>
+    );
+  }
+  if (error) return <InlineError message={error} />;
+  if (!view) return <div style={{ fontSize: 12, color: "#78909C" }}>Loading monitoring…</div>;
+  const overall = monitoringUi(view.status);
+  const pct = (value: number | null) => (value === null ? "—" : `${value.toFixed(2)} %`);
+  return (
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 16 }}>
+        <Card>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#78909C", marginBottom: 8 }}>OVERALL STATUS</div>
+          <Badge label={overall.label} color={overall.color} bg={overall.bg} border={overall.border} />
+          <div style={{ fontSize: 11, color: "#78909C", marginTop: 10 }}>
+            Model {view.model_version ?? "—"}
+            {view.last_forecast_at && <span style={{ display: "block" }}>Last forecast {fmtDate(view.last_forecast_at)}</span>}
+          </div>
+          {view.inputs_changed_since_training && (
+            <div style={{ fontSize: 11, color: "#E65100", marginTop: 8 }}>The company data changed after the model was trained.</div>
+          )}
+        </Card>
+        {(["income", "expenses"] as const).map((target) => {
+          const item = view.targets[target];
+          const ui = monitoringUi(item.status);
+          return (
+            <Card key={target}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#78909C", marginBottom: 8 }}>{target === "income" ? "INCOME" : "EXPENSES"}</div>
+              <Badge label={ui.label} color={ui.color} bg={ui.bg} border={ui.border} />
+              <div style={{ fontSize: 12, color: "#37474F", marginTop: 10 }}>
+                Rolling error {pct(item.rolling_normalized_error_pct)} · reference {pct(item.reference_normalized_error_pct)}
+              </div>
+              <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>
+                {item.months_used.length > 0 ? `Months used: ${item.months_used.join(", ")}` : "No resolved months yet"}
+                {item.pending_months.length > 0 && (
+                  <span style={{ display: "block" }}>Waiting for actual values: {item.pending_months.length} months</span>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+        <Card>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#78909C", marginBottom: 8 }}>FORECAST SERVICE</div>
+          <div style={{ fontSize: 12, color: "#37474F" }}>{view.operations.requests} requests</div>
+          <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>
+            {Object.entries(view.operations.outcomes).map(([outcome, count]) => `${outcome}: ${count}`).join(" · ") || "No requests yet"}
+          </div>
+          <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>
+            Latency p50 {view.operations.latency_ms.p50 ?? "—"} ms · p95 {view.operations.latency_ms.p95 ?? "—"} ms
+          </div>
+        </Card>
+      </div>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ backgroundColor: "#F5F7F6" }}>
+                {["Month", "Target", "Step", "Predicted", "Actual", "Error", "Normalized error", "Status"].map((header) => (
+                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {view.rows.map((row, index) => {
+                const ui = monitoringUi(row.status);
+                return (
+                  <tr key={`${row.forecast_run_id}-${row.target}-${row.forecast_month}`} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
+                    <td style={{ padding: "12px 14px", color: "#37474F", whiteSpace: "nowrap" }}>{row.forecast_month}</td>
+                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{row.target === "income" ? "Income" : "Expenses"}</td>
+                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{row.horizon_step}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.predicted_value))}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{row.actual_value === null ? "—" : fmt(num(row.actual_value))}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{row.absolute_error === null ? "—" : fmt(num(row.absolute_error))}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{pct(row.normalized_error_pct)}</td>
+                    <td style={{ padding: "12px 14px" }}><Badge label={ui.label} color={ui.color} bg={ui.bg} border={ui.border} /></td>
+                  </tr>
+                );
+              })}
+              {view.rows.length === 0 && (
+                <tr>
+                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>
+                    No model forecasts to monitor yet. Run a model forecast first.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+          The error is normalized by the mean monthly income of the forecast history and compared with the Phase 4 reference
+          ({view.reference}). Normal: {view.thresholds.normal}; watch: {view.thresholds.watch}; degraded: {view.thresholds.degraded}.
+          The status uses the last {view.thresholds.rolling_months} resolved months. A month stays pending until it is closed and its
+          real values are registered.
+        </div>
+      </Card>
+    </>
+  );
+};
+
 const HistorialScreen = ({
   companyId,
   companyName,
@@ -3758,7 +3874,9 @@ const HistorialScreen = ({
   companyName: string;
   demoMode: boolean;
 }) => {
-  const [tab, setTab] = useState<"planes" | "proyecciones" | "seguimiento">("planes");
+  const [tab, setTab] = useState<"planes" | "proyecciones" | "monitoring" | "seguimiento">("planes");
+  const [monitoring, setMonitoring] = useState<MonitoringView | null>(null);
+  const [monitoringError, setMonitoringError] = useState<string | null>(null);
   const [planDetails, setPlanDetails] = useState<PlanDetail[]>([]);
   const [forecasts, setForecasts] = useState<ForecastRun[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
@@ -3772,6 +3890,8 @@ const HistorialScreen = ({
       setPlanDetails([]);
       setForecasts([]);
       setAuditEvents([]);
+      setMonitoring(null);
+      setMonitoringError(null);
       setError(null);
       setAuditAvailable(true);
       return;
@@ -3793,6 +3913,17 @@ const HistorialScreen = ({
       })
       .finally(() => {
         if (alive) setLoading(false);
+      });
+
+    getMonitoring(companyId)
+      .then((view) => {
+        if (alive) {
+          setMonitoring(view);
+          setMonitoringError(null);
+        }
+      })
+      .catch((err) => {
+        if (alive) setMonitoringError(errorMessage(err));
       });
 
     listAudit(companyId)
@@ -3831,9 +3962,9 @@ const HistorialScreen = ({
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-        {(["planes", "proyecciones", "seguimiento"] as const).map((option) => (
+        {(["planes", "proyecciones", "monitoring", "seguimiento"] as const).map((option) => (
           <button key={option} onClick={() => setTab(option)} style={{ padding: "9px 18px", borderRadius: 9, border: tab === option ? "none" : "1.5px solid #CFD8DC", backgroundColor: tab === option ? "#1B5E3F" : "#fff", color: tab === option ? "#fff" : "#78909C", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>
-            {({ planes: "Plans", proyecciones: "Forecasts", seguimiento: "Audit" } as Record<string, string>)[option] ?? option}
+            {({ planes: "Plans", proyecciones: "Forecasts", monitoring: "Monitoring", seguimiento: "Audit" } as Record<string, string>)[option] ?? option}
           </button>
         ))}
       </div>
@@ -3896,7 +4027,7 @@ const HistorialScreen = ({
                   <tr key={run.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
                     <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(run.created_at)}</td>
                     <td style={{ padding: "12px 14px", color: "#37474F" }}>{forecastMethodLabel(run)}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{run.horizon_months} meses</td>
+                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{run.horizon_months} months</td>
                     <td style={{ padding: "12px 14px", textAlign: "right", color: "#1B5E3F", fontWeight: 600 }}>{fmt(num(run.projected_income))}</td>
                     <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(run.projected_expenses))}</td>
                     <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(run.cutoff_date)}</td>
@@ -3918,6 +4049,10 @@ const HistorialScreen = ({
             Forecasts screen shows an explicit error and never replaces the prediction with fictitious data.
           </div>
         </Card>
+      )}
+
+      {tab === "monitoring" && (
+        <MonitoringPanel view={demoMode ? null : monitoring} error={demoMode ? null : monitoringError} demoMode={demoMode} />
       )}
 
       {tab === "seguimiento" && (
