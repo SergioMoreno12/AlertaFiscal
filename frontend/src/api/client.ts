@@ -41,7 +41,7 @@ function readCsrfCookie(): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
-export async function ensureCsrf(force = false): Promise<string> {
+export async function ensureCsrf(force = false, timeoutMs?: number): Promise<string> {
   if (!force) {
     if (csrfToken) return csrfToken
     const fromCookie = readCsrfCookie()
@@ -50,7 +50,7 @@ export async function ensureCsrf(force = false): Promise<string> {
       return fromCookie
     }
   }
-  const response = await request<{ csrf_token: string }>('/api/v1/auth/csrf', { method: 'GET', skipCsrf: true })
+  const response = await request<{ csrf_token: string }>('/api/v1/auth/csrf', { method: 'GET', skipCsrf: true, timeoutMs })
   csrfToken = response.csrf_token
   return response.csrf_token
 }

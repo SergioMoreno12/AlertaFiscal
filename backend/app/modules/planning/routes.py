@@ -7,12 +7,15 @@ from sqlalchemy import func
 
 from ...common.http import (
     authorized_company,
+    date_iso,
     error,
     get_json,
     iso,
     money,
     parse_date,
+    parse_int,
     parse_money,
+    parse_percent,
     record_audit,
 )
 from ...extensions import db
@@ -77,8 +80,8 @@ def list_parameters(company_id: int):
                     "unit": p.unit,
                     "source": p.source,
                     "reviewed": p.reviewed,
-                    "valid_from": iso(p.valid_from),
-                    "valid_to": iso(p.valid_to),
+                    "valid_from": date_iso(p.valid_from),
+                    "valid_to": date_iso(p.valid_to),
                 }
                 for p in rows
             ]
@@ -96,6 +99,8 @@ def upsert_parameter(company_id: int):
         return error("invalid_payload", "key and label are required", 422)
     try:
         value = Decimal(str(data.get("value", "0"))).quantize(Decimal("0.0001"))
+        if not value.is_finite() or abs(value) >= Decimal("100000000"):
+            raise ValueError("Invalid value")
     except Exception:
         return error("invalid_payload", "Invalid value", 422)
     unit = str(data.get("unit", "percent"))
@@ -140,7 +145,7 @@ def list_plans(company_id: int):
 def create_plan(company_id: int):
     authorized_company(company_id, min_role="contador")
     data = get_json()
-    name = str(data.get("name", "")).strip() or "Plan fiscal"
+    name = str(data.get("name", "")).strip() or "Tax plan"
     period = str(data.get("period", "")).strip() or datetime.now(timezone.utc).strftime("%Y-%m")
     try:
         projected_income = parse_money(data.get("projected_income"), "projected_income")
@@ -270,7 +275,10 @@ def review_version(company_id: int, plan_id: int, version_id: int):
         return error("invalid_state", "The version is already reviewed", 409)
 
     version.status = "reviewed"
-    plan.status = "reviewed"
+    # The plan status follows its current version: reviewing an older version
+    # does not mark a newer draft as reviewed.
+    if version.version == plan.current_version:
+        plan.status = "reviewed"
     record_audit(company_id, "plan.review", f"plan:{plan.id}", {"version": version.version})
     return jsonify(_plan_dict(plan, version))
 
@@ -293,7 +301,7 @@ def list_reserves(company_id: int):
                 {
                     "id": r.id,
                     "amount": money(r.amount),
-                    "reserved_on": iso(r.reserved_on),
+                    "reserved_on": date_iso(r.reserved_on),
                     "note": r.note,
                     "plan_version_id": r.plan_version_id,
                 }
@@ -318,7 +326,11 @@ def create_reserve(company_id: int):
 
     version_id = data.get("plan_version_id")
     if version_id not in (None, ""):
-        version = db.session.get(FiscalPlanVersion, int(version_id))
+        try:
+            version_key = int(version_id)
+        except (TypeError, ValueError):
+            return error("invalid_payload", "plan_version_id must be an integer", 422)
+        version = db.session.get(FiscalPlanVersion, version_key)
         if version is None or version.company_id != company_id:
             return error("invalid_payload", "plan_version_id does not belong to the company", 422)
         version_id = version.id
@@ -336,7 +348,7 @@ def create_reserve(company_id: int):
     db.session.add(row)
     db.session.flush()
     record_audit(company_id, "reserve.create", f"reserve:{row.id}", {"amount": money(amount)})
-    return jsonify({"id": row.id, "amount": money(row.amount), "reserved_on": iso(row.reserved_on)}), 201
+    return jsonify({"id": row.id, "amount": money(row.amount), "reserved_on": date_iso(row.reserved_on)}), 201
 
 
 # ─────────────────── Forecasts ───────────────────
@@ -371,10 +383,9 @@ def create_model_forecast(company_id: int):
     authorized_company(company_id, min_role="contador")
     data = get_json()
     try:
-        horizon = int(data.get("horizon_months", 3) or 3)
-    except (TypeError, ValueError):
-        return error("invalid_payload", "horizon_months must be an integer", 422)
-    horizon = max(1, min(horizon, 12))
+        horizon = parse_int(data.get("horizon_months"), "horizon_months", 3, 1, 12)
+    except ValueError as exc:
+        return error("invalid_payload", str(exc), 422)
 
     from ..monitoring.service import record_service_event
 
@@ -408,10 +419,13 @@ def create_forecast(company_id: int):
     """
     authorized_company(company_id, min_role="contador")
     data = get_json()
-    horizon = int(data.get("horizon_months", 3) or 3)
-    horizon = max(1, min(horizon, 12))
-    lookback = int(data.get("lookback_months", 6) or 6)
-    lookback = max(1, min(lookback, 24))
+    try:
+        horizon = parse_int(data.get("horizon_months"), "horizon_months", 3, 1, 12)
+        lookback = parse_int(data.get("lookback_months"), "lookback_months", 6, 1, 24)
+        growth_pct = parse_percent(data.get("income_growth_percent"), "income_growth_percent")
+        expense_growth_pct = parse_percent(data.get("expense_growth_percent"), "expense_growth_percent")
+    except ValueError as exc:
+        return error("invalid_payload", str(exc), 422)
 
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=31 * lookback)
@@ -422,7 +436,9 @@ def create_forecast(company_id: int):
         else db.session.query(func.count(func.distinct(func.to_char(IncomeDocument.issue_date, "YYYY-MM"))))
     )
     months_with_income = income_months.filter(
-        IncomeDocument.company_id == company_id, IncomeDocument.issue_date >= start
+        IncomeDocument.company_id == company_id,
+        IncomeDocument.issue_date >= start,
+        IncomeDocument.status != "void",
     ).scalar() or 0
 
     if months_with_income < 3:
@@ -454,8 +470,8 @@ def create_forecast(company_id: int):
         or 0
     ) / months_with_income
 
-    growth = Decimal(str(data.get("income_growth_percent", "0"))) / Decimal("100")
-    expense_growth = Decimal(str(data.get("expense_growth_percent", "0"))) / Decimal("100")
+    growth = growth_pct / Decimal("100")
+    expense_growth = expense_growth_pct / Decimal("100")
 
     projected_income = Decimal(str(avg_income)) * horizon * (Decimal("1") + growth)
     projected_expenses = Decimal(str(avg_expense)) * horizon * (Decimal("1") + expense_growth)
@@ -467,8 +483,8 @@ def create_forecast(company_id: int):
         cutoff_date=now,
         assumptions={
             "lookback_months": lookback,
-            "income_growth_percent": str(data.get("income_growth_percent", "0")),
-            "expense_growth_percent": str(data.get("expense_growth_percent", "0")),
+            "income_growth_percent": str(growth_pct),
+            "expense_growth_percent": str(expense_growth_pct),
         },
         projected_income=projected_income.quantize(Decimal("0.01")),
         projected_expenses=projected_expenses.quantize(Decimal("0.01")),

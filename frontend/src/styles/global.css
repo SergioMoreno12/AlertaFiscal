@@ -31,3 +31,28 @@ textarea {
   outline: 2px solid #1b5e3f;
   outline-offset: 2px;
 }
+
+/* Phone and small tablet widths. The screens use inline styles, so the
+   fixed multi-column grids and the large paddings are relaxed here. */
+@media (max-width: 900px) {
+  .af-main > div > div[style*="padding: 28px 32px"] {
+    padding: 18px 14px !important;
+  }
+
+  .af-main [style*="grid-template-columns: 1fr 340px"],
+  .af-main [style*="grid-template-columns: 1fr 320px"],
+  .af-main [style*="grid-template-columns: 1fr 360px"],
+  .af-main [style*="grid-template-columns: 1fr 1fr"],
+  .af-main [style*="grid-template-columns: 1.5fr 1fr"],
+  .af-main [style*="minmax(340px, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .af-main table {
+    min-width: 640px;
+  }
+
+  .af-main footer {
+    padding: 12px 14px !important;
+  }
+}

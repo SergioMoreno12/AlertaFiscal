@@ -60,16 +60,54 @@ def parse_date(raw: str | None) -> datetime | None:
     return None
 
 
+# Numeric(18, 2) holds up to 16 integer digits; anything larger would fail in the database.
+MAX_AMOUNT = Decimal("9999999999999999.99")
+
+
 def parse_money(raw, field: str):
     if raw is None or raw == "":
         return Decimal("0")
+    if isinstance(raw, bool):
+        raise ValueError(f"{field} must be a valid number")
     try:
-        value = Decimal(str(raw)).quantize(Decimal("0.01"))
+        value = Decimal(str(raw).strip()).quantize(Decimal("0.01"))
     except Exception:
+        raise ValueError(f"{field} must be a valid number")
+    if not value.is_finite():
         raise ValueError(f"{field} must be a valid number")
     if value < 0:
         raise ValueError(f"{field} cannot be negative")
+    if value > MAX_AMOUNT:
+        raise ValueError(f"{field} is too large")
     return value
+
+
+def parse_percent(raw, field: str, minimum: Decimal = Decimal("-100"), maximum: Decimal = Decimal("1000")) -> Decimal:
+    """A percentage such as a growth assumption. Empty means zero."""
+    if raw is None or raw == "":
+        return Decimal("0")
+    if isinstance(raw, bool):
+        raise ValueError(f"{field} must be a valid number")
+    try:
+        value = Decimal(str(raw).strip())
+    except Exception:
+        raise ValueError(f"{field} must be a valid number")
+    if not value.is_finite() or value < minimum or value > maximum:
+        raise ValueError(f"{field} must be between {minimum} and {maximum}")
+    return value
+
+
+def parse_int(raw, field: str, default: int, minimum: int, maximum: int) -> int:
+    """An integer argument clamped to [minimum, maximum]. Empty means the default."""
+    if raw is None or raw == "":
+        return default
+    if isinstance(raw, bool):
+        raise ValueError(f"{field} must be an integer")
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        raise ValueError(f"{field} must be an integer")
+    return max(minimum, min(value, maximum))
 
 
 def authorized_company(company_id: int, min_role: str | None = None) -> Company:
@@ -87,9 +125,14 @@ def authorized_company(company_id: int, min_role: str | None = None) -> Company:
 
 
 def pagination():
-    page = max(int(request.args.get("page", 1) or 1), 1)
-    size = int(request.args.get("page_size", current_app.config["DEFAULT_PAGE_SIZE"]) or 20)
-    size = max(1, min(size, current_app.config["MAX_PAGE_SIZE"]))
+    page = parse_int(request.args.get("page"), "page", 1, 1, 100000)
+    size = parse_int(
+        request.args.get("page_size"),
+        "page_size",
+        current_app.config["DEFAULT_PAGE_SIZE"],
+        1,
+        current_app.config["MAX_PAGE_SIZE"],
+    )
     return page, size
 
 
@@ -122,13 +165,14 @@ def record_audit(company_id: int | None, action: str, resource: str = "", detail
     )
 
 
-def audit_dict(event: AuditEvent) -> dict:
+def audit_dict(event: AuditEvent, actor_names: dict[int, str] | None = None) -> dict:
     return {
         "id": event.id,
         "action": event.action,
         "resource": event.resource,
         "detail": event.detail or {},
         "actor_id": event.actor_id,
+        "actor_name": (actor_names or {}).get(event.actor_id) if event.actor_id is not None else None,
         "request_id": event.request_id,
         "created_at": iso(event.created_at),
     }

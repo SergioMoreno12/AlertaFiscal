@@ -85,6 +85,9 @@ def set_csrf_cookie(response, token: str):
     return response
 
 
+SESSION_UNBOUND_PATHS = frozenset({"/api/v1/auth/login", "/api/v1/auth/logout"})
+
+
 def validate_csrf() -> bool:
     header = request.headers.get("X-CSRF-Token", "")
     cookie = request.cookies.get(current_app.config["CSRF_COOKIE_NAME"], "")
@@ -94,6 +97,11 @@ def validate_csrf() -> bool:
         return False
     if not _csrf_signature_valid(header):
         return False
+    # Login and logout only need the signed double-submit token. Binding them to the
+    # current session would lock the user out when a stale session cookie survives a
+    # failed logout: the browser keeps the cookie but the page no longer has its token.
+    if request.path in SESSION_UNBOUND_PATHS:
+        return True
     session = getattr(g, "session_row", None)
     if session is not None:
         return hmac.compare_digest(session.csrf_hash, _hash_token(header))

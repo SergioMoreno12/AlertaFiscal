@@ -88,13 +88,13 @@ def _read_json(path: Path) -> dict:
         raise ForecastUnavailable(
             "model_not_trained",
             "No trained model exists for this company. Train one offline or use manual planning.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         ) from exc
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The model artifact exists but is not valid JSON.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         ) from exc
 
 
@@ -106,13 +106,13 @@ def _validate_targets(artifact: dict, path: Path) -> None:
             raise ForecastUnavailable(
                 "artifact_invalid",
                 f"The artifact has no valid model for {target}.",
-                {"artifact": str(path), "target": target},
+                {"artifact": path.name, "target": target},
             )
         if not isinstance((spec.get("models") or {}).get(spec["selected_model"]), dict):
             raise ForecastUnavailable(
                 "artifact_invalid",
                 f"The parameters of the selected model for {target} are missing.",
-                {"artifact": str(path), "target": target},
+                {"artifact": path.name, "target": target},
             )
 
 
@@ -122,13 +122,13 @@ def _validate_global_artifact(artifact: dict, path: Path) -> dict:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The global artifact is not an AlertaFiscal global model.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         )
     if int(artifact.get("schema_version", 0)) != SCHEMA_VERSION:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The artifact version is not compatible with this backend.",
-            {"artifact": str(path), "schema_version": artifact.get("schema_version")},
+            {"artifact": path.name, "schema_version": artifact.get("schema_version")},
         )
     feature_spec = artifact.get("feature_spec") or {}
     features = feature_spec.get("features")
@@ -136,14 +136,14 @@ def _validate_global_artifact(artifact: dict, path: Path) -> dict:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The global artifact does not declare the agreed inputs.",
-            {"artifact": str(path), "features": features},
+            {"artifact": path.name, "features": features},
         )
     normalization = feature_spec.get("normalization")
     if normalization is not None and normalization.get("type") != "mean_last_n":
         raise ForecastUnavailable(
             "artifact_invalid",
             "The global artifact declares an unsupported normalization.",
-            {"artifact": str(path), "normalization": normalization},
+            {"artifact": path.name, "normalization": normalization},
         )
     _validate_targets(artifact, path)
     return artifact
@@ -154,19 +154,19 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The artifact is not an AlertaFiscal model.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         )
     if int(artifact.get("schema_version", 0)) != SCHEMA_VERSION:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The artifact version is not compatible with this backend.",
-            {"artifact": str(path), "schema_version": artifact.get("schema_version")},
+            {"artifact": path.name, "schema_version": artifact.get("schema_version")},
         )
     if int(artifact.get("company_id", -1)) != company_id:
         raise ForecastUnavailable(
             "artifact_company_mismatch",
             "The artifact belongs to another company. It is not reused across companies.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         )
     feature_spec = artifact.get("feature_spec") or {}
     features = feature_spec.get("features")
@@ -174,7 +174,7 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The artifact does not declare the inputs the model expects.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         )
     history = artifact.get("history") or {}
     months = history.get("months")
@@ -182,7 +182,7 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
         raise ForecastUnavailable(
             "artifact_invalid",
             "The artifact does not include the history it was trained on.",
-            {"artifact": str(path)},
+            {"artifact": path.name},
         )
     _validate_targets(artifact, path)
     return artifact
@@ -207,7 +207,7 @@ def load_artifact(company_id: int) -> tuple[dict, dict]:
         "model_not_trained",
         "No trained model exists for this company and the global model is missing. "
         "Continue with manual planning.",
-        {"artifact": str(company_path), "global_artifact": str(global_path)},
+        {"artifact": company_path.name, "global_artifact": global_path.name},
     )
 
 
@@ -222,16 +222,24 @@ def _iter_months(start: str, end: str):
             year += 1
 
 
-def monthly_history(company_id: int) -> dict:
+def _current_month() -> str:
+    today = datetime.now(timezone.utc)
+    return f"{today.year:04d}-{today.month:02d}"
+
+
+def monthly_history(company_id: int, closed_only: bool = False) -> dict:
     """Group income and expenses by month with the same rule as training.
 
     - Excludes void documents.
     - Fills the months in between without movements with an explicit zero.
     - Does not use DIAN or Supersociedades: only the company's ERP documents.
+    - ``closed_only`` drops the month in progress (and any future-dated month): the model was
+      trained on complete months, so a half-recorded month would enter as a fake drop in lag1.
     """
     income: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     expenses: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     all_months: set[str] = set()
+    current = _current_month()
 
     for model, bucket in ((IncomeDocument, income), (ExpenseDocument, expenses)):
         rows = (
@@ -241,6 +249,8 @@ def monthly_history(company_id: int) -> dict:
         )
         for issue_date, total in rows:
             key = f"{issue_date.year:04d}-{issue_date.month:02d}"
+            if closed_only and key >= current:
+                continue
             bucket[key] += Decimal(str(total or 0))
             all_months.add(key)
 
@@ -412,7 +422,7 @@ def run_model_forecast(company_id: int, horizon: int) -> dict:
     artifact, source = load_artifact(company_id)
     if source["scope"] == "global":
         horizon = min(horizon, GLOBAL_MAX_HORIZON)
-    history = monthly_history(company_id)
+    history = monthly_history(company_id, closed_only=True)
     required = _required_months(artifact)
 
     if len(history["months"]) < required:

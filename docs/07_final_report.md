@@ -148,7 +148,7 @@ Database:  PostgreSQL (Docker locally, Supabase in the cloud)
 
 **Privacy (`docs/06_privacy_and_retention.md`).** Only aggregated monthly amounts are stored, with no personal data, and only members of the company can read them. Monitoring rows are kept for 24 months and service events for 90 days (`flask monitoring-purge`).
 
-**Tests (`docs/06_test_cases.md`).** The backend suite gives **84 passed, 0 failed, 10 skipped**. The skipped tests are the PostgreSQL integration tests, run in CI. All **15 required cases passed**. Case 14, persistence across a Render redeploy, was checked by hand on the deployed app.
+**Tests (`docs/06_test_cases.md`).** The backend suite gave **84 passed, 0 failed, 10 skipped** in the Phase 6 run; after the final review (`tests/test_hardening.py`, 14 regression tests for input validation, error codes, CSRF and forecast inputs) it gives **98 passed, 0 failed, 10 skipped**. The skipped tests are the PostgreSQL integration tests, run in CI. All **15 required cases passed**. Case 14, persistence across a Render redeploy, was checked by hand on the deployed app.
 
 ## 7. Limitations and next steps
 
