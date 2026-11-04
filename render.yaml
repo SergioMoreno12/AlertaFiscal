@@ -1,0 +1,62 @@
+services:
+  # ── Flask API (modular monolith) ────────────────────────────────────────
+  - type: web
+    name: alertafiscal-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    # It only starts the server. Migrations and the demo data are separate,
+    # controlled steps (see docs/erp/deployment.md). `flask seed-demo` is
+    # never run on startup.
+    startCommand: gunicorn wsgi:app -c gunicorn.conf.py
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # EXTERNAL secret: Supabase connection string (or the chosen
+      # PostgreSQL provider). Set manually in the Render dashboard.
+      # No database is created on Render.
+      - key: DATABASE_URL
+        sync: false
+      # Schema of the app inside the Supabase database (for example
+      # alertafiscal_scratch). Leave it empty to use public.
+      - key: DB_SCHEMA
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      # Frontend and API are on different domains (*.onrender.com):
+      # SameSite=None requires Secure (already forced in production).
+      - key: COOKIE_SAMESITE
+        value: None
+      # Filled in with the Static Site URL after the first deploy.
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: SESSION_IDLE_MINUTES
+        value: "120"
+      - key: SESSION_ABSOLUTE_HOURS
+        value: "12"
+      # Connection budget: 1 worker x (5 + 5) = 10 at most.
+      # Adjust it to the real limit of the Supabase project.
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "5"
+      - key: DB_CONNECT_TIMEOUT
+        value: "5"
+
+  # ── React frontend (Static Site) ────────────────────────────────────────
+  - type: web
+    name: alertafiscal-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      # Public URL of the backend. Set in the dashboard before the build.
+      - key: VITE_API_BASE_URL
+        sync: false
