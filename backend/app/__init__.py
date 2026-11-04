@@ -43,6 +43,11 @@ def create_app(config_class: type = Config) -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
 
+    from .db_schema import configure_schema_selection
+
+    with app.app_context():
+        configure_schema_selection(db.engine, app.config.get("DB_SCHEMA"))
+
     from .common.health import health_bp
     from .modules.alerts.routes import alerts_bp
     from .modules.auth.routes import auth_bp

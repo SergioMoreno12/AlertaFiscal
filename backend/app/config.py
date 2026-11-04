@@ -130,9 +130,9 @@ class Config:
             _connect_args["sslmode"] = DB_SSLMODE
         if DB_SSLROOTCERT:
             _connect_args["sslrootcert"] = DB_SSLROOTCERT
-        if DB_SCHEMA:
-            # Esquema dedicado opcional; debe existir y estar en el search_path.
-            _connect_args["options"] = f"-csearch_path={DB_SCHEMA}"
+        # DB_SCHEMA is applied per physical connection by app.db_schema.
+        # The libpq `options` startup parameter is ignored by the Supabase
+        # session pooler, so it must not be used for search_path selection.
         SQLALCHEMY_ENGINE_OPTIONS = {
             "pool_pre_ping": True,
             "pool_size": DB_POOL_SIZE,
