@@ -26,4 +26,4 @@ ml/artifacts/*
 
 # Raw datasets (share outside Git)
 ml/data/raw/*
-!ml/data/raw/.gitkeep
+!ml/data/raw/.gitkeep!ml/artifacts/level_shift_analysis.json
