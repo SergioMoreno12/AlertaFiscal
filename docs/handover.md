@@ -17,9 +17,11 @@ Then `develop` → `main`, which is the branch Render deploys.
 
 CI runs on every Pull Request. It runs the backend tests (including the 10 PostgreSQL tests skipped locally), the migrations, and the frontend build. **The frontend build has not been run locally**, because Node.js was not installed on the machine used for Phases 5 and 6. Check the frontend step in CI on the first Pull Request.
 
-## 2. Deployment (needs Render and Supabase access)
+## 2. Deployment
 
-The current Supabase project is **AlertaFiscal**. The app's schema is `alertafiscal_scratch`, and its migration is at `c7d2e5a9b1f3`.
+**Done on November 4, 2026.** Backend: https://alertafiscal-backend-h4ip.onrender.com (`/health/ready` returns `ready`). Frontend: https://alertafiscal-frontend-wyyn.onrender.com. Database: Supabase project **AlertaFiscal**, schema `alertafiscal_scratch`, migrated to `d4e8a1b2c3f5`, with the demo companies loaded for `demo@alertafiscal.app`. Test case 14 passed.
+
+Steps used (repeat them for a new environment):
 
 1. Set `DATABASE_URL` and `DB_SCHEMA=alertafiscal_scratch` locally (never commit them), then run `flask db upgrade`. This adds the monitoring tables (`d4e8a1b2c3f5`).
 2. Run `flask demo-load --email <demo user>`. It is idempotent and adds the labeled demo companies.
@@ -33,7 +35,6 @@ Full steps: `docs/erp/deployment.md`, section 9.
 
 ## 3. Known open points
 
-- Test case 14 is not run until the app is deployed.
 - `docs/03_alert_rules.md` says A6 needs 12 months of history; the model and the app use 6 (Phase 3 decision). The final report explains it.
 - Internal identifiers of the frontend are still Spanish names (`nombre`, `tamaño`, screen ids such as `proyecciones`). They are code, not user-facing text; renaming them is optional.
 - The JSON manifests of the external context sources keep their original Spanish notes as data records.
