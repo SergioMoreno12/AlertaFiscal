@@ -284,6 +284,7 @@ export type AuditEvent = {
   resource: string
   detail: Record<string, unknown>
   actor_id: number | null
+  actor_name?: string | null
   request_id: string | null
   created_at: string
 }
@@ -292,8 +293,10 @@ export const getCompanies = () => api.get<ListResponse<Company>>('/api/v1/compan
 
 export const getDashboard = (companyId: number) => api.get<Dashboard>(`/api/v1/companies/${companyId}/dashboard`)
 
-export const listIncome = (companyId: number) =>
-  api.get<PaginatedResponse<Income>>(`/api/v1/companies/${companyId}/income`)
+export type Pagination = PaginatedResponse<unknown>['pagination']
+
+export const listIncome = (companyId: number, page = 1, pageSize = 20) =>
+  api.get<PaginatedResponse<Income>>(`/api/v1/companies/${companyId}/income?page=${page}&page_size=${pageSize}`)
 
 export const createIncome = (
   companyId: number,
@@ -309,8 +312,10 @@ export const createIncome = (
   },
 ) => api.post<Income>(`/api/v1/companies/${companyId}/income`, payload)
 
-export const listExpenses = (companyId: number) =>
-  api.get<PaginatedResponse<Expense>>(`/api/v1/companies/${companyId}/expenses`)
+export const listExpenses = (companyId: number, page = 1, pageSize = 20, reviewed?: boolean) =>
+  api.get<PaginatedResponse<Expense>>(
+    `/api/v1/companies/${companyId}/expenses?page=${page}&page_size=${pageSize}${reviewed === undefined ? '' : `&reviewed=${reviewed}`}`,
+  )
 
 export const createExpense = (
   companyId: number,

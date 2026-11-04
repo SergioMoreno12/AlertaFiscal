@@ -9,7 +9,6 @@ from ...common.http import (
     date_iso,
     error,
     get_json,
-    iso,
     money,
     paginated,
     pagination,
@@ -152,7 +151,7 @@ def income_detail(company_id: int, income_id: int):
     receipts = db.session.query(IncomeReceipt).filter_by(company_id=company_id, income_id=income_id).all()
     payload = _income_dict(row)
     payload["receipts"] = [
-        {"id": r.id, "amount": money(r.amount), "received_on": iso(r.received_on), "method": r.method}
+        {"id": r.id, "amount": money(r.amount), "received_on": date_iso(r.received_on), "method": r.method}
         for r in receipts
     ]
     return jsonify(payload)
@@ -235,6 +234,8 @@ def update_expense(company_id: int, expense_id: int):
     row = db.session.get(ExpenseDocument, expense_id)
     if row is None or row.company_id != company_id:
         return error("not_found", "Expense document not found", 404)
+    if row.status == "void":
+        return error("invalid_state", "A void expense cannot be edited", 409)
     data = get_json()
     if "reviewed" in data:
         row.reviewed = bool(data["reviewed"])
@@ -242,8 +243,6 @@ def update_expense(company_id: int, expense_id: int):
         row.category = str(data["category"])[:80]
     if "description" in data:
         row.description = str(data["description"])[:255]
-    if row.status == "void":
-        return error("invalid_state", "A void expense cannot be edited", 409)
     record_audit(company_id, "expense.update", f"expense:{row.id}")
     return jsonify(_expense_dict(row))
 
@@ -271,6 +270,17 @@ def create_receipt(company_id: int):
         return error("not_found", "Income document not found", 404)
     if income.status == "void":
         return error("invalid_state", "The income document is void", 409)
+    already = Decimal(
+        str(
+            db.session.query(func.coalesce(func.sum(IncomeReceipt.amount), 0)).filter_by(income_id=income_id).scalar()
+            or 0
+        )
+    )
+    outstanding = Decimal(str(income.total)) - already
+    if outstanding <= 0:
+        return error("invalid_state", "The income document is already fully collected", 409)
+    if amount > outstanding:
+        return error("invalid_payload", f"amount exceeds the outstanding balance ({money(outstanding)})", 422)
 
     receipt = IncomeReceipt(
         company_id=company_id,
@@ -287,7 +297,7 @@ def create_receipt(company_id: int):
         db.session.query(func.coalesce(func.sum(IncomeReceipt.amount), 0)).filter_by(income_id=income_id).scalar()
         or Decimal("0")
     )
-    if collected >= income.total:
+    if Decimal(str(collected)) >= Decimal(str(income.total)):
         income.status = "collected"
 
     record_audit(company_id, "receipt.create", f"income:{income_id}", {"amount": money(amount)})
@@ -314,6 +324,17 @@ def create_payment(company_id: int):
         return error("not_found", "Expense document not found", 404)
     if expense.status == "void":
         return error("invalid_state", "The expense document is void", 409)
+    already = Decimal(
+        str(
+            db.session.query(func.coalesce(func.sum(ExpensePayment.amount), 0)).filter_by(expense_id=expense_id).scalar()
+            or 0
+        )
+    )
+    outstanding = Decimal(str(expense.total)) - already
+    if outstanding <= 0:
+        return error("invalid_state", "The expense document is already fully paid", 409)
+    if amount > outstanding:
+        return error("invalid_payload", f"amount exceeds the outstanding balance ({money(outstanding)})", 422)
 
     payment = ExpensePayment(
         company_id=company_id,
@@ -330,7 +351,7 @@ def create_payment(company_id: int):
         db.session.query(func.coalesce(func.sum(ExpensePayment.amount), 0)).filter_by(expense_id=expense_id).scalar()
         or Decimal("0")
     )
-    if paid_total >= expense.total:
+    if Decimal(str(paid_total)) >= Decimal(str(expense.total)):
         expense.status = "paid"
 
     record_audit(company_id, "payment.create", f"expense:{expense_id}", {"amount": money(amount)})

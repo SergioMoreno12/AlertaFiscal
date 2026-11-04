@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip,
   LineChart, Line, CartesianGrid, Legend,
@@ -65,6 +65,7 @@ import {
   type ForecastRun,
   type Income,
   type Obligation,
+  type Pagination,
   type Plan,
   type PlanDetail,
 } from "../api/fiscal.api";
@@ -312,6 +313,24 @@ const SectionHeader = ({ title, subtitle, actions }: { title: string; subtitle?:
   </div>
 );
 
+const Pager = ({ info, onPage, noun }: { info: Pagination | null; onPage: (page: number) => void; noun: string }) => {
+  if (!info || info.total === 0) return null;
+  const first = (info.page - 1) * info.page_size + 1;
+  const last = Math.min(info.page * info.page_size, info.total);
+  return (
+    <div style={{ padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", borderTop: "1px solid rgba(0,0,0,0.06)", fontSize: 12, color: "#78909C" }}>
+      <span>{first}–{last} of {info.total} {noun}</span>
+      {info.pages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Btn variant="ghost" small disabled={info.page <= 1} onClick={() => onPage(info.page - 1)}>Previous</Btn>
+          <span>Page {info.page} of {info.pages}</span>
+          <Btn variant="ghost" small disabled={info.page >= info.pages} onClick={() => onPage(info.page + 1)}>Next</Btn>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── NAV CONFIG ───────────────────────────────────────────────────────────────
 const NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType; badge?: number }[] = [
   { id: "resumen", label: "Overview", icon: LayoutDashboard },
@@ -331,11 +350,26 @@ const SECONDARY_NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType 
   { id: "contexto", label: "Context and sources", icon: Database },
 ];
 
+// Below this width the sidebar floats over the content instead of pushing it.
+const NARROW_QUERY = "(max-width: 900px)";
+
+const useIsNarrow = () => {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
+  useEffect(() => {
+    const media = window.matchMedia(NARROW_QUERY);
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return narrow;
+};
+
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
-const Sidebar = ({ open, onClose, screen, onNav, userName, userRole, apiOnline }: { open: boolean; onClose: () => void; screen: Screen; onNav: (s: Screen) => void; userName: string; userRole: string; apiOnline: boolean }) => (
+const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, apiOnline }: { open: boolean; overlay: boolean; onClose: () => void; screen: Screen; onNav: (s: Screen) => void; userName: string; userRole: string; apiOnline: boolean }) => (
   <>
-    {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.35)", zIndex: 9, display: "none" }} className="mobile-backdrop" />}
-    <aside style={{ width: 240, minWidth: 240, backgroundColor: "#1B5E3F", display: "flex", flexDirection: "column", height: "100vh", position: "fixed", top: 0, left: 0, zIndex: 10, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", boxShadow: open ? "4px 0 20px rgba(0,0,0,0.12)" : "none" }}>
+    {open && overlay && <div onClick={onClose} aria-hidden="true" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.35)", zIndex: 9 }} />}
+    <aside aria-label="Main navigation" style={{ width: 240, minWidth: 240, backgroundColor: "#1B5E3F", display: "flex", flexDirection: "column", height: "100vh", position: "fixed", top: 0, left: 0, zIndex: 10, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", boxShadow: open ? "4px 0 20px rgba(0,0,0,0.12)" : "none" }}>
       <div style={{ padding: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -346,7 +380,7 @@ const Sidebar = ({ open, onClose, screen, onNav, userName, userRole, apiOnline }
             <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 3 }}>Tax planning</div>
           </div>
         </div>
-        <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.7)" }}>
+        <button onClick={onClose} aria-label="Close menu" style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.7)" }}>
           <X size={14} />
         </button>
       </div>
@@ -367,7 +401,7 @@ const Sidebar = ({ open, onClose, screen, onNav, userName, userRole, apiOnline }
         })}
 
         <div style={{ margin: "14px 12px 8px", paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase" }}>
-          Referencia
+          Reference
         </div>
         {SECONDARY_NAV_ITEMS.map((item) => {
           const active = item.id === screen;
@@ -399,28 +433,28 @@ const Sidebar = ({ open, onClose, screen, onNav, userName, userRole, apiOnline }
 );
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
-const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demoMode, onLogout }: { sidebarOpen: boolean; onToggle: () => void; empresa: string; companySubtitle: string; backend: BackendState; demoMode: boolean; onLogout: () => void }) => (
-  <header style={{ backgroundColor: "#fff", borderBottom: "1px solid rgba(0,0,0,0.07)", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 5 }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <button onClick={onToggle} style={{ background: sidebarOpen ? "#E8F5E9" : "#1B5E3F", border: "none", borderRadius: 9, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: sidebarOpen ? "#1B5E3F" : "#fff" }}>
+const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demoMode, onLogout, compact }: { sidebarOpen: boolean; onToggle: () => void; empresa: string; companySubtitle: string; backend: BackendState; demoMode: boolean; onLogout: () => void; compact: boolean }) => (
+  <header style={{ backgroundColor: "#fff", borderBottom: "1px solid rgba(0,0,0,0.07)", padding: compact ? "10px 14px" : "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, position: "sticky", top: 0, zIndex: 5 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: compact ? 10 : 14, minWidth: 0 }}>
+      <button onClick={onToggle} aria-label={sidebarOpen ? "Close menu" : "Open menu"} style={{ flexShrink: 0, background: sidebarOpen ? "#E8F5E9" : "#1B5E3F", border: "none", borderRadius: 9, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: sidebarOpen ? "#1B5E3F" : "#fff" }}>
         {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
       </button>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "#1B5E3F", lineHeight: 1 }}>{empresa}</div>
-        <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>{companySubtitle}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "#1B5E3F", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{empresa}</div>
+        {!compact && <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>{companySubtitle}</div>}
       </div>
     </div>
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+      {!compact && <span
         title={backend.online ? "Backend and database respond" : "Backend not available"}
         style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${backend.online ? "#A5D6A7" : "#FFE082"}`, backgroundColor: backend.online ? "#E8F5E9" : "#FFF8E1", color: backend.online ? "#1B5E3F" : "#B26A00", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
       >
         <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#43A047" : "#FBC02D", display: "inline-block" }} />
         {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API unavailable") : "Checking API"}
-      </span>
-      {demoMode && <DemoBanner />}
+      </span>}
+      {demoMode && !compact && <DemoBanner />}
       <button onClick={onLogout} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#78909C", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
-        <LogOut size={12} /> Sign out
+        <LogOut size={12} /> {compact ? "" : "Sign out"}
       </button>
     </div>
   </header>
@@ -438,8 +472,10 @@ const LoginScreen = ({
   onDemo: () => void;
   backend: BackendState;
 }) => {
-  const [email, setEmail] = useState("maria.gomez@contaduria.co");
-  const [pass, setPass] = useState("demo2026");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  // The seed credentials exist only in the local SQLite demo database (flask seed-demo).
+  const localDemo = backend.online && backend.database === "sqlite-dev";
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -458,7 +494,7 @@ const LoginScreen = ({
       if (error instanceof ApiError) {
         setErrorMsg(
           error.code === "network_error" || error.code === "timeout"
-            ? "Could not connect to the server. You can explore the visual demo."
+            ? "Could not connect to the server. It may still be starting: wait a moment and try again, or explore the visual demo."
             : error.message,
         );
       } else {
@@ -497,24 +533,31 @@ const LoginScreen = ({
           )}
 
           <button type="submit" disabled={loading} style={{ width: "100%", backgroundColor: "#1B5E3F", color: "#fff", border: "none", borderRadius: 11, padding: "14px", fontSize: 15, fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.75 : 1 }}>
-            <LogIn size={16} /> {loading ? "Ingresando..." : "Sign in"}
+            <LogIn size={16} /> {loading ? (backend.online ? "Signing in…" : "Waking up the server…") : "Sign in"}
           </button>
         </form>
 
         <button onClick={onDemo} type="button" style={{ marginTop: 12, width: "100%", backgroundColor: "transparent", color: "#1B5E3F", border: "1.5px solid #1B5E3F", borderRadius: 11, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-          Explorar demo visual (datos de ejemplo)
+          Explore the visual demo (sample data)
         </button>
 
-        <div style={{ marginTop: 24, padding: "14px 16px", backgroundColor: "#FFF8E1", borderRadius: 10, border: "1px solid #FFE082" }}>
-          <div style={{ fontSize: 11, color: "#E65100", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}><Info size={12} /> Demo environment</div>
-          <p style={{ fontSize: 11, color: "#78909C", margin: 0, lineHeight: 1.6 }}>
-            Demo credentials: maria.gomez@contaduria.co / demo2026. The data is fictitious and a real sign-in uses a server session.
-          </p>
-        </div>
+        {localDemo && (
+          <div style={{ marginTop: 24, padding: "14px 16px", backgroundColor: "#FFF8E1", borderRadius: 10, border: "1px solid #FFE082" }}>
+            <div style={{ fontSize: 11, color: "#E65100", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}><Info size={12} /> Local demo database</div>
+            <p style={{ fontSize: 11, color: "#78909C", margin: "0 0 8px", lineHeight: 1.6 }}>
+              The local seed user is maria.gomez@contaduria.co / demo2026. The data is fictitious.
+            </p>
+            <button type="button" onClick={() => { setEmail("maria.gomez@contaduria.co"); setPass("demo2026"); }} style={{ border: "none", background: "none", padding: 0, color: "#1B5E3F", fontWeight: 700, fontSize: 11, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>
+              Fill in the seed user
+            </button>
+          </div>
+        )}
 
         <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11, color: backend.online ? "#1B5E3F" : "#B26A00" }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#43A047" : "#FBC02D", display: "inline-block" }} />
-          {backend.checked ? (backend.online ? `API connected · ${backend.database ?? "database"}` : "API not available · visual demo only") : "Checking connection..."}
+          {backend.checked
+            ? (backend.online ? `API connected · ${backend.database ?? "database"}` : "API not reachable yet · it may be starting (up to a minute)")
+            : "Connecting to the server… (the first visit can take up to a minute)"}
         </div>
 
         <p style={{ fontSize: 11, color: "#B0BEC5", textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>
@@ -722,8 +765,8 @@ const ResumenScreen = ({
         {[
           { label: "Recorded income", value: fmtM(income), sub: demoMode ? "Records of the current period" : "Year to date", color: "#1B5E3F", bg: "#E8F5E9", icon: <TrendingUp size={18} color="#1B5E3F" />, note: "Observed" },
           { label: "Recorded expenses", value: fmtM(expenses), sub: demoMode ? "Records of the current period" : "Year to date", color: "#37474F", bg: "#ECEFF1", icon: <ShoppingCart size={18} color="#37474F" />, note: "Observed" },
-          { label: "Projected income", value: fmtM(projectedIncome), sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#1565C0", bg: "#E3F2FD", icon: <BarChart2 size={18} color="#1565C0" />, note: "Estimate" },
-          { label: "Projected expenses", value: fmtM(projectedExpenses), sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#6A1B9A", bg: "#F3E5F5", icon: <BarChart2 size={18} color="#6A1B9A" />, note: "Estimate" },
+          { label: "Projected income", value: plan || demoMode ? fmtM(projectedIncome) : "—", sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#1565C0", bg: "#E3F2FD", icon: <BarChart2 size={18} color="#1565C0" />, note: "Estimate" },
+          { label: "Projected expenses", value: plan || demoMode ? fmtM(projectedExpenses) : "—", sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#6A1B9A", bg: "#F3E5F5", icon: <BarChart2 size={18} color="#6A1B9A" />, note: "Estimate" },
         ].map((kpi) => (
           <Card key={kpi.label} style={{ padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
@@ -884,7 +927,7 @@ const ResumenScreen = ({
                 <div style={{ fontWeight: 600, fontSize: 13, color: "#37474F", lineHeight: 1.3, flex: 1 }}>{o.obligacion}</div>
                 <span style={{ fontSize: 11, color: "#E53935", fontWeight: 700, backgroundColor: "#FFEBEE", padding: "2px 8px", borderRadius: 6, border: "1px solid #FFCDD2", whiteSpace: "nowrap", marginLeft: 8 }}>{o.vencimiento}</span>
               </div>
-              <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>Valor estimado: {o.estimado}</div>
+              <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>Estimated amount: {o.estimado}</div>
               <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 2 }}>{o.fuente}</div>
             </div>
           ))}
@@ -933,6 +976,8 @@ const IngresosScreen = ({
   demoMode: boolean;
 }) => {
   const [rows, setRows] = useState<Income[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState<Pagination | null>(null);
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [demoRows, setDemoRows] = useState<IncomeDisplayRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -964,10 +1009,11 @@ const IngresosScreen = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    Promise.all([listIncome(companyId), listCounterparties(companyId)])
+    Promise.all([listIncome(companyId, page), listCounterparties(companyId)])
       .then(([income, parties]) => {
         if (!alive) return;
         setRows(income.items);
+        setPageInfo(income.pagination);
         setCounterparties(parties.items);
       })
       .catch((err) => {
@@ -979,7 +1025,7 @@ const IngresosScreen = ({
     return () => {
       alive = false;
     };
-  }, [companyId, demoMode, reloadKey]);
+  }, [companyId, demoMode, reloadKey, page]);
 
   const displayRows: IncomeDisplayRow[] = demoMode
     ? [...demoRows, ...DEMO_INCOME_ROWS]
@@ -1048,7 +1094,7 @@ const IngresosScreen = ({
           date: fmtDate(form.issue_date),
           party: form.party || "Demo client",
           doc: form.doc_number,
-          description: form.description || "Venta registrada",
+          description: form.description || "Recorded sale",
           subtotal: Number(subtotal),
           tax: Number(tax),
           total: Number(total),
@@ -1074,6 +1120,7 @@ const IngresosScreen = ({
         status: form.status,
       });
       setConfirmed(true);
+      setPage(1);
       setReloadKey((key) => key + 1);
     } catch (err) {
       setFormError(errorMessage(err));
@@ -1108,9 +1155,9 @@ const IngresosScreen = ({
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Recorded total (base)", value: fmt(baseTotal), note: "Sum of the listed records" },
+          { label: "Recorded total (base)", value: fmt(baseTotal), note: demoMode ? "Sum of the listed records" : "Sum of the records on this page" },
           { label: "Recorded VAT generated", value: fmt(taxTotal), note: "Record summary" },
-          { label: "Listed records", value: `${displayRows.length} sales`, note: demoMode ? "Sample data" : "Last 20 records" },
+          { label: "Recorded sales", value: `${demoMode ? displayRows.length : pageInfo?.total ?? displayRows.length} sales`, note: demoMode ? "Sample data" : "All the records of the company" },
         ].map((item) => (
           <Card key={item.label} style={{ padding: "16px 20px" }}>
             <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
@@ -1163,6 +1210,7 @@ const IngresosScreen = ({
             </tbody>
           </table>
         </div>
+        {!demoMode && <Pager info={pageInfo} onPage={setPage} noun="sales" />}
         <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
           Recorded sales do not mean the money was collected. The collection status is reported by the user.
         </div>
@@ -1299,6 +1347,9 @@ const GastosScreen = ({
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState<Pagination | null>(null);
+  const [unreviewedTotal, setUnreviewedTotal] = useState<number | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -1326,10 +1377,12 @@ const GastosScreen = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    Promise.all([listExpenses(companyId), listCounterparties(companyId)])
-      .then(([expenses, parties]) => {
+    Promise.all([listExpenses(companyId, page), listCounterparties(companyId), listExpenses(companyId, 1, 1, false)])
+      .then(([expenses, parties, toReview]) => {
         if (!alive) return;
         setRows(expenses.items);
+        setPageInfo(expenses.pagination);
+        setUnreviewedTotal(toReview.pagination.total);
         setCounterparties(parties.items);
       })
       .catch((err) => {
@@ -1341,7 +1394,7 @@ const GastosScreen = ({
     return () => {
       alive = false;
     };
-  }, [companyId, demoMode, reloadKey]);
+  }, [companyId, demoMode, reloadKey, page]);
 
   const displayRows: ExpenseDisplayRow[] = demoMode
     ? demoRows
@@ -1436,6 +1489,7 @@ const GastosScreen = ({
         status: form.status,
       });
       setConfirmed(true);
+      setPage(1);
       setReloadKey((key) => key + 1);
     } catch (err) {
       setFormError(errorMessage(err));
@@ -1488,9 +1542,9 @@ const GastosScreen = ({
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Recorded total (base)", value: fmt(baseTotal), note: "Sum of the listed records", color: "#37474F" },
+          { label: "Recorded total (base)", value: fmt(baseTotal), note: demoMode ? "Sum of the listed records" : "Sum of the records on this page", color: "#37474F" },
           { label: "Recorded deductible VAT", value: fmt(taxTotal), note: "Record summary", color: "#37474F" },
-          { label: "Expenses to review", value: `${pendingReview} records`, note: "Pending accounting review", color: "#E65100" },
+          { label: "Expenses to review", value: `${demoMode ? pendingReview : unreviewedTotal ?? pendingReview} records`, note: "Pending accounting review (all pages)", color: "#E65100" },
         ].map((item) => (
           <Card key={item.label} style={{ padding: "16px 20px" }}>
             <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
@@ -1547,6 +1601,7 @@ const GastosScreen = ({
             </tbody>
           </table>
         </div>
+        {!demoMode && <Pager info={pageInfo} onPage={setPage} noun="expenses" />}
       </Card>
 
       {showForm && (
@@ -1762,7 +1817,7 @@ const ProyeccionesScreen = ({
   const monthly = result?.monthly ?? [];
   const models = result?.models ?? {};
   const tableRows = [
-    ...history.map((point) => ({ mes: point.mes, ingresos: point.ingresos, gastos: point.gastos, tipo: "Registrado" })),
+    ...history.map((point) => ({ mes: point.mes, ingresos: point.ingresos, gastos: point.gastos, tipo: "Recorded" })),
     ...monthly.map((point) => ({
       mes: shortMonth(point.month),
       ingresos: num(point.projected_income),
@@ -2480,7 +2535,7 @@ const PlanificacionScreen = ({
             {draft && (
               <div style={{ backgroundColor: "#E3F2FD", border: "1px solid #90CAF9", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 11, color: "#1565C0", lineHeight: 1.6 }}>
                 <Info size={13} style={{ display: "inline", marginRight: 5 }} />
-                Draft created from the {draft.methodLabel ?? "model"} forecast for the period {draft.period}
+                Draft created from the {draft.methodLabel ?? "model"} forecast for the period {draft.period}{" "}
                 (first forecast month). You set the reserve target: income minus expenses is not a tax or
                 a mandatory reserve. Saving creates a new version; reviewed versions never change.
               </div>
@@ -3364,7 +3419,7 @@ const AlertaDetalleScreen = ({
           <div>
             <Card style={{ marginBottom: 20 }}>
               <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F", marginBottom: 12 }}>Description</div>
-              <p style={{ fontSize: 14, color: "#37474F", lineHeight: 1.7, margin: 0 }}>{displayed.description || "No description recorded."}</p>
+              <p style={{ fontSize: 14, color: "#37474F", lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>{displayed.description || "No description recorded."}</p>
             </Card>
 
             <Card style={{ marginBottom: 20 }}>
@@ -4077,7 +4132,7 @@ const HistorialScreen = ({
                     <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(event.created_at)}</td>
                     <td style={{ padding: "12px 14px", fontWeight: 600, color: "#37474F", fontFamily: "monospace", fontSize: 12 }}>{event.action}</td>
                     <td style={{ padding: "12px 14px", color: "#78909C", fontFamily: "monospace", fontSize: 12 }}>{event.resource}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{event.actor_id ? `User #${event.actor_id}` : "System"}</td>
+                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{event.actor_name ?? (event.actor_id ? `User #${event.actor_id}` : "System")}</td>
                     <td style={{ padding: "12px 14px", color: "#B0BEC5", fontSize: 11, maxWidth: 280 }}>{Object.keys(event.detail).length > 0 ? JSON.stringify(event.detail) : "—"}</td>
                   </tr>
                 ))}
@@ -4115,23 +4170,37 @@ export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [companies, setCompanies] = useState<CompanyCard[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const narrow = useIsNarrow();
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" || !window.matchMedia(NARROW_QUERY).matches);
+  const mainRef = useRef<HTMLElement | null>(null);
   const [alertDetailId, setAlertDetailId] = useState<number>(1);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [planInitialStep, setPlanInitialStep] = useState<PlanStep>(1);
   const [backend, setBackend] = useState<BackendState>({ online: false, database: null, checked: false });
 
+  // A new screen starts at the top, not at the scroll position of the previous one.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [screen, alertDetailId, activeCompanyId]);
+
+  // Crossing between desktop and phone width resets the menu to its natural state.
+  useEffect(() => {
+    setSidebarOpen(!narrow);
+  }, [narrow]);
+
   useEffect(() => {
     let alive = true;
+    let timer: number | undefined;
     const ping = async () => {
       const status = await backendStatus();
-      if (alive) setBackend({ ...status, checked: true });
+      if (!alive) return;
+      setBackend({ ...status, checked: true });
+      timer = window.setTimeout(ping, status.online ? 60000 : 10000);
     };
     ping();
-    const interval = window.setInterval(ping, 60000);
     return () => {
       alive = false;
-      window.clearInterval(interval);
+      window.clearTimeout(timer);
     };
   }, []);
 
@@ -4240,6 +4309,7 @@ export default function App() {
       setPlanDraft(null);
       setPlanInitialStep(1);
     }
+    if (narrow) setSidebarOpen(false);
     setScreen(next);
   };
 
@@ -4315,10 +4385,10 @@ export default function App() {
 
   return (
     <div style={{ height: "100vh", fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: "#F5F7F6", overflow: "hidden", position: "relative" }}>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} screen={screen} onNav={handleNav} userName={userName} userRole={userRole} apiOnline={backend.online} />
+      <Sidebar open={sidebarOpen} overlay={narrow} onClose={() => setSidebarOpen(false)} screen={screen} onNav={handleNav} userName={userName} userRole={userRole} apiOnline={backend.online} />
 
-      <main style={{ height: "100vh", overflowY: "auto", marginLeft: sidebarOpen ? 240 : 0, transition: "margin-left 0.28s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column" }}>
-        <Topbar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} empresa={needsCompany ? "AlertaFiscal" : companyName} companySubtitle={companySubtitle} backend={backend} demoMode={demoMode} onLogout={handleLogout} />
+      <main ref={mainRef} className={narrow ? "af-main af-narrow" : "af-main"} style={{ height: "100vh", overflowY: "auto", marginLeft: sidebarOpen && !narrow ? 240 : 0, transition: "margin-left 0.28s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column" }}>
+        <Topbar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} empresa={needsCompany ? "AlertaFiscal" : companyName} companySubtitle={companySubtitle} backend={backend} demoMode={demoMode} onLogout={handleLogout} compact={narrow} />
 
         <div style={{ flex: 1 }}>
           {screen === "empresas" && <EmpresasScreen companies={companies} onSelect={handleSelectCompany} />}

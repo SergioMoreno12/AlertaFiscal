@@ -31,6 +31,14 @@ Signed *double submit* pattern:
 2. The server returns the token in the body and in the `af_csrf` cookie (readable by JS).
 3. Every `POST/PUT/PATCH/DELETE` request to `/api/*` must send `X-CSRF-Token`.
 4. The server compares the header, the cookie, the HMAC signature and the hash linked to the session.
+   Login and logout skip only the session link: a stale session cookie left by a failed logout would
+   otherwise block the next sign-in. They still need the signed token in both the header and the cookie.
+
+Other request limits: JSON bodies over 1 MB are rejected with `413`, malformed requests keep their
+HTTP status (they are never turned into `500`), and amounts above the `Numeric(18, 2)` range or
+non-numeric percentages answer `422`. Login verifies a dummy hash for unknown emails, so the response
+time does not reveal which accounts exist. Forecast error details name the artifact file, never the
+server path.
 
 The frontend keeps the token in memory. If the page reloads, a new one is requested. Requests without a token are rejected with `403 csrf_failed` **before** the view runs.
 

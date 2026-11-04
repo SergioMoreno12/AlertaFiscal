@@ -71,6 +71,8 @@ The dashboard returns `totals`, `monthly`, `alerts.open`, `obligations` and `pla
 | POST | `/companies/{id}/payments` | auxiliar |
 | GET/POST | `/companies/{id}/counterparties` | member / auxiliar |
 
+A receipt or payment cannot exceed the outstanding balance of its document (`422`), and a document that is already fully collected or paid answers `409`. Receipt dates are calendar dates (`YYYY-MM-DD`). The audit list (`GET /companies/{id}/audit`) includes `actor_name`.
+
 ```json
 POST /api/v1/companies/1/income
 {
@@ -101,7 +103,7 @@ POST /api/v1/companies/1/income
 
 A `reviewed` version cannot be reviewed again (`409`). `POST /forecasts` (manual mode) with less than 3 months of history answers `200` and `{"available": false, "reason": "..."}`; it does not make up data. With history it returns the manual estimate with a `disclaimer`.
 
-`POST /forecasts/model` runs the model artifact on the company's monthly history and stores a `ForecastRun`. If the model cannot run it answers `200` with `available: false`, an error `code` (`model_not_trained`, `artifact_invalid`, `insufficient_history`) and a `reason`; manual mode stays available.
+`POST /forecasts/model` runs the model artifact on the company's monthly history (closed months only: the month in progress is left out, because the model was trained on complete months) and stores a `ForecastRun`. If the model cannot run it answers `200` with `available: false`, an error `code` (`model_not_trained`, `artifact_invalid`, `insufficient_history`) and a `reason`; manual mode stays available.
 
 ### Plan and versions
 

@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 import click
 from flask import Flask, g, jsonify, request
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # config.py loads backend/.env before its attributes are evaluated.
@@ -20,6 +21,9 @@ def _is_dev() -> bool:
 def create_app(config_class: type = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
+    # The API only receives small JSON bodies; anything bigger is rejected with 413.
+    if app.config.get("MAX_CONTENT_LENGTH") is None:
+        app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -159,6 +163,13 @@ def _register_errors(app: Flask) -> None:
     @app.errorhandler(ValueError)
     def _value(e):
         return jsonify({"error": {"code": "invalid_payload", "message": str(e)}}), 422
+
+    @app.errorhandler(HTTPException)
+    def _http(e: HTTPException):
+        # Without this handler the generic one below turns every other HTTP error
+        # (400 malformed body, 413, 415...) into a 500.
+        code = (e.name or "http_error").lower().replace(" ", "_")
+        return jsonify({"error": {"code": code, "message": e.description or e.name}}), e.code or 500
 
     @app.errorhandler(Exception)
     def _unhandled(e):
