@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (pytest + PostgreSQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: alertafiscal
+          POSTGRES_PASSWORD: alertafiscal
+          POSTGRES_DB: alertafiscal_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U alertafiscal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: development
+      SECRET_KEY: ci-only-secret
+      FLASK_APP: wsgi:app
+      DATABASE_URL: postgresql+psycopg://alertafiscal:alertafiscal@localhost:5432/alertafiscal_ci
+      TEST_DATABASE_URL: postgresql+psycopg://alertafiscal:alertafiscal@localhost:5432/alertafiscal_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Create a separate test database
+        run: |
+          python - <<'PY'
+          import psycopg
+
+          with psycopg.connect(
+              "postgresql://alertafiscal:alertafiscal@localhost:5432/alertafiscal_ci",
+              autocommit=True,
+          ) as conn:
+              exists = conn.execute(
+                  "select 1 from pg_database where datname = 'alertafiscal_test'"
+              ).fetchone()
+              if not exists:
+                  conn.execute("create database alertafiscal_test owner alertafiscal")
+          print("alertafiscal_test database ready")
+          PY
+
+      - name: Tests (SQLite unit tests + PostgreSQL integration)
+        run: python -m pytest -q
+
+      - name: Migrations against the CI PostgreSQL
+        run: flask db upgrade
+
+      - name: Idempotent demo seed
+        run: |
+          flask seed-demo --yes
+          flask seed-demo --yes
+
+      - name: Health check against PostgreSQL
+        run: |
+          python - <<'PY'
+          from app import create_app
+          from app.extensions import db
+          from sqlalchemy import text
+
+          app = create_app()
+          with app.app_context():
+              assert db.session.execute(text("SELECT count(*) FROM companies")).scalar() == 2
+          print("PostgreSQL OK")
+          PY
+
+  frontend:
+    name: Frontend (TypeScript + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types and build
+        run: npm run build

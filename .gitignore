@@ -1,6 +1,7 @@
 # Python
 .venv/
 venv/
+.venv*/
 __pycache__/
 *.pyc
 
@@ -8,6 +9,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.*.example
 
 # Tools and editors
 .claude/
@@ -27,3 +29,12 @@ ml/artifacts/*
 # Raw datasets (share outside Git)
 ml/data/raw/*
 !ml/data/raw/.gitkeep
+
+# --- ERP port ---
+node_modules*/
+.pytest_cache/
+backend/instance/
+*.db
+dist/
+*.zip
+
