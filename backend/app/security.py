@@ -54,7 +54,7 @@ def _utc(value: datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc)
 
 
-# ── CSRF (double submit con firma HMAC) ──
+# ── CSRF (double submit signed with HMAC) ──
 
 
 def new_csrf_token() -> str:
@@ -100,7 +100,7 @@ def validate_csrf() -> bool:
     return True
 
 
-# ── Sesiones ──
+# ── Sessions ──
 
 
 def create_session(user: User) -> tuple[Session, str, str]:

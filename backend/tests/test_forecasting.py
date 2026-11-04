@@ -121,7 +121,7 @@ def _seed_company(app, tmp_path: Path, suffix: str, count: int = 13):
                     company_id=company.id,
                     doc_number=f"I-{suffix}-{index}",
                     issue_date=_month_start(month),
-                    description="Venta mensual",
+                    description="Monthly sale",
                     subtotal=income[index],
                     tax_amount=0,
                     total=income[index],
@@ -134,7 +134,7 @@ def _seed_company(app, tmp_path: Path, suffix: str, count: int = 13):
                     doc_number=f"E-{suffix}-{index}",
                     issue_date=_month_start(month),
                     category="Operations",
-                    description="Gasto mensual",
+                    description="Monthly expense",
                     subtotal=expenses[index],
                     tax_amount=0,
                     total=expenses[index],
@@ -197,7 +197,7 @@ def ml_company(app, tmp_path):
 
 def test_model_forecast_missing_artifact_is_explicit(auth, app, ml_company, tmp_path):
     company_id, _, _, _ = ml_company("no-model")
-    empty = tmp_path / "vacio"
+    empty = tmp_path / "empty"
     empty.mkdir()
     app.config["FORECAST_ARTIFACT_DIR"] = str(empty)
 
@@ -223,7 +223,7 @@ def test_model_forecast_rejects_artifact_from_another_company(auth, app, ml_comp
 
 
 def test_model_forecast_persists_run_and_predicts_from_artifact(auth, app, ml_company):
-    company_id, months, income, expenses = ml_company("persistencia")
+    company_id, months, income, expenses = ml_company("persistence")
 
     response = _post(auth["client"], auth["csrf"], f"/api/v1/companies/{company_id}/forecasts/model", {"horizon_months": 3})
     assert response.status_code == 201, response.get_json()

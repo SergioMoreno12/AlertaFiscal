@@ -120,7 +120,7 @@ def upsert_parameter(company_id: int):
     return jsonify({"id": row.id, "key": row.key, "label": row.label, "value": f"{value:.4f}"}), 201
 
 
-# ─────────────────── Planes y versiones ───────────────────
+# ─────────────────── Plans and versions ───────────────────
 
 
 @planning_bp.get("/plans")
@@ -152,7 +152,7 @@ def create_plan(company_id: int):
     except ValueError as exc:
         return error("invalid_payload", str(exc), 422)
     if estimated_reserve < 0:
-        return error("invalid_payload", "estimated_reserve no puede ser negativo", 422)
+        return error("invalid_payload", "estimated_reserve cannot be negative", 422)
 
     plan = FiscalPlan(
         company_id=company_id,
@@ -232,7 +232,7 @@ def create_version(company_id: int, plan_id: int):
     except ValueError as exc:
         return error("invalid_payload", str(exc), 422)
     if estimated_reserve < 0:
-        return error("invalid_payload", "estimated_reserve no puede ser negativo", 422)
+        return error("invalid_payload", "estimated_reserve cannot be negative", 422)
 
     latest = (
         db.session.query(func.max(FiscalPlanVersion.version)).filter_by(plan_id=plan.id).scalar() or 0
@@ -274,7 +274,7 @@ def review_version(company_id: int, plan_id: int, version_id: int):
     return jsonify(_plan_dict(plan, version))
 
 
-# ─────────────────── Reservas ───────────────────
+# ─────────────────── Reserves ───────────────────
 
 
 @planning_bp.get("/reserve-entries")
@@ -338,7 +338,7 @@ def create_reserve(company_id: int):
     return jsonify({"id": row.id, "amount": money(row.amount), "reserved_on": iso(row.reserved_on)}), 201
 
 
-# ─────────────────── Proyecciones ───────────────────
+# ─────────────────── Forecasts ───────────────────
 
 
 @planning_bp.get("/forecasts")

@@ -68,7 +68,7 @@ def parse_money(raw, field: str):
     except Exception:
         raise ValueError(f"{field} must be a valid number")
     if value < 0:
-        raise ValueError(f"{field} no puede ser negativo")
+        raise ValueError(f"{field} cannot be negative")
     return value
 
 

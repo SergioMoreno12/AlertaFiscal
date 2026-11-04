@@ -66,7 +66,7 @@ def _validate_counterparty(company_id: int, raw) -> int | None:
     return cid
 
 
-# ───────────────────────── Ingresos ─────────────────────────
+# ───────────────────────── Income ─────────────────────────
 
 
 @movements_bp.get("/income")
@@ -94,7 +94,7 @@ def create_income(company_id: int):
     try:
         doc_number = str(data.get("doc_number", "")).strip()
         if not doc_number:
-            raise ValueError("doc_number es obligatorio")
+            raise ValueError("doc_number is required")
         issue_date = parse_date(str(data.get("issue_date", "")))
         if issue_date is None:
             raise ValueError("Invalid issue_date (YYYY-MM-DD)")
@@ -146,7 +146,7 @@ def income_detail(company_id: int, income_id: int):
     return jsonify(payload)
 
 
-# ───────────────────────── Gastos ─────────────────────────
+# ───────────────────────── Expenses ─────────────────────────
 
 
 @movements_bp.get("/expenses")
@@ -177,7 +177,7 @@ def create_expense(company_id: int):
     try:
         doc_number = str(data.get("doc_number", "")).strip()
         if not doc_number:
-            raise ValueError("doc_number es obligatorio")
+            raise ValueError("doc_number is required")
         issue_date = parse_date(str(data.get("issue_date", "")))
         if issue_date is None:
             raise ValueError("Invalid issue_date (YYYY-MM-DD)")
@@ -196,7 +196,7 @@ def create_expense(company_id: int):
         counterparty_id=counterparty_id,
         doc_number=doc_number,
         issue_date=issue_date,
-        category=str(data.get("category", "Otros"))[:80],
+        category=str(data.get("category", "Other"))[:80],
         description=str(data.get("description", ""))[:255],
         subtotal=subtotal,
         tax_amount=tax_amount,
@@ -324,7 +324,7 @@ def create_payment(company_id: int):
     return jsonify({"id": payment.id, "amount": money(payment.amount), "expense_status": expense.status}), 201
 
 
-# ───────────────────────── Terceros ─────────────────────────
+# ───────────────────────── Counterparties ─────────────────────────
 
 
 @movements_bp.get("/counterparties")
@@ -344,7 +344,7 @@ def create_counterparty(company_id: int):
     data = get_json()
     name = str(data.get("name", "")).strip()
     if not name:
-        return error("invalid_payload", "name es obligatorio", 422)
+        return error("invalid_payload", "name is required", 422)
     kind = str(data.get("kind", "client"))
     if kind not in ("client", "supplier"):
         return error("invalid_payload", "Invalid kind", 422)

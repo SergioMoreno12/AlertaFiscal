@@ -49,7 +49,7 @@ def create_obligation(company_id: int):
     data = get_json()
     name = str(data.get("name", "")).strip()
     if not name:
-        return error("invalid_payload", "name es obligatorio", 422)
+        return error("invalid_payload", "name is required", 422)
     due_date = parse_date(str(data.get("due_date", "")))
     if due_date is None:
         return error("invalid_payload", "Invalid due_date (YYYY-MM-DD)", 422)
