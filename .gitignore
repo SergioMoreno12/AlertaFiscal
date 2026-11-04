@@ -37,3 +37,8 @@ backend/instance/
 *.db
 dist/
 *.zip
+
+# ERP-port tests are maintained outside the repository for local-only validation.
+/backend/tests/
+/backend/pytest.ini
+/backend/requirements-dev.txt

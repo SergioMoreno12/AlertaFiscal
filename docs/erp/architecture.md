@@ -158,19 +158,11 @@ scikit-learn ni carga modelos al arrancar.
 artefactos en `ml/artifacts/` (ignorado por git). No se ejecuta en Render ni en el request
 del usuario.
 
-## Pruebas
+## Tests
 
-- `backend/tests/conftest.py` usa por defecto SQLite temporal **explícito** para pruebas
-  unitarias/API.
-- Si existe `TEST_DATABASE_URL`, todas las pruebas de esa ejecución usan PostgreSQL y el
-  esquema se recrea con las migraciones de Alembic. El fixture exige que el nombre de la
-  base termine en `_test` o empiece por `test_`; así se impide una limpieza accidental de
-  la base demo.
-- `backend/tests/test_postgres_integration.py` valida migraciones, `Numeric`/`Decimal`,
-  fechas de calendario, claves foráneas, unicidad, roles, sesiones, CSRF, aislamiento
-  multiempresa, planes, reservas, alertas, comentarios y obligaciones.
-- No se sustituye PostgreSQL por SQLite cuando falta `TEST_DATABASE_URL`: las pruebas de
-  integración se **saltan** y se informa el motivo.
+The ERP-port pytest suite is not tracked in this repository. It is maintained in an
+external local-only location and is never run against Supabase or another remote database.
+CI does not run that suite; it keeps syntax, migration, health and frontend build checks.
 
 ## Decisiones y límites conocidos
 

@@ -129,7 +129,7 @@ base destino; no se incluye en el recorrido habitual y requiere autorización ex
 cd C:\Users\manue\OneDrive\Documentos\PROYECTO_FINAL_MACHINE\backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements.txt
 
 Copy-Item .env.example .env
 notepad .env
@@ -229,38 +229,17 @@ docker compose --env-file .env.docker exec postgres `
 
 No se elimina el volumen durante esta comprobación.
 
-## 7. Pruebas automatizadas
+## 7. Automated tests (external, local-only)
 
-### 7.1. Unitarias/API con SQLite temporal explícito
+The ERP-port test suite is intentionally not tracked in this repository. It is kept in
+an external local-only location for validation and must never run against Supabase or
+another remote database.
 
-```powershell
-cd backend
-$env:APP_ENV = "testing"
-python -m pytest -q
-```
-
-`conftest.py` crea una base SQLite temporal propia; no toca `dev.db`. Si existe
-`TEST_DATABASE_URL`, esta misma orden ejecuta además las pruebas contra PostgreSQL.
-
-### 7.2. Integración PostgreSQL
-
-Usa la base **separada** creada por Docker (`alertafiscal_test`):
-
-```powershell
-cd backend
-$env:APP_ENV = "testing"
-$env:TEST_DATABASE_URL = "postgresql+psycopg://alertafiscal:TU_CLAVE@127.0.0.1:5433/alertafiscal_test"
-python -m pytest -q
-```
-
-El fixture:
-
-- exige que el nombre de la base termine en `_test` o empiece por `test_`;
-- recrea el esquema con `flask db upgrade` (Alembic) antes de las pruebas;
-- elimina el esquema de la base de pruebas al terminar.
-
-Nunca apuntes `TEST_DATABASE_URL` a `alertafiscal` ni a la base de producción: la
-protección por nombre está pensada para detener ese error, no para autorizarlo.
+CI keeps the backend syntax, migration and health checks plus the frontend type/build
+check, but it does not run the pytest suite. The external suite retains the destructive
+guards: `AF_SKIP_DOTENV=1`, an explicit `TEST_DATABASE_URL`, a loopback host and verified
+local Docker port, the disposable `alertafiscal_test` database only, and no fallback to
+the application `DATABASE_URL`.
 
 ## 8. Preparación de Supabase
 
