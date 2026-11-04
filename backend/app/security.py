@@ -1,4 +1,4 @@
-"""Seguridad: hash de contraseñas, sesiones revocables y CSRF."""
+"""Security: password hashing, revocable sessions and CSRF."""
 import hashlib
 import hmac
 import secrets
@@ -10,7 +10,7 @@ from flask import current_app, g, jsonify, request
 from .extensions import db
 from .models import CompanyMembership, Session, User
 
-# ── Hash de contraseñas (Argon2id si está disponible; scrypt como respaldo) ──
+# ── Password hashing (Argon2id when available; scrypt as fallback) ──
 try:
     from argon2 import PasswordHasher
     from argon2.exceptions import InvalidHashError, VerifyMismatchError
@@ -27,7 +27,7 @@ try:
         except (VerifyMismatchError, InvalidHashError, Exception):
             return False
 
-except ImportError:  # pragma: no cover - solo si argon2-cffi no está instalado
+except ImportError:  # pragma: no cover - only if argon2-cffi is not installed
     from werkzeug.security import check_password_hash, generate_password_hash
 
     PASSWORD_SCHEME = "scrypt"
@@ -159,7 +159,7 @@ def require_auth(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
         if getattr(g, "current_user", None) is None:
-            return jsonify({"error": {"code": "unauthorized", "message": "Sesión requerida"}}), 401
+            return jsonify({"error": {"code": "unauthorized", "message": "Session required"}}), 401
         return view(*args, **kwargs)
 
     return wrapper

@@ -17,8 +17,8 @@ from ...security import (
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
-# Limitador simple en memoria: válido para 1 proceso. En producción con varias
-# réplicas debe moverse a un almacén compartido (documentado en docs/security.md).
+# Simple in-memory limiter: valid for 1 process. In production with several
+# replicas it must move to a shared store (documented in docs/erp/security.md).
 _attempts: dict[str, list[float]] = {}
 
 
@@ -65,19 +65,19 @@ def login():
     password = str(data.get("password", ""))
 
     if not email or not password:
-        return error("invalid_credentials", "Credenciales inválidas", 401)
+        return error("invalid_credentials", "Invalid credentials", 401)
 
     key = f"{request.remote_addr}:{email}"
     if _rate_limited(key):
-        return error("too_many_attempts", "Demasiados intentos. Intenta más tarde.", 429)
+        return error("too_many_attempts", "Too many attempts. Try again later.", 429)
 
     user = db.session.query(User).filter_by(email=email).first()
     if user is None or not user.is_active or not verify_password(user.password_hash, password):
         _register_attempt(key)
         current_app.logger.info("login_failed email_domain=%s", email.split("@")[-1])
-        return error("invalid_credentials", "Credenciales inválidas", 401)
+        return error("invalid_credentials", "Invalid credentials", 401)
 
-    # Rotación: cualquier sesión previa de esta cookie se revoca.
+    # Rotation: any previous session of this cookie is revoked.
     old_token = request.cookies.get(current_app.config["SESSION_COOKIE_NAME"])
     if old_token:
         from ...security import _hash_token
@@ -121,7 +121,7 @@ def logout():
 def me():
     user = getattr(g, "current_user", None)
     if user is None:
-        return error("unauthorized", "Sesión requerida", 401)
+        return error("unauthorized", "Session required", 401)
     memberships = (
         db.session.query(CompanyMembership)
         .filter_by(user_id=user.id, is_active=True)
@@ -135,7 +135,7 @@ def me():
 def list_sessions():
     user = getattr(g, "current_user", None)
     if user is None:
-        return error("unauthorized", "Sesión requerida", 401)
+        return error("unauthorized", "Session required", 401)
     current = getattr(g, "session_row", None)
     rows = (
         db.session.query(Session)
@@ -164,10 +164,10 @@ def list_sessions():
 def revoke_session(session_id: int):
     user = getattr(g, "current_user", None)
     if user is None:
-        return error("unauthorized", "Sesión requerida", 401)
+        return error("unauthorized", "Session required", 401)
     target = db.session.get(Session, session_id)
     if target is None or target.user_id != user.id:
-        return error("not_found", "Sesión no encontrada", 404)
+        return error("not_found", "Session not found", 404)
     target.revoked_at = datetime.now(timezone.utc)
     record_audit(None, "auth.session_revoked", f"session:{session_id}")
     return jsonify({"status": "revoked"})
@@ -175,10 +175,10 @@ def revoke_session(session_id: int):
 
 @auth_bp.post("/password-reset/request")
 def password_reset_request():
-    """Solicitud genérica: no revela si el correo existe.
+    """Generic request: it does not reveal whether the email exists.
 
-    No hay proveedor de correo configurado; en desarrollo el token se registra
-    en el log del servidor (nunca en la respuesta HTTP).
+    No email provider is configured; in development the token is written to
+    the server log (never to the HTTP response).
     """
     data = get_json()
     email = str(data.get("email", "")).strip().lower()
@@ -186,4 +186,4 @@ def password_reset_request():
         user = db.session.query(User).filter_by(email=email).first()
         if user is not None:
             current_app.logger.info("password_reset_requested user_id=%s", user.id)
-    return jsonify({"status": "ok", "message": "Si el correo existe, enviamos instrucciones."})
+    return jsonify({"status": "ok", "message": "If the email exists, we sent instructions."})

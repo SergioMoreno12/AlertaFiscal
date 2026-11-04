@@ -45,7 +45,7 @@ def summary(company_id: int):
     pending_income = total(IncomeDocument, ("pending",))
     pending_expense = total(ExpenseDocument, ("pending",))
 
-    # Serie mensual de los últimos 6 meses (agregación en SQL).
+    # Monthly series of the last 6 months (aggregated in SQL).
     six_months_ago = (datetime.now(timezone.utc).replace(day=1) - timedelta(days=155)).replace(
         day=1, hour=0, minute=0, second=0, microsecond=0
     )
@@ -136,8 +136,8 @@ def summary(company_id: int):
             "models": latest["models"],
         }
 
-    # «Qué revisar ahora» se arma solo con alertas ya persistidas por
-    # POST /alerts/evaluate. Este GET no escribe ni recalcula alertas.
+    # "What to check now" is built only from alerts already stored by
+    # POST /alerts/evaluate. This GET never writes or recomputes alerts.
     open_rows = (
         db.session.query(Alert)
         .filter(Alert.company_id == company_id, Alert.status != "reviewed")
@@ -145,8 +145,8 @@ def summary(company_id: int):
         .limit(20)
         .all()
     )
-    # sorted() es estable: dentro de la misma prioridad conserva el orden
-    # descendente por fecha que ya devolvió la consulta.
+    # sorted() is stable: within the same priority it keeps the descending
+    # date order returned by the query.
     open_rows = sorted(open_rows, key=lambda row: PRIORITY_ORDER.get(row.priority, 9))
     review_now = [
         {

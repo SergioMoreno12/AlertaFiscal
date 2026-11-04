@@ -4,21 +4,21 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-except ImportError:  # pragma: no cover - python-dotenv es dependencia declarada
+except ImportError:  # pragma: no cover - python-dotenv is a declared dependency
     load_dotenv = None
 
 # backend/app/config.py -> backend/.env
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
-# Debe ejecutarse ANTES de evaluar los atributos de Config. `override=False`
-# respeta variables ya exportadas en la terminal o inyectadas por el proveedor.
-# AF_SKIP_DOTENV=1 permite probar la configuración sin leer backend/.env.
+# Must run BEFORE the Config attributes are evaluated. `override=False`
+# respects variables already exported in the shell or injected by the host.
+# AF_SKIP_DOTENV=1 lets tests check the configuration without reading backend/.env.
 if load_dotenv is not None and os.environ.get("AF_SKIP_DOTENV", "").strip().lower() not in ("1", "true", "yes"):
     load_dotenv(BACKEND_DIR / ".env", override=False)
 
 
 def _normalize_db_url(url: str) -> str:
-    """Acepta URLs de Render/Supabase y fuerza el driver psycopg 3."""
+    """Accept Render/Supabase URLs and force the psycopg 3 driver."""
     url = url.strip()
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg://", 1)
@@ -57,48 +57,48 @@ class Config:
     if _is_prod():
         if not SECRET_KEY or SECRET_KEY in {"dev-only-change-me", "dev-change-me-please"} or len(SECRET_KEY) < 32:
             raise RuntimeError(
-                "SECRET_KEY es obligatoria en producción y debe tener al menos 32 caracteres "
-                "aleatorios (no uses el valor de ejemplo)."
+                "SECRET_KEY is required in production and must have at least 32 random "
+                "characters (do not use the example value)."
             )
     else:
         SECRET_KEY = SECRET_KEY or "dev-only-change-me"
 
-    # ── Base de datos ────────────────────────────────────────────────
-    # PostgreSQL es el modo normal. SQLite solo se habilita con DB_MODE=sqlite
-    # y nunca en producción. No se activa un fallback silencioso.
-    # DB_IS_DEMO marca el modo SQLite explícito de demo/pruebas; NO significa
-    # que el sistema haya caído a SQLite automáticamente.
+    # ── Database ─────────────────────────────────────────────────────
+    # PostgreSQL is the normal mode. SQLite is enabled only with DB_MODE=sqlite
+    # and never in production. There is no silent fallback.
+    # DB_IS_DEMO marks the explicit SQLite demo/test mode; it does NOT mean
+    # that the system fell back to SQLite automatically.
     DB_MODE_REQUESTED = os.environ.get("DB_MODE", "").strip().lower()
     if DB_MODE_REQUESTED in ("postgres", "postgresql"):
         DB_MODE_REQUESTED = "postgresql"
     if DB_MODE_REQUESTED not in ("", "postgresql", "sqlite"):
-        raise RuntimeError("DB_MODE inválido. Valores admitidos: postgresql o sqlite.")
+        raise RuntimeError("Invalid DB_MODE. Allowed values: postgresql or sqlite.")
 
     _raw_db_url = os.environ.get("DATABASE_URL", "").strip()
     _is_sqlite_url = _raw_db_url.startswith("sqlite:")
 
     if _is_prod() and (DB_MODE_REQUESTED == "sqlite" or _is_sqlite_url):
-        raise RuntimeError("SQLite está prohibido en producción. Configura DATABASE_URL de PostgreSQL.")
+        raise RuntimeError("SQLite is not allowed in production. Set a PostgreSQL DATABASE_URL.")
 
     if _raw_db_url:
         SQLALCHEMY_DATABASE_URI = _normalize_db_url(_raw_db_url)
         if _is_sqlite_url:
             if DB_MODE_REQUESTED != "sqlite":
                 raise RuntimeError(
-                    "DATABASE_URL apunta a SQLite. Para usarla debes declarar DB_MODE=sqlite "
-                    "de forma explícita; este modo es solo para demo/pruebas locales."
+                    "DATABASE_URL points to SQLite. To use it you must set DB_MODE=sqlite "
+                    "explicitly; this mode is only for local demos and tests."
                 )
             DB_MODE = "sqlite"
             DB_IS_DEMO = True
         elif SQLALCHEMY_DATABASE_URI.startswith(("postgresql://", "postgresql+psycopg://")):
             if DB_MODE_REQUESTED == "sqlite":
-                raise RuntimeError("DB_MODE=sqlite no es compatible con una DATABASE_URL de PostgreSQL.")
+                raise RuntimeError("DB_MODE=sqlite is not compatible with a PostgreSQL DATABASE_URL.")
             DB_MODE = "postgresql"
             DB_IS_DEMO = False
         else:
             raise RuntimeError(
-                "DATABASE_URL debe usar postgresql+psycopg:// (o sqlite:// con DB_MODE=sqlite). "
-                "No se admite otro motor."
+                "DATABASE_URL must use postgresql+psycopg:// (or sqlite:// with DB_MODE=sqlite). "
+                "No other engine is supported."
             )
     elif DB_MODE_REQUESTED == "sqlite" and not _is_prod():
         SQLALCHEMY_DATABASE_URI = "sqlite:///dev.db"
@@ -106,9 +106,9 @@ class Config:
         DB_IS_DEMO = True
     else:
         raise RuntimeError(
-            "DATABASE_URL no está definida. El modo normal requiere PostgreSQL, por ejemplo "
-            "'postgresql+psycopg://usuario:clave@127.0.0.1:5433/alertafiscal'. "
-            "Para una demo aislada con SQLite declara DB_MODE=sqlite de forma explícita."
+            "DATABASE_URL is not set. Normal mode requires PostgreSQL, for example "
+            "'postgresql+psycopg://user:password@127.0.0.1:5433/alertafiscal'. "
+            "For an isolated SQLite demo set DB_MODE=sqlite explicitly."
         )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -124,8 +124,8 @@ class Config:
 
     if DB_MODE == "postgresql":
         _connect_args: dict[str, object] = {"connect_timeout": DB_CONNECT_TIMEOUT}
-        # TLS es opcional en local (PostgreSQL en Docker sin certificado).
-        # En Supabase debe configurarse según la guía del proveedor.
+        # TLS is optional locally (PostgreSQL in Docker without a certificate).
+        # On Supabase configure it following the provider's guide.
         if DB_SSLMODE:
             _connect_args["sslmode"] = DB_SSLMODE
         if DB_SSLROOTCERT:
@@ -155,7 +155,7 @@ class Config:
     SESSION_COOKIE_NAME = "__Host-af_session" if (COOKIE_SECURE and COOKIE_SAMESITE == "Lax") else "af_session"
     CSRF_COOKIE_NAME = "__Host-af_csrf" if (COOKIE_SECURE and COOKIE_SAMESITE == "Lax") else "af_csrf"
 
-    # CORS: lista explícita, nunca "*"
+    # CORS: explicit list, never "*"
     FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173").strip()
     ALLOWED_ORIGINS = sorted(
         {
@@ -167,14 +167,14 @@ class Config:
         }
     )
 
-    # Límites
+    # Limits
     MAX_PAGE_SIZE = 100
     DEFAULT_PAGE_SIZE = 20
     LOGIN_MAX_ATTEMPTS = _env_int("LOGIN_MAX_ATTEMPTS", 10, minimum=1)
     LOGIN_WINDOW_MINUTES = _env_int("LOGIN_WINDOW_MINUTES", 15, minimum=1)
 
-    # ── Pronóstico ML ────────────────────────────────────────────────
-    # El artefacto se entrena offline con ml/train.py y se lee en caliente.
+    # ── ML forecast ──────────────────────────────────────────────────
+    # The artifact is trained offline and read at request time.
     # Flask nunca entrena ni importa scikit-learn.
     FORECAST_ARTIFACT_DIR = os.environ.get(
         "FORECAST_ARTIFACT_DIR", str(BACKEND_DIR.parent / "ml" / "artifacts")

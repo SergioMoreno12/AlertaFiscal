@@ -14,17 +14,17 @@ os.environ["AF_SKIP_DOTENV"] = "1"
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 if TEST_DATABASE_URL:
-    # Integración real: PostgreSQL. Nunca se sustituye por SQLite en silencio.
+    # Real integration: PostgreSQL. Never replaced silently by SQLite.
     from sqlalchemy.engine import make_url
 
     _test_url = make_url(TEST_DATABASE_URL)
     _db_name = _test_url.database or ""
     if _test_url.get_backend_name() != "postgresql":
-        raise RuntimeError("TEST_DATABASE_URL debe apuntar a PostgreSQL (no SQLite).")
+        raise RuntimeError("TEST_DATABASE_URL must point to PostgreSQL (not SQLite).")
     if not (_db_name.endswith("_test") or _db_name.startswith("test_")):
         raise RuntimeError(
-            "Protección destructiva: el nombre de TEST_DATABASE_URL debe terminar en "
-            "'_test' o empezar por 'test_'. Las pruebas recrean el esquema."
+            "Destructive guard: the TEST_DATABASE_URL database name must end in "
+            "'_test' or start with 'test_'. The tests recreate the schema."
         )
     if (_test_url.host or "") not in LOOPBACK_HOSTS:
         # The tests drop and recreate the schema: only a local database is allowed,
@@ -33,7 +33,7 @@ if TEST_DATABASE_URL:
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
     os.environ["DB_MODE"] = "postgresql"
 else:
-    # Pruebas unitarias/API rápidas: SQLite temporal explícito, nunca dev.db.
+    # Fast unit and API tests: explicit temporary SQLite, never dev.db.
     _fd, _sqlite_path = tempfile.mkstemp(suffix=".db")
     os.close(_fd)
     os.environ["DATABASE_URL"] = f"sqlite:///{_sqlite_path}"
@@ -48,10 +48,10 @@ def _seed_base_data() -> None:
     if db.session.query(User).filter_by(email="a@example.com").first() is not None:
         return
 
-    u1 = User(email="a@example.com", full_name="Usuario A", password_hash=hash_password("Password12345"))
-    u2 = User(email="b@example.com", full_name="Usuario B", password_hash=hash_password("Password12345"))
-    c1 = Company(name="Empresa A", nit="111")
-    c2 = Company(name="Empresa B", nit="222")
+    u1 = User(email="a@example.com", full_name="User A", password_hash=hash_password("Password12345"))
+    u2 = User(email="b@example.com", full_name="User B", password_hash=hash_password("Password12345"))
+    c1 = Company(name="Company A", nit="111")
+    c2 = Company(name="Company B", nit="222")
     db.session.add_all([u1, u2, c1, c2])
     db.session.flush()
     db.session.add_all(
@@ -64,7 +64,7 @@ def _seed_base_data() -> None:
 
 
 def _reset_database(application) -> None:
-    """Deja el esquema como recién migrado. Solo se usa con TEST_DATABASE_URL validado."""
+    """Leave the schema as freshly migrated. Used only with a validated TEST_DATABASE_URL."""
     from sqlalchemy import text
 
     from app.extensions import db
@@ -119,7 +119,7 @@ def client(app):
 
 @pytest.fixture()
 def auth(client):
-    """Devuelve un cliente autenticado con helpers para peticiones con CSRF."""
+    """Return an authenticated client with helpers for CSRF requests."""
 
     def csrf():
         return client.get("/api/v1/auth/csrf").get_json()["csrf_token"]

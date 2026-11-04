@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Crea una base independiente para pruebas de integración. Se ejecuta una sola
-# vez, cuando el volumen de datos está vacío.
+# Create a separate database for integration tests. It runs only
+# once, when the data volume is empty.
 test_db="${POSTGRES_TEST_DB:-alertafiscal_test}"
 
 psql -v ON_ERROR_STOP=1 \

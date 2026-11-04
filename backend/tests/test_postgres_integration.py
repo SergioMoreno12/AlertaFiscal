@@ -1,7 +1,7 @@
-"""Pruebas de integración contra PostgreSQL real.
+"""Integration tests against a real PostgreSQL.
 
-Se saltan si TEST_DATABASE_URL no está definida: no se sustituyen por SQLite.
-El esquema de la base de pruebas se recrea con las migraciones de Alembic.
+They are skipped if TEST_DATABASE_URL is not set: they are never replaced by SQLite.
+The test database schema is recreated with the Alembic migrations.
 """
 
 import os
@@ -17,7 +17,7 @@ TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "").strip()
 
 pytestmark = [
     pytest.mark.postgres,
-    pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL no está definida"),
+    pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not set"),
 ]
 
 
@@ -45,7 +45,7 @@ def test_database_is_postgresql_and_migrated(app):
         tables = set(inspect(db.engine).get_table_names())
         assert {"alembic_version", "companies", "income_documents", "fiscal_plans"} <= tables
         version = db.session.execute(text("select version_num from alembic_version")).scalar()
-        # La cabeza de Alembic incluye el método estacional de proyección.
+        # The Alembic head includes the seasonal forecast method.
         assert version == "c7d2e5a9b1f3"
         assert {"external_sources", "external_dataset_versions", "tax_collections", "sector_benchmarks"} <= tables
 
@@ -176,10 +176,10 @@ def test_sessions_and_csrf(app):
     client, token = _login(app)
     assert client.get("/api/v1/auth/me").status_code == 200
 
-    # Sin cookie de sesión no hay acceso.
+    # Without a session cookie there is no access.
     assert app.test_client().get("/api/v1/auth/me").status_code == 401
 
-    # Sin token CSRF se rechaza antes de ejecutar la vista.
+    # Without a CSRF token the request is rejected before the view runs.
     without_csrf = app.test_client()
     token2 = without_csrf.get("/api/v1/auth/csrf").get_json()["csrf_token"]
     assert (
@@ -196,7 +196,7 @@ def test_sessions_and_csrf(app):
         ).status_code
         == 200
     )
-    # El primer cliente sigue autenticado de forma independiente.
+    # The first client stays authenticated independently.
     assert client.get("/api/v1/auth/me").status_code == 200
     assert token
 
@@ -240,7 +240,7 @@ def test_plan_reserve_alert_comment_and_obligation_persist(app, auth):
         client,
         token,
         "/api/v1/companies/1/alerts",
-        {"title": f"Alerta PG {suffix}", "priority": "alta", "origin": "plan"},
+        {"title": f"PG alert {suffix}", "priority": "alta", "origin": "plan"},
     )
     assert alert_response.status_code == 201
     alert_id = alert_response.get_json()["id"]
@@ -263,7 +263,7 @@ def test_plan_reserve_alert_comment_and_obligation_persist(app, auth):
     )
     assert obligation.status_code == 201
 
-    # Un login nuevo comprueba que los datos quedaron persistidos y relacionados.
+    # A new login checks that the data was stored and related.
     fresh_client, _ = _login(app)
     detail = fresh_client.get(f"/api/v1/companies/1/plans/{plan['id']}").get_json()
     assert detail["name"] == f"Plan PG {suffix}"

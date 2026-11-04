@@ -3,7 +3,7 @@ def test_create_and_list_income(auth):
     payload = {
         "doc_number": "FV-001",
         "issue_date": "2026-10-01",
-        "description": "Venta de prueba",
+        "description": "Test sale",
         "subtotal": "1000000.00",
         "tax_amount": "190000.00",
         "total": "1190000.00",
@@ -80,7 +80,7 @@ def test_forecast_requires_history(auth):
     assert response.status_code == 200
     body = response.get_json()
     assert body["available"] is False
-    assert "Historial insuficiente" in body["reason"]
+    assert "Insufficient history" in body["reason"]
 
 
 def test_plan_versions_are_immutable_after_review(auth):

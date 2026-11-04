@@ -1,9 +1,9 @@
-"""Pruebas del motor de proyección y de las alertas que usan el modelo.
+"""Tests of the forecast engine and of the alerts that use the model.
 
-Cubren el contrato del artefacto JSON, la predicción real desde el artefacto,
-la persistencia de la corrida, los errores explícitos, la deduplicación de
-alertas y el resumen del dashboard. No entrenan ni simulan modelos: construyen
-artefactos de prueba y verifican que las entradas del ERP llegan al predictor.
+They cover the JSON artifact contract, the real prediction from the artifact,
+the stored run, the explicit errors, the deduplication of
+alerts and the dashboard summary. They do not train or simulate models: they build
+test artifacts and check that the ERP inputs reach the predictor.
 """
 from __future__ import annotations
 
@@ -91,9 +91,9 @@ def _write_artifact(
         "data_provenance": {
             "kind": "demo",
             "is_demo": True,
-            "warning": "Datos sintéticos de prueba; no validan una empresa real.",
+            "warning": "Synthetic test data; it does not validate a real company.",
         },
-        "disclaimer": "Proyección orientativa. No es una liquidación oficial.",
+        "disclaimer": "Forecast for guidance only. It is not an official tax assessment.",
     }
     path = directory / f"model_company{company_id}.json"
     path.write_text(json.dumps(artifact, ensure_ascii=False), encoding="utf-8")
@@ -101,13 +101,13 @@ def _write_artifact(
 
 
 def _seed_company(app, tmp_path: Path, suffix: str, count: int = 13):
-    """Crea una empresa aislada con historial mensual y su artefacto."""
+    """Create an isolated company with a monthly history and its artifact."""
     from app.extensions import db
     from app.models import Company, CompanyMembership, ExpenseDocument, IncomeDocument, User
 
     with app.app_context():
         user = db.session.query(User).filter_by(email="a@example.com").one()
-        company = Company(name=f"Empresa ML {suffix}", nit=f"ML-{suffix}")
+        company = Company(name=f"ML company {suffix}", nit=f"ML-{suffix}")
         db.session.add(company)
         db.session.flush()
         db.session.add(CompanyMembership(user_id=user.id, company_id=company.id, role="admin"))
@@ -133,7 +133,7 @@ def _seed_company(app, tmp_path: Path, suffix: str, count: int = 13):
                     company_id=company.id,
                     doc_number=f"E-{suffix}-{index}",
                     issue_date=_month_start(month),
-                    category="Operación",
+                    category="Operations",
                     description="Gasto mensual",
                     subtotal=expenses[index],
                     tax_amount=0,
@@ -163,11 +163,11 @@ def _post(client, token, path, payload=None):
 
 
 def _purge_company(app, company_id: int) -> None:
-    """Borra la empresa de prueba y sus filas hijas.
+    """Delete the test company and its child rows.
 
-    Las pruebas de esta suite crean empresas reales para el usuario compartido;
-    sin limpieza, ``test_isolation`` vería empresas ajenas a «Empresa A» y los
-    identificadores de plan podrían reutilizarse con versiones huérfanas.
+    The tests of this suite create real companies for the shared user;
+    without cleanup, ``test_isolation`` would see companies other than "Company A" and
+    plan ids could be reused with orphan versions.
     """
     from app.extensions import db
     from app.models import Company
@@ -182,7 +182,7 @@ def _purge_company(app, company_id: int) -> None:
 
 @pytest.fixture()
 def ml_company(app, tmp_path):
-    """Fábrica de empresas aisladas que se eliminan al terminar cada prueba."""
+    """Factory of isolated companies that are deleted after each test."""
     created: list[int] = []
 
     def factory(suffix: str, count: int = 13):
@@ -196,7 +196,7 @@ def ml_company(app, tmp_path):
 
 
 def test_model_forecast_missing_artifact_is_explicit(auth, app, ml_company, tmp_path):
-    company_id, _, _, _ = ml_company("sin-modelo")
+    company_id, _, _, _ = ml_company("no-model")
     empty = tmp_path / "vacio"
     empty.mkdir()
     app.config["FORECAST_ARTIFACT_DIR"] = str(empty)
@@ -207,11 +207,11 @@ def test_model_forecast_missing_artifact_is_explicit(auth, app, ml_company, tmp_
     assert body["available"] is False
     assert body["code"] == "model_not_trained"
     assert body["manual_available"] is True
-    assert "modelo entrenado" in body["reason"]
+    assert "trained model" in body["reason"]
 
 
 def test_model_forecast_rejects_artifact_from_another_company(auth, app, ml_company):
-    company_id, _, _, _ = ml_company("otra-empresa")
+    company_id, _, _, _ = ml_company("other-company")
     artifact_dir = Path(app.config["FORECAST_ARTIFACT_DIR"])
     artifact = json.loads((artifact_dir / f"model_company{company_id}.json").read_text(encoding="utf-8"))
     artifact["company_id"] = company_id + 999
@@ -234,7 +234,7 @@ def test_model_forecast_persists_run_and_predicts_from_artifact(auth, app, ml_co
     assert body["horizon_months"] == 3
     assert body["is_demo"] is True
     assert len(body["monthly"]) == 3
-    # El modelo lineal de prueba predice el último valor observado (lag1).
+    # The test linear model predicts the last observed value (lag1).
     assert body["monthly"][0]["projected_income"] == f"{income[-1]:.2f}"
     assert body["monthly"][0]["projected_expenses"] == f"{expenses[-1]:.2f}"
     assert body["projected_income"] == f"{income[-1] * 3:.2f}"
@@ -250,7 +250,7 @@ def test_model_forecast_persists_run_and_predicts_from_artifact(auth, app, ml_co
 
 
 def test_list_forecasts_exposes_same_detail_as_creation(auth, app, ml_company):
-    """El listado debe devolver el detalle ya guardado, no solo el resumen."""
+    """The list must return the stored detail, not only the summary."""
     company_id, months, _, _ = ml_company("listado-detalle")
 
     created = _post(auth["client"], auth["csrf"], f"/api/v1/companies/{company_id}/forecasts/model", {"horizon_months": 3})
@@ -278,12 +278,12 @@ def test_list_forecasts_exposes_same_detail_as_creation(auth, app, ml_company):
     assert len(item["monthly"]) == 3
     assert item["history_months"] == len(months)
     assert item["models"]["income"]["selected_model"] == "linear_regression"
-    # No se exponen parámetros internos del modelo.
+    # Internal model parameters are not exposed.
     assert set(item["models"]["income"]) == {"selected_model", "label", "metrics", "all_metrics"}
 
 
 def test_list_forecasts_tolerates_manual_run_without_ml_metadata(auth, app, ml_company):
-    """Corridas manuales/antiguas sin supuestos ML no deben romper el listado."""
+    """Manual or old runs without ML assumptions must not break the list."""
     from app.extensions import db
     from app.models import ForecastRun
 
@@ -317,7 +317,7 @@ def test_list_forecasts_tolerates_manual_run_without_ml_metadata(auth, app, ml_c
 
 
 def test_list_forecasts_isolated_between_companies(auth, app, ml_company):
-    """El listado de otra empresa no debe ser accesible ni filtrar corridas."""
+    """The list of another company must not be accessible or leak runs."""
     company_id, _, _, _ = ml_company("aislamiento-listado")
     created = _post(auth["client"], auth["csrf"], f"/api/v1/companies/{company_id}/forecasts/model", {"horizon_months": 1})
     assert created.status_code == 201, created.get_json()
@@ -357,8 +357,8 @@ def test_model_forecast_uses_current_inputs(auth, app, ml_company):
     second = _post(auth["client"], auth["csrf"], f"/api/v1/companies/{company_id}/forecasts/model", {"horizon_months": 1})
     assert second.status_code == 201
     assert second.get_json()["projected_income"] == "9999999.00"
-    # La corrida usa las entradas actuales y además marca que el artefacto se
-    # entrenó con un historial distinto.
+    # The run uses the current inputs and also flags that the artifact was
+    # trained on a different history.
     assert second.get_json()["stale_inputs"] is True
 
 
@@ -425,11 +425,11 @@ def test_alerts_evaluate_deduplicates_and_dashboard_reads_them(auth, app, ml_com
 
     alerts = client.get(f"/api/v1/companies/{company_id}/alerts").get_json()["items"]
     titles = {alert["title"] for alert in alerts}
-    assert "Reserva por debajo de la meta del plan" in titles
-    assert "Gastos pendientes de revisión" in titles
-    reserve_alert = next(alert for alert in alerts if alert["title"] == "Reserva por debajo de la meta del plan")
+    assert "Reserve below the plan target" in titles
+    assert "Expenses pending review" in titles
+    reserve_alert = next(alert for alert in alerts if alert["title"] == "Reserve below the plan target")
     assert reserve_alert["origin"] == "plan"
-    assert reserve_alert["action"]["label"] == "Abrir plan"
+    assert reserve_alert["action"]["label"] == "Open plan"
     assert reserve_alert["action"]["screen"] == "planificacion"
 
     before = len(alerts)
@@ -442,7 +442,7 @@ def test_alerts_evaluate_deduplicates_and_dashboard_reads_them(auth, app, ml_com
     assert len(body["review_now"]) >= 1
     assert body["review_now"][0]["action"]["screen"] in ("planificacion", "gastos", "proyecciones", "obligaciones")
     after = len(client.get(f"/api/v1/companies/{company_id}/alerts").get_json()["items"])
-    assert after == before, "GET /dashboard no debe escribir alertas"
+    assert after == before, "GET /dashboard must not write alerts"
 
 
 def test_stale_forecast_alert_after_inputs_change(auth, app, ml_company):
@@ -468,12 +468,12 @@ def test_stale_forecast_alert_after_inputs_change(auth, app, ml_company):
     result = _post(client, token, f"/api/v1/companies/{company_id}/alerts/evaluate", {})
     assert result.status_code == 200
     alerts = client.get(f"/api/v1/companies/{company_id}/alerts").get_json()["items"]
-    stale = next(alert for alert in alerts if alert["title"] == "Proyección desactualizada por cambios en las entradas")
+    stale = next(alert for alert in alerts if alert["title"] == "Forecast out of date because the inputs changed")
     assert stale["origin"] == "proyeccion"
-    assert stale["action"]["label"] == "Revisar proyección"
+    assert stale["action"]["label"] == "Review forecast"
     assert stale["action"]["screen"] == "proyecciones"
-    assert "Qué ocurrió" in stale["description"]
-    assert "Qué revisar" in stale["description"]
+    assert "What happened" in stale["description"]
+    assert "What to check" in stale["description"]
 
 
 def test_forecast_vs_plan_alert_compares_same_period(auth, app, ml_company):
@@ -488,7 +488,7 @@ def test_forecast_vs_plan_alert_compares_same_period(auth, app, ml_company):
         token,
         f"/api/v1/companies/{company_id}/plans",
         {
-            "name": "Plan comparación",
+            "name": "Comparison plan",
             "period": point["month"],
             "projected_income": "100.00",
             "projected_expenses": "50.00",
@@ -500,8 +500,8 @@ def test_forecast_vs_plan_alert_compares_same_period(auth, app, ml_company):
     _post(client, token, f"/api/v1/companies/{company_id}/alerts/evaluate", {})
     alerts = client.get(f"/api/v1/companies/{company_id}/alerts").get_json()["items"]
     comparison = next(
-        alert for alert in alerts if alert["title"] == f"Diferencia entre proyección y plan para {point['month']}"
+        alert for alert in alerts if alert["title"] == f"Difference between forecast and plan for {point['month']}"
     )
     assert comparison["origin"] == "proyeccion"
-    assert "umbral configurado" in comparison["description"]
-    assert "no es un impuesto" in comparison["description"]
+    assert "configured threshold" in comparison["description"]
+    assert "is not a tax" in comparison["description"]

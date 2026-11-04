@@ -1,9 +1,9 @@
-"""Modelos de datos de AlertaFiscal (MVP).
+"""AlertaFiscal data models (MVP).
 
-Convenciones:
-- Importes monetarios: Numeric(18, 2) -> Decimal.
-- Timestamps de auditoría con zona horaria.
-- Toda entidad de negocio lleva company_id y se filtra por empresa.
+Conventions:
+- Money amounts: Numeric(18, 2) -> Decimal.
+- Audit timestamps with time zone.
+- Every business entity has company_id and is filtered by company.
 """
 from datetime import datetime, timezone
 
@@ -60,7 +60,7 @@ class Company(TimestampMixin, db.Model):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     nit: Mapped[str] = mapped_column(String(40), nullable=False)
     sector: Mapped[str] = mapped_column(String(80), nullable=False, default="Otro")
-    size: Mapped[str] = mapped_column(String(40), nullable=False, default="Pequeña")
+    size: Mapped[str] = mapped_column(String(40), nullable=False, default="Small")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     __table_args__ = (UniqueConstraint("nit", name="uq_companies_nit"),)
@@ -231,7 +231,7 @@ class TaxObligation(TimestampMixin, db.Model):
     )
 
 
-# ─────────────────────────── Parámetros y planes ───────────────────────────
+# ─────────────────────────── Parameters and plans ───────────────────────────
 
 
 class FiscalParameter(TimestampMixin, db.Model):
@@ -379,7 +379,7 @@ class AlertComment(TimestampMixin, db.Model):
     __table_args__ = (Index("ix_comment_company_alert", "company_id", "alert_id"),)
 
 
-# ─────────────────────────── Auditoría ───────────────────────────
+# ─────────────────────────── Audit ───────────────────────────
 
 
 class AuditEvent(db.Model):
@@ -399,8 +399,8 @@ class AuditEvent(db.Model):
 
 # ─────────────────────────── Contexto externo ───────────────────────────
 #
-# Las fuentes externas son contexto agregado, no datos del ERP. No se unen
-# por NIT con empresas y no alimentan el pronóstico ni las alertas.
+# External sources are aggregated context, not ERP data. They are never joined
+# to companies by NIT and never feed the forecast or the alerts.
 
 
 class ExternalSource(TimestampMixin, db.Model):
@@ -441,11 +441,11 @@ class ExternalSource(TimestampMixin, db.Model):
 
 
 class ExternalDatasetVersion(TimestampMixin, db.Model):
-    """Versión de adquisición de una fuente lógica.
+    """Acquisition version of a logical source.
 
-    Una fuente puede tener múltiples descargas. La identidad es el hash del
-    contenido (``identity_sha256``), no la etiqueta de fecha: una nueva
-    descarga con el mismo nombre de versión pero distinto hash se conserva.
+    A source can have several downloads. The identity is the content hash
+    (``identity_sha256``), not the date label: a new download with the same
+    version name but a different hash is kept.
     """
 
     __tablename__ = "external_dataset_versions"
@@ -490,7 +490,7 @@ class ExternalDatasetVersion(TimestampMixin, db.Model):
 
 
 class TaxCollection(TimestampMixin, db.Model):
-    """Recaudo agregado DIAN, en COP, por período y serie."""
+    """DIAN aggregated collection, in COP, by period and series."""
 
     __tablename__ = "tax_collections"
 
@@ -518,7 +518,7 @@ class TaxCollection(TimestampMixin, db.Model):
 
 
 class SectorBenchmark(TimestampMixin, db.Model):
-    """Agregado por año, métrica y macrosector de Supersociedades."""
+    """Supersociedades aggregate by year, metric and macro-sector."""
 
     __tablename__ = "sector_benchmarks"
 

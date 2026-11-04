@@ -1,1 +1,1 @@
-"""Módulo de contexto externo (solo lectura)."""
+"""External context module (read only)."""

@@ -11,7 +11,7 @@ companies_bp = Blueprint("companies", __name__, url_prefix="/api/v1/companies")
 def list_companies():
     user = getattr(g, "current_user", None)
     if user is None:
-        return error("unauthorized", "Sesión requerida", 401)
+        return error("unauthorized", "Session required", 401)
 
     memberships = (
         db.session.query(CompanyMembership)

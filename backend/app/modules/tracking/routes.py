@@ -52,7 +52,7 @@ def create_obligation(company_id: int):
         return error("invalid_payload", "name es obligatorio", 422)
     due_date = parse_date(str(data.get("due_date", "")))
     if due_date is None:
-        return error("invalid_payload", "due_date inválida (YYYY-MM-DD)", 422)
+        return error("invalid_payload", "Invalid due_date (YYYY-MM-DD)", 422)
     try:
         estimated = (
             parse_money(data.get("estimated_amount"), "estimated_amount")
@@ -82,11 +82,11 @@ def update_obligation(company_id: int, obligation_id: int):
     authorized_company(company_id, min_role="contador")
     row = db.session.get(TaxObligation, obligation_id)
     if row is None or row.company_id != company_id:
-        return error("not_found", "Obligación no encontrada", 404)
+        return error("not_found", "Obligation not found", 404)
     data = get_json()
     if "status" in data:
         if data["status"] not in ("pending", "filed", "paid", "void"):
-            return error("invalid_payload", "status inválido", 422)
+            return error("invalid_payload", "Invalid status", 422)
         row.status = data["status"]
     if "notes" in data:
         row.notes = str(data["notes"])[:2000]

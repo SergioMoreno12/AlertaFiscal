@@ -53,7 +53,7 @@ def _plan_dict(plan: FiscalPlan, version: FiscalPlanVersion | None = None) -> di
     return data
 
 
-# ─────────────────── Parámetros fiscales ───────────────────
+# ─────────────────── Tax parameters ───────────────────
 
 
 @planning_bp.get("/fiscal-parameters")
@@ -92,14 +92,14 @@ def upsert_parameter(company_id: int):
     key = str(data.get("key", "")).strip()
     label = str(data.get("label", "")).strip()
     if not key or not label:
-        return error("invalid_payload", "key y label son obligatorios", 422)
+        return error("invalid_payload", "key and label are required", 422)
     try:
         value = Decimal(str(data.get("value", "0"))).quantize(Decimal("0.0001"))
     except Exception:
-        return error("invalid_payload", "value inválido", 422)
+        return error("invalid_payload", "Invalid value", 422)
     unit = str(data.get("unit", "percent"))
     if unit not in ("percent", "cop", "months", "count"):
-        return error("invalid_payload", "unit inválido", 422)
+        return error("invalid_payload", "Invalid unit", 422)
 
     row = db.session.query(FiscalParameter).filter_by(company_id=company_id, key=key).first()
     if row is None:
@@ -188,7 +188,7 @@ def plan_detail(company_id: int, plan_id: int):
     authorized_company(company_id)
     plan = db.session.get(FiscalPlan, plan_id)
     if plan is None or plan.company_id != company_id:
-        return error("not_found", "Plan no encontrado", 404)
+        return error("not_found", "Plan not found", 404)
     versions = (
         db.session.query(FiscalPlanVersion)
         .filter_by(plan_id=plan.id)
@@ -218,7 +218,7 @@ def create_version(company_id: int, plan_id: int):
     authorized_company(company_id, min_role="contador")
     plan = db.session.get(FiscalPlan, plan_id)
     if plan is None or plan.company_id != company_id:
-        return error("not_found", "Plan no encontrado", 404)
+        return error("not_found", "Plan not found", 404)
 
     data = get_json()
     try:
@@ -259,14 +259,14 @@ def create_version(company_id: int, plan_id: int):
 
 @planning_bp.post("/plans/<int:plan_id>/versions/<int:version_id>/review")
 def review_version(company_id: int, plan_id: int, version_id: int):
-    """Marca una versión como revisada. Una vez revisada es inmutable."""
+    """Mark a version as reviewed. Once reviewed it cannot change."""
     authorized_company(company_id, min_role="contador")
     plan = db.session.get(FiscalPlan, plan_id)
     version = db.session.get(FiscalPlanVersion, version_id)
     if plan is None or version is None or plan.company_id != company_id or version.plan_id != plan.id:
-        return error("not_found", "Versión no encontrada", 404)
+        return error("not_found", "Version not found", 404)
     if version.status == "reviewed":
-        return error("invalid_state", "La versión ya está revisada", 409)
+        return error("invalid_state", "The version is already reviewed", 409)
 
     version.status = "reviewed"
     plan.status = "reviewed"
@@ -310,7 +310,7 @@ def create_reserve(company_id: int):
     try:
         amount = parse_money(data.get("amount"), "amount")
         if amount <= 0:
-            raise ValueError("amount debe ser mayor que cero")
+            raise ValueError("amount must be greater than zero")
         reserved_on = parse_date(str(data.get("reserved_on", ""))) or datetime.now(timezone.utc)
     except ValueError as exc:
         return error("invalid_payload", str(exc), 422)
@@ -319,7 +319,7 @@ def create_reserve(company_id: int):
     if version_id not in (None, ""):
         version = db.session.get(FiscalPlanVersion, int(version_id))
         if version is None or version.company_id != company_id:
-            return error("invalid_payload", "plan_version_id no pertenece a la empresa", 422)
+            return error("invalid_payload", "plan_version_id does not belong to the company", 422)
         version_id = version.id
     else:
         version_id = None
@@ -351,28 +351,28 @@ def list_forecasts(company_id: int):
         .limit(20)
         .all()
     )
-    # Mismo contrato que la creación: el detalle vive en ``assumptions`` y la
-    # UI lo necesita al recargar la última corrida. ``forecast_run_dict`` usa
-    # ``.get`` con valores por defecto, así que soporta corridas manuales y
-    # antiguas sin metadatos ML.
+    # Same contract as creation: the detail lives in ``assumptions`` and the
+    # UI needs it when it reloads the last run. ``forecast_run_dict`` uses
+    # ``.get`` with defaults, so it supports manual runs and
+    # old runs without ML metadata.
     return jsonify({"items": [forecast_run_dict(f) for f in rows]})
 
 
 @planning_bp.post("/forecasts/model")
 def create_model_forecast(company_id: int):
-    """Ejecuta el modelo entrenado offline sobre el historial actual.
+    """Run the model trained offline on the current history.
 
-    No entrena ni simula: lee el artefacto JSON de la empresa, valida las
-    entradas y persiste la corrida con su versión y supuestos. Si falta el
-    modelo o el historial, responde con un error explícito y deja disponible
-    la planificación manual.
+    It does not train or simulate: it reads the JSON artifact, validates the
+    inputs and stores the run with its version and assumptions. If the
+    model or the history is missing, it answers with an explicit error and keeps
+    manual planning available.
     """
     authorized_company(company_id, min_role="contador")
     data = get_json()
     try:
         horizon = int(data.get("horizon_months", 3) or 3)
     except (TypeError, ValueError):
-        return error("invalid_payload", "horizon_months debe ser un entero", 422)
+        return error("invalid_payload", "horizon_months must be an integer", 422)
     horizon = max(1, min(horizon, 12))
 
     try:
@@ -395,10 +395,10 @@ def create_model_forecast(company_id: int):
 
 @planning_bp.post("/forecasts")
 def create_forecast(company_id: int):
-    """Proyección manual basada en el promedio de los últimos meses.
+    """Manual forecast based on the average of the last months.
 
-    No es un modelo de ML: es el modo de planificación manual que debe
-    funcionar aunque no exista un artefacto entrenado.
+    It is not an ML model: it is the manual planning mode, which must
+    work even when no trained artifact exists.
     """
     authorized_company(company_id, min_role="contador")
     data = get_json()
@@ -424,7 +424,7 @@ def create_forecast(company_id: int):
             jsonify(
                 {
                     "available": False,
-                    "reason": "Historial insuficiente (se requieren al menos 3 meses con registros).",
+                    "reason": "Insufficient history (at least 3 months with records are required).",
                     "months_with_history": months_with_income,
                 }
             ),
@@ -480,7 +480,7 @@ def create_forecast(company_id: int):
                 "method": run.method,
                 "horizon_months": horizon,
                 "estimated": True,
-                "disclaimer": "Estimación orientativa de planificación. No es una liquidación oficial.",
+                "disclaimer": "Planning estimate for guidance only. It is not an official tax assessment.",
                 "projected_income": money(run.projected_income),
                 "projected_expenses": money(run.projected_expenses),
                 "projected_result": money(run.projected_income - run.projected_expenses),

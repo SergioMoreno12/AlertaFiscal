@@ -1,11 +1,11 @@
-"""contexto externo: fuentes, versiones y agregados
+"""external context: sources, versions and aggregates
 
 Revision ID: f3b8c2d1a7e4
 Revises: b936452f07f9
 Create Date: 2026-10-30 00:00:00.000000
 
-Solo agrega tablas de contexto externo. No modifica empresas, documentos,
-planes, reservas, obligaciones ni alertas.
+It only adds external context tables. It does not change companies, documents,
+plans, reserves, obligations or alerts.
 """
 from alembic import op
 import sqlalchemy as sa

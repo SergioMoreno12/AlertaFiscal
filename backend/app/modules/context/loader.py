@@ -1,7 +1,7 @@
-"""Carga idempotente de manifiestos de contexto externo.
+"""Idempotent loading of external context manifests.
 
-No descarga, no entrena y no crea alertas. Solo persiste fuentes, versiones
-de adquisición y agregados ya procesados por ``ml/sources``.
+It does not download, train or create alerts. It only stores sources,
+acquisition versions and aggregates already processed by ``ml/company_trainer/sources``.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ FACT_TABLES = {"tax_collections", "sector_benchmarks"}
 
 
 class ManifestError(ValueError):
-    """Manifiesto o archivo procesado inválido."""
+    """Invalid manifest or processed file."""
 
 
 def _resolve_path(raw: str) -> Path:
@@ -66,14 +66,14 @@ def _decimal(raw, field: str) -> Decimal:
     try:
         return Decimal(str(raw)).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError) as exc:
-        raise ManifestError(f"Valor decimal inválido en {field}: {raw!r}") from exc
+        raise ManifestError(f"Invalid decimal value in {field}: {raw!r}") from exc
 
 
 def _int(raw, field: str) -> int:
     try:
         return int(str(raw).strip())
     except (TypeError, ValueError) as exc:
-        raise ManifestError(f"Entero inválido en {field}: {raw!r}") from exc
+        raise ManifestError(f"Invalid integer in {field}: {raw!r}") from exc
 
 
 def _bool(raw) -> bool:
@@ -166,7 +166,7 @@ def _load_facts(version: ExternalDatasetVersion, manifest: dict) -> dict:
     tax_entry = entries.get("tax_collections")
     benchmark_entry = entries.get("sector_benchmarks")
     if tax_entry is None and benchmark_entry is None:
-        raise ManifestError("El manifiesto no declara archivos procesados de contexto")
+        raise ManifestError("The manifest declares no processed context files")
 
     _clear_facts(version.id)
     counts = {"tax_collections": 0, "sector_benchmarks": 0}
@@ -174,7 +174,7 @@ def _load_facts(version: ExternalDatasetVersion, manifest: dict) -> dict:
     if tax_entry is not None:
         path = _resolve_path(tax_entry["path"])
         if not path.exists():
-            raise ManifestError(f"No existe el CSV procesado: {path}")
+            raise ManifestError(f"The processed CSV does not exist: {path}")
         for batch in _chunks(_iter_tax_rows(path), CHUNK_SIZE):
             db.session.bulk_insert_mappings(
                 TaxCollection, [{**row, "version_id": version.id} for row in batch]
@@ -184,7 +184,7 @@ def _load_facts(version: ExternalDatasetVersion, manifest: dict) -> dict:
     if benchmark_entry is not None:
         path = _resolve_path(benchmark_entry["path"])
         if not path.exists():
-            raise ManifestError(f"No existe el CSV procesado: {path}")
+            raise ManifestError(f"The processed CSV does not exist: {path}")
         for batch in _chunks(_iter_benchmark_rows(path), CHUNK_SIZE):
             db.session.bulk_insert_mappings(
                 SectorBenchmark, [{**row, "version_id": version.id} for row in batch]
@@ -213,7 +213,7 @@ def _expected_counts(manifest: dict) -> dict:
 def _upsert_source(data: dict) -> ExternalSource:
     code = str(data.get("code") or "").strip()
     if not code:
-        raise ManifestError("El manifiesto no declara source.code")
+        raise ManifestError("The manifest does not declare source.code")
     source = db.session.query(ExternalSource).filter_by(code=code).first()
     license_data = data.get("license") or {}
     values = {
@@ -248,11 +248,11 @@ def _upsert_source(data: dict) -> ExternalSource:
 def load_manifest_file(path: str | Path, *, dry_run: bool = False, replace: bool = False) -> dict:
     manifest_path = Path(path)
     if not manifest_path.exists():
-        raise ManifestError(f"No existe el manifiesto: {manifest_path}")
+        raise ManifestError(f"The manifest does not exist: {manifest_path}")
     payload = manifest_path.read_bytes()
     manifest = json.loads(payload.decode("utf-8"))
     if not isinstance(manifest, dict) or "source" not in manifest or "version" not in manifest:
-        raise ManifestError("Manifiesto inválido: faltan 'source' o 'version'")
+        raise ManifestError("Invalid manifest: 'source' or 'version' is missing")
 
     version_data = manifest["version"]
     status = str(version_data.get("status") or "succeeded")
@@ -268,7 +268,7 @@ def load_manifest_file(path: str | Path, *, dry_run: bool = False, replace: bool
         for table, entry in entries.items():
             resolved = _resolve_path(entry["path"])
             if not resolved.exists():
-                raise ManifestError(f"No existe el archivo procesado de {table}: {resolved}")
+                raise ManifestError(f"The processed file for {table} does not exist: {resolved}")
         return {
             "status": "dry_run",
             "source": manifest["source"].get("code"),
@@ -351,8 +351,8 @@ def load_manifest_file(path: str | Path, *, dry_run: bool = False, replace: bool
         counts = _load_facts(version, manifest)
         result_status = "loaded"
 
-    # El índice único parcial exige desmarcar la versión anterior antes de
-    # marcar la nueva como vigente.
+    # The partial unique index requires clearing the previous version before
+    # marking the new one as current.
     db.session.query(ExternalDatasetVersion).filter(
         ExternalDatasetVersion.source_id == source.id,
         ExternalDatasetVersion.id != version.id,

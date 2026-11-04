@@ -59,10 +59,10 @@ def _validate_counterparty(company_id: int, raw) -> int | None:
     try:
         cid = int(raw)
     except (TypeError, ValueError):
-        raise ValueError("counterparty_id inválido")
+        raise ValueError("Invalid counterparty_id")
     exists = db.session.query(Counterparty.id).filter_by(id=cid, company_id=company_id).first()
     if exists is None:
-        raise ValueError("El tercero no pertenece a la empresa")
+        raise ValueError("The counterparty does not belong to the company")
     return cid
 
 
@@ -97,14 +97,14 @@ def create_income(company_id: int):
             raise ValueError("doc_number es obligatorio")
         issue_date = parse_date(str(data.get("issue_date", "")))
         if issue_date is None:
-            raise ValueError("issue_date inválida (YYYY-MM-DD)")
+            raise ValueError("Invalid issue_date (YYYY-MM-DD)")
         subtotal = parse_money(data.get("subtotal"), "subtotal")
         tax_amount = parse_money(data.get("tax_amount"), "tax_amount")
         total = parse_money(data.get("total"), "total") if data.get("total") not in (None, "") else subtotal + tax_amount
         counterparty_id = _validate_counterparty(company_id, data.get("counterparty_id"))
         status = str(data.get("status", "pending"))
         if status not in ("pending", "collected"):
-            raise ValueError("status inválido")
+            raise ValueError("Invalid status")
     except ValueError as exc:
         return error("invalid_payload", str(exc), 422)
 
@@ -125,7 +125,7 @@ def create_income(company_id: int):
         db.session.flush()
     except IntegrityError:
         db.session.rollback()
-        return error("duplicate_document", "Ya existe un ingreso con ese número de documento", 409)
+        return error("duplicate_document", "An income document with that number already exists", 409)
 
     record_audit(company_id, "income.create", f"income:{row.id}", {"total": money(total)})
     return jsonify(_income_dict(row)), 201
@@ -136,7 +136,7 @@ def income_detail(company_id: int, income_id: int):
     authorized_company(company_id)
     row = db.session.get(IncomeDocument, income_id)
     if row is None or row.company_id != company_id:
-        return error("not_found", "Ingreso no encontrado", 404)
+        return error("not_found", "Income document not found", 404)
     receipts = db.session.query(IncomeReceipt).filter_by(company_id=company_id, income_id=income_id).all()
     payload = _income_dict(row)
     payload["receipts"] = [
@@ -180,14 +180,14 @@ def create_expense(company_id: int):
             raise ValueError("doc_number es obligatorio")
         issue_date = parse_date(str(data.get("issue_date", "")))
         if issue_date is None:
-            raise ValueError("issue_date inválida (YYYY-MM-DD)")
+            raise ValueError("Invalid issue_date (YYYY-MM-DD)")
         subtotal = parse_money(data.get("subtotal"), "subtotal")
         tax_amount = parse_money(data.get("tax_amount"), "tax_amount")
         total = parse_money(data.get("total"), "total") if data.get("total") not in (None, "") else subtotal + tax_amount
         counterparty_id = _validate_counterparty(company_id, data.get("counterparty_id"))
         status = str(data.get("status", "pending"))
         if status not in ("pending", "paid"):
-            raise ValueError("status inválido")
+            raise ValueError("Invalid status")
     except ValueError as exc:
         return error("invalid_payload", str(exc), 422)
 
@@ -210,7 +210,7 @@ def create_expense(company_id: int):
         db.session.flush()
     except IntegrityError:
         db.session.rollback()
-        return error("duplicate_document", "Ya existe un gasto con ese número de documento", 409)
+        return error("duplicate_document", "An expense document with that number already exists", 409)
 
     record_audit(company_id, "expense.create", f"expense:{row.id}", {"total": money(total)})
     return jsonify(_expense_dict(row)), 201
@@ -221,7 +221,7 @@ def update_expense(company_id: int, expense_id: int):
     authorized_company(company_id, min_role="contador")
     row = db.session.get(ExpenseDocument, expense_id)
     if row is None or row.company_id != company_id:
-        return error("not_found", "Gasto no encontrado", 404)
+        return error("not_found", "Expense document not found", 404)
     data = get_json()
     if "reviewed" in data:
         row.reviewed = bool(data["reviewed"])
@@ -230,12 +230,12 @@ def update_expense(company_id: int, expense_id: int):
     if "description" in data:
         row.description = str(data["description"])[:255]
     if row.status == "void":
-        return error("invalid_state", "Un gasto anulado no se puede editar", 409)
+        return error("invalid_state", "A void expense cannot be edited", 409)
     record_audit(company_id, "expense.update", f"expense:{row.id}")
     return jsonify(_expense_dict(row))
 
 
-# ───────────────────────── Cobros y pagos ─────────────────────────
+# ───────────────────────── Receipts and payments ─────────────────────────
 
 
 @movements_bp.post("/receipts")
@@ -246,18 +246,18 @@ def create_receipt(company_id: int):
         income_id = int(data.get("income_id", 0))
         amount = parse_money(data.get("amount"), "amount")
         if amount <= 0:
-            raise ValueError("amount debe ser mayor que cero")
+            raise ValueError("amount must be greater than zero")
         received_on = parse_date(str(data.get("received_on", "")))
         if received_on is None:
-            raise ValueError("received_on inválida (YYYY-MM-DD)")
+            raise ValueError("Invalid received_on (YYYY-MM-DD)")
     except (TypeError, ValueError) as exc:
         return error("invalid_payload", str(exc), 422)
 
     income = db.session.get(IncomeDocument, income_id)
     if income is None or income.company_id != company_id:
-        return error("not_found", "Ingreso no encontrado", 404)
+        return error("not_found", "Income document not found", 404)
     if income.status == "void":
-        return error("invalid_state", "El ingreso está anulado", 409)
+        return error("invalid_state", "The income document is void", 409)
 
     receipt = IncomeReceipt(
         company_id=company_id,
@@ -289,18 +289,18 @@ def create_payment(company_id: int):
         expense_id = int(data.get("expense_id", 0))
         amount = parse_money(data.get("amount"), "amount")
         if amount <= 0:
-            raise ValueError("amount debe ser mayor que cero")
+            raise ValueError("amount must be greater than zero")
         paid_on = parse_date(str(data.get("paid_on", "")))
         if paid_on is None:
-            raise ValueError("paid_on inválida (YYYY-MM-DD)")
+            raise ValueError("Invalid paid_on (YYYY-MM-DD)")
     except (TypeError, ValueError) as exc:
         return error("invalid_payload", str(exc), 422)
 
     expense = db.session.get(ExpenseDocument, expense_id)
     if expense is None or expense.company_id != company_id:
-        return error("not_found", "Gasto no encontrado", 404)
+        return error("not_found", "Expense document not found", 404)
     if expense.status == "void":
-        return error("invalid_state", "El gasto está anulado", 409)
+        return error("invalid_state", "The expense document is void", 409)
 
     payment = ExpensePayment(
         company_id=company_id,
@@ -347,7 +347,7 @@ def create_counterparty(company_id: int):
         return error("invalid_payload", "name es obligatorio", 422)
     kind = str(data.get("kind", "client"))
     if kind not in ("client", "supplier"):
-        return error("invalid_payload", "kind inválido", 422)
+        return error("invalid_payload", "Invalid kind", 422)
     row = Counterparty(company_id=company_id, name=name[:200], nit=str(data.get("nit", ""))[:40], kind=kind)
     db.session.add(row)
     db.session.flush()

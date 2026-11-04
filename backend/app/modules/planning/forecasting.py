@@ -1,11 +1,11 @@
-"""Motor de proyección mensual basado en el artefacto entrenado offline.
+"""Monthly forecast engine based on the artifact trained offline.
 
-Contrato:
-- El artefacto JSON lo produce ``ml/train.py``. Flask solo lo lee y valida.
-- No se importa scikit-learn, no se entrena y no se inventan entradas.
-- Si falta el artefacto o el historial mínimo, se lanza ``ForecastUnavailable``
-  para que la ruta responda con un error explícito y la UI ofrezca el modo
-  manual.
+Contract:
+- The JSON artifact is produced offline (Phase 3 or ``ml/company_trainer/train.py``). Flask only reads and validates it.
+- scikit-learn is never imported, nothing is trained and no input is made up.
+- If the artifact or the minimum history is missing, ``ForecastUnavailable`` is raised
+  so the route answers with an explicit error and the UI offers manual
+  mode.
 """
 from __future__ import annotations
 
@@ -32,14 +32,14 @@ METHOD_MAP = {
     "seasonal_naive": "seasonal_naive",
 }
 MODEL_LABEL = {
-    "linear_regression": "Regresión lineal",
+    "linear_regression": "Linear regression",
     "random_forest": "Random Forest",
     "seasonal_naive": "Seasonal naive (lag-12)",
 }
 
 
 class ForecastUnavailable(Exception):
-    """El modelo o sus entradas no están disponibles. No se sustituyen datos."""
+    """The model or its inputs are not available. No data is substituted."""
 
     def __init__(self, code: str, message: str, details: dict | None = None):
         super().__init__(message)
@@ -59,13 +59,13 @@ def _read_json(path: Path) -> dict:
     except OSError as exc:
         raise ForecastUnavailable(
             "model_not_trained",
-            "No existe un modelo entrenado para esta empresa. Ejecuta ml/train.py o usa la planificación manual.",
+            "No trained model exists for this company. Train one offline or use manual planning.",
             {"artifact": str(path)},
         ) from exc
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ForecastUnavailable(
             "artifact_invalid",
-            "El artefacto del modelo existe pero no es un JSON válido. Vuelve a entrenarlo.",
+            "The model artifact exists but is not valid JSON.",
             {"artifact": str(path)},
         ) from exc
 
@@ -74,19 +74,19 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
     if artifact.get("artifact_kind") != ARTIFACT_KIND:
         raise ForecastUnavailable(
             "artifact_invalid",
-            "El artefacto no corresponde a un modelo de AlertaFiscal.",
+            "The artifact is not an AlertaFiscal model.",
             {"artifact": str(path)},
         )
     if int(artifact.get("schema_version", 0)) != SCHEMA_VERSION:
         raise ForecastUnavailable(
             "artifact_invalid",
-            "La versión del artefacto no es compatible con este backend.",
+            "The artifact version is not compatible with this backend.",
             {"artifact": str(path), "schema_version": artifact.get("schema_version")},
         )
     if int(artifact.get("company_id", -1)) != company_id:
         raise ForecastUnavailable(
             "artifact_company_mismatch",
-            "El artefacto pertenece a otra empresa. No se reutiliza entre empresas.",
+            "The artifact belongs to another company. It is not reused across companies.",
             {"artifact": str(path)},
         )
     feature_spec = artifact.get("feature_spec") or {}
@@ -94,7 +94,7 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
     if not isinstance(features, list) or not features:
         raise ForecastUnavailable(
             "artifact_invalid",
-            "El artefacto no declara las entradas que espera el modelo.",
+            "The artifact does not declare the inputs the model expects.",
             {"artifact": str(path)},
         )
     history = artifact.get("history") or {}
@@ -102,7 +102,7 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
     if not isinstance(months, list) or not months:
         raise ForecastUnavailable(
             "artifact_invalid",
-            "El artefacto no incluye el historial con el que fue entrenado.",
+            "The artifact does not include the history it was trained on.",
             {"artifact": str(path)},
         )
     targets = artifact.get("targets") or {}
@@ -111,13 +111,13 @@ def _validate_artifact(artifact: dict, company_id: int, path: Path) -> dict:
         if not isinstance(spec, dict) or spec.get("selected_model") not in METHOD_MAP:
             raise ForecastUnavailable(
                 "artifact_invalid",
-                f"El artefacto no tiene un modelo válido para {target}.",
+                f"The artifact has no valid model for {target}.",
                 {"artifact": str(path), "target": target},
             )
         if not isinstance((spec.get("models") or {}).get(spec["selected_model"]), dict):
             raise ForecastUnavailable(
                 "artifact_invalid",
-                f"Faltan los parámetros del modelo seleccionado para {target}.",
+                f"The parameters of the selected model for {target} are missing.",
                 {"artifact": str(path), "target": target},
             )
     return artifact
@@ -128,7 +128,7 @@ def load_artifact(company_id: int) -> dict:
     if not path.exists():
         raise ForecastUnavailable(
             "model_not_trained",
-            "No existe un modelo entrenado para esta empresa. Entrena el modelo offline o continúa con planificación manual.",
+            "No trained model exists for this company. Train the model offline or continue with manual planning.",
             {"artifact": str(path)},
         )
     return _validate_artifact(_read_json(path), company_id, path)
@@ -146,11 +146,11 @@ def _iter_months(start: str, end: str):
 
 
 def monthly_history(company_id: int) -> dict:
-    """Agrega ingresos/gastos por mes con el mismo criterio del entrenamiento.
+    """Group income and expenses by month with the same rule as training.
 
-    - Excluye documentos anulados.
-    - Rellena los meses intermedios sin movimientos con cero explícito.
-    - No usa DIAN ni Supersociedades: solo documentos del ERP de la empresa.
+    - Excludes void documents.
+    - Fills the months in between without movements with an explicit zero.
+    - Does not use DIAN or Supersociedades: only the company's ERP documents.
     """
     income: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     expenses: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -222,7 +222,7 @@ def _predict_value(model_name: str, params: dict, row: dict, history: list[float
         if len(coefficients) != len(vector):
             raise ForecastUnavailable(
                 "artifact_invalid",
-                "El modelo lineal no coincide con las entradas declaradas. Vuelve a entrenarlo.",
+                "The linear model does not match the declared inputs.",
             )
         return float(params.get("intercept", 0.0)) + sum(
             float(coefficient) * value for coefficient, value in zip(coefficients, vector)
@@ -231,7 +231,7 @@ def _predict_value(model_name: str, params: dict, row: dict, history: list[float
     if model_name == "random_forest":
         trees = params.get("trees") or []
         if not trees:
-            raise ForecastUnavailable("artifact_invalid", "El Random Forest no contiene árboles.")
+            raise ForecastUnavailable("artifact_invalid", "The random forest has no trees.")
         predictions = []
         for tree in trees:
             node = 0
@@ -241,7 +241,7 @@ def _predict_value(model_name: str, params: dict, row: dict, history: list[float
                 if feature_index < 0 or feature_index >= len(vector):
                     raise ForecastUnavailable(
                         "artifact_invalid",
-                        "Un árbol del artefacto referencia una entrada inexistente.",
+                        "A tree of the artifact refers to an input that does not exist.",
                     )
                 if vector[feature_index] <= float(tree["threshold"][node]):
                     node = int(left[node])
@@ -250,7 +250,7 @@ def _predict_value(model_name: str, params: dict, row: dict, history: list[float
             predictions.append(float(tree["value"][node]))
         return sum(predictions) / len(predictions)
 
-    raise ForecastUnavailable("artifact_invalid", f"Modelo no soportado: {model_name}")
+    raise ForecastUnavailable("artifact_invalid", f"Unsupported model: {model_name}")
 
 
 def predict_target(artifact: dict, target: str, history: dict, horizon: int) -> list[dict]:
@@ -279,7 +279,7 @@ def predict_target(artifact: dict, target: str, history: dict, horizon: int) -> 
             else:
                 raise ForecastUnavailable(
                     "artifact_invalid",
-                    f"El artefacto declara una entrada no soportada: {feature}",
+                    f"The artifact declares an unsupported input: {feature}",
                 )
         value = max(float(_predict_value(model_name, params, row, values, features)), 0.0)
         value = round(value, 2)
@@ -308,7 +308,7 @@ def run_model_forecast(company_id: int, horizon: int) -> dict:
     if len(history["months"]) < required:
         raise ForecastUnavailable(
             "insufficient_history",
-            f"El modelo necesita al menos {required} meses de historial y la empresa tiene {len(history['months'])}.",
+            f"The model needs at least {required} months of history and the company has {len(history['months'])}.",
             {"required_months": required, "months_available": len(history["months"])},
         )
 
@@ -417,7 +417,7 @@ def forecast_run_dict(run: ForecastRun) -> dict:
         "data_provenance": assumptions.get("data_provenance") or {},
         "is_demo": bool((assumptions.get("data_provenance") or {}).get("is_demo")),
         "estimated": True,
-        "disclaimer": "Proyección orientativa de planificación. No es una liquidación oficial.",
+        "disclaimer": "Planning forecast for guidance only. It is not an official tax assessment.",
     }
 
 

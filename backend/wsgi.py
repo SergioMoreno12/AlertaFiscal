@@ -1,6 +1,6 @@
 import os
 
-# Cargar .env si existe (desarrollo)
+# Load .env if it exists (development)
 try:
     from dotenv import load_dotenv
     load_dotenv()

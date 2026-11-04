@@ -1,4 +1,4 @@
-"""Datos de demostración. Nunca se ejecuta automáticamente en producción."""
+"""Fictitious demo data. It never runs automatically in production."""
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -35,19 +35,19 @@ def _month_start(offset: int) -> datetime:
 
 def seed_demo() -> str:
     if db.session.query(User).filter_by(email=DEMO_EMAIL).first() is not None:
-        return "Seed omitido: los datos de demostración ya existen."
+        return "Seed skipped: the demo data already exists."
 
     user = User(
         email=DEMO_EMAIL,
-        full_name="María Gómez",
+        full_name="Maria Gomez",
         password_hash=hash_password(DEMO_PASSWORD),
     )
     db.session.add(user)
     db.session.flush()
 
     companies = [
-        Company(name="Comercializadora Andina S.A.S.", nit="900.456.123-1", sector="Comercio", size="Pequeña"),
-        Company(name="Servicios Bogotá Ltda.", nit="830.912.045-2", sector="Servicios", size="Pequeña"),
+        Company(name="Andean Trading S.A.S.", nit="900.456.123-1", sector="Retail", size="Small"),
+        Company(name="Bogota Services Ltda.", nit="830.912.045-2", sector="Services", size="Small"),
     ]
     db.session.add_all(companies)
     db.session.flush()
@@ -61,10 +61,10 @@ def seed_demo() -> str:
 
     andina = companies[0]
     clients = [
-        Counterparty(company_id=andina.id, name="Ferretería Central", nit="800.111.222-1", kind="client"),
-        Counterparty(company_id=andina.id, name="Distribuidora Norte", nit="800.333.444-2", kind="client"),
-        Counterparty(company_id=andina.id, name="Importadora Andina", nit="800.555.666-3", kind="supplier"),
-        Counterparty(company_id=andina.id, name="Servicios Logísticos S.A.", nit="800.777.888-4", kind="supplier"),
+        Counterparty(company_id=andina.id, name="Central Hardware", nit="800.111.222-1", kind="client"),
+        Counterparty(company_id=andina.id, name="North Distribution", nit="800.333.444-2", kind="client"),
+        Counterparty(company_id=andina.id, name="Andean Imports", nit="800.555.666-3", kind="supplier"),
+        Counterparty(company_id=andina.id, name="Logistics Services S.A.", nit="800.777.888-4", kind="supplier"),
     ]
     db.session.add_all(clients)
     db.session.flush()
@@ -74,8 +74,8 @@ def seed_demo() -> str:
     base_income = [42_000_000, 51_000_000, 48_500_000, 62_300_000, 57_800_000, 35_000_000]
     base_expense = [28_000_000, 34_000_000, 32_000_000, 41_000_000, 38_500_000, 23_000_000]
 
-    # 18 meses de historia sintética con tendencia y estacionalidad, para que
-    # el módulo de ML tenga suficientes observaciones al entrenar.
+    # 18 months of synthetic history with trend and seasonality, so the
+    # ML module has enough observations to train.
     months = 18
     for idx in range(months):
         month = _month_start(months - 1 - idx)
@@ -93,7 +93,7 @@ def seed_demo() -> str:
                 counterparty_id=client_ids[idx % 2],
                 doc_number=f"FE-{month:%Y%m}-{idx + 1:03d}",
                 issue_date=month + timedelta(days=5),
-                description="Venta de mercancía",
+                description="Sale of goods",
                 subtotal=subtotal,
                 tax_amount=(income_total - subtotal),
                 total=income_total,
@@ -109,8 +109,8 @@ def seed_demo() -> str:
                 counterparty_id=supplier_ids[idx % 2],
                 doc_number=f"FC-{month:%Y%m}-{idx + 1:03d}",
                 issue_date=month + timedelta(days=7),
-                category="Mercancía" if idx % 2 == 0 else "Logística",
-                description="Compra operativa",
+                category="Goods" if idx % 2 == 0 else "Logistics",
+                description="Operating purchase",
                 subtotal=exp_subtotal,
                 tax_amount=(expense_total - exp_subtotal),
                 total=expense_total,
@@ -125,28 +125,28 @@ def seed_demo() -> str:
         [
             TaxObligation(
                 company_id=andina.id,
-                name="IVA bimestral",
+                name="Bimonthly VAT",
                 period="Sep-Oct 2026",
                 due_date=now + timedelta(days=8),
                 estimated_amount=Decimal("2550000.00"),
                 status="pending",
-                notes="Fecha registrada manualmente por el contador.",
+                notes="Date recorded manually by the accountant.",
             ),
             TaxObligation(
                 company_id=andina.id,
-                name="Retención en la fuente",
+                name="Withholding tax",
                 period="Oct 2026",
                 due_date=now + timedelta(days=23),
                 estimated_amount=None,
                 status="pending",
-                notes="Pendiente de configuración.",
+                notes="Pending configuration.",
             ),
         ]
     )
 
     plan = FiscalPlan(
         company_id=andina.id,
-        name="Plan de reserva Oct 2026",
+        name="Reserve plan Oct 2026",
         period="2026-10",
         status="reviewed",
         current_version=1,
@@ -162,12 +162,12 @@ def seed_demo() -> str:
         assumptions={
             "income_growth_percent": "5",
             "expense_growth_percent": "3",
-            "source": "Planificación manual",
+            "source": "Manual planning",
         },
         projected_income=Decimal("55000000.00"),
         projected_expenses=Decimal("37000000.00"),
         estimated_reserve=Decimal("4500000.00"),
-        notes="Reserva objetivo definida manualmente. No es una liquidación oficial.",
+        notes="Reserve target set manually. It is not an official tax assessment.",
         created_by=user.id,
     )
     db.session.add(version)
@@ -178,7 +178,7 @@ def seed_demo() -> str:
             plan_version_id=version.id,
             amount=Decimal("3000000.00"),
             reserved_on=now - timedelta(days=3),
-            note="Reserva informada por la empresa",
+            note="Reserve reported by the company",
             created_by=user.id,
         )
     )
@@ -187,18 +187,18 @@ def seed_demo() -> str:
         FiscalParameter(
             company_id=andina.id,
             key="iva_rate",
-            label="Tarifa IVA general",
+            label="General VAT rate",
             value=Decimal("19.0000"),
             unit="percent",
-            source="Parámetro de ejemplo pendiente de validación normativa",
+            source="Sample parameter pending regulatory validation",
             reviewed=False,
         )
     )
 
     alert = Alert(
         company_id=andina.id,
-        title="Faltan $1.500.000 para cubrir la meta de reserva",
-        description="La reserva registrada no cubre la meta definida en el plan vigente.",
+        title="$1,500,000 missing to cover the reserve target",
+        description="The recorded reserve does not cover the target of the current plan.",
         priority="alta",
         origin="plan",
         status="pending",
@@ -211,13 +211,13 @@ def seed_demo() -> str:
             company_id=andina.id,
             alert_id=alert.id,
             user_id=user.id,
-            body="Revisar disponibilidad antes del cierre del período.",
+            body="Check availability before the period closes.",
         )
     )
 
     db.session.commit()
     return (
-        "Seed demo listo. Usuario: "
-        f"{DEMO_EMAIL} / {DEMO_PASSWORD} (solo demostración). "
-        "Empresas: 2. Registros: 18 meses de ingresos y gastos."
+        "Demo seed ready. User: "
+        f"{DEMO_EMAIL} / {DEMO_PASSWORD} (demo only). "
+        "Companies: 2. Records: 18 months of income and expenses."
     )

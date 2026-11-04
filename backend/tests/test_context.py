@@ -1,4 +1,4 @@
-"""Pruebas del contexto externo: carga, versionado y API de solo lectura."""
+"""Tests of the external context: loading, versioning and read-only API."""
 from __future__ import annotations
 
 import csv
@@ -67,12 +67,12 @@ def _manifest(
         "manifest_version": 1,
         "source": {
             "code": code,
-            "name": "Fuente de prueba",
-            "publisher": "Publicador de prueba",
+            "name": "Test source",
+            "publisher": "Test publisher",
             "dataset_id": "test-123",
             "source_url": "https://example.invalid/dataset",
             "metadata_url": "https://example.invalid/metadata",
-            "attribution": "Publicador de prueba",
+            "attribution": "Test publisher",
             "attribution_url": "https://example.invalid",
             "license": {
                 "name": "CC BY-SA 4.0",
@@ -82,7 +82,7 @@ def _manifest(
                 "evidence_path": "docs/evidence/test.json",
             },
             "cadence": "Irregular",
-            "description": "Contexto de prueba",
+            "description": "Test context",
         },
         "version": {
             "version_label": label,
@@ -106,7 +106,7 @@ def _manifest(
                     "rows": len(benchmark_rows),
                 },
             ],
-            "notes": ["Datos de prueba, no reales."],
+            "notes": ["Test data, not real."],
         },
     }
     manifest_path = tmp_path / f"{code}_{label}.json"
@@ -211,10 +211,10 @@ def test_load_is_idempotent_and_does_not_create_alerts(app, client, auth, tmp_pa
     assert detail.status_code == 200
     assert len(detail.get_json()["versions"]) == 1
 
-    # Sin sesión no hay lectura.
+    # Without a session there is no read access.
     anonymous = app.test_client()
     assert anonymous.get("/api/v1/context/sources").status_code == 401
-    # Solo lectura: no existe endpoint de escritura.
+    # Read only: there is no write endpoint.
     assert (
         client.post(
             "/api/v1/context/sources", headers={"X-CSRF-Token": auth["csrf"]}
@@ -262,7 +262,7 @@ def test_new_version_preserves_previous_facts(app, client, auth, tmp_path):
         assert len(versions) == 2
         assert versions[0].is_current is False
         assert versions[1].is_current is True
-        # Los hechos de la versión anterior no se borran al cargar la nueva.
+        # Facts of the previous version are not deleted when the new one loads.
         assert db.session.query(TaxCollection).filter_by(version_id=versions[0].id).count() == 1
         assert db.session.query(TaxCollection).filter_by(version_id=versions[1].id).count() == 1
 
@@ -303,7 +303,7 @@ def test_versioning_plan_does_not_lose_or_duplicate_reserves(app, auth):
             "amount": "40.00",
             "reserved_on": "2026-10-01",
             "plan_version_id": version_one,
-            "note": "Reserva asociada a la versión 1",
+            "note": "Reserve linked to version 1",
         },
         headers=headers,
     )
@@ -336,7 +336,7 @@ def test_versioning_plan_does_not_lose_or_duplicate_reserves(app, auth):
             "amount": "60.00",
             "reserved_on": "2026-10-02",
             "plan_version_id": version_two,
-            "note": "Reserva adicional de la versión 2",
+            "note": "Additional reserve of version 2",
         },
         headers=headers,
     )
@@ -344,7 +344,7 @@ def test_versioning_plan_does_not_lose_or_duplicate_reserves(app, auth):
 
     after = client.get("/api/v1/companies/1/reserve-entries").get_json()
     ids = [item["id"] for item in after["items"]]
-    assert len(ids) == len(set(ids)), "La reserva no debe duplicarse al versionar"
+    assert len(ids) == len(set(ids)), "The reserve must not be duplicated when versioning"
     assert after["total"] == "100.00"
     assert sum(1 for item in after["items"] if item["id"] == reserve_id) == 1
 
@@ -354,8 +354,8 @@ def test_versioning_plan_does_not_lose_or_duplicate_reserves(app, auth):
         db.session.query(ReserveEntry).filter(
             ReserveEntry.id.in_([reserve_id, second_reserve.get_json()["id"]])
         ).delete(synchronize_session=False)
-        # Borrar primero las versiones: en SQLite el id del plan se reutiliza y
-        # una versión huérfana haría fallar el siguiente plan con el mismo id.
+        # Delete the versions first: in SQLite the plan id is reused and
+        # an orphan version would break the next plan with the same id.
         db.session.query(FiscalPlanVersion).filter(
             FiscalPlanVersion.plan_id == plan["id"]
         ).delete(synchronize_session=False)

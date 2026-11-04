@@ -13,9 +13,9 @@ def _engine_label() -> str:
 
 
 def _payload(status: str) -> dict:
-    # `demo` indica SQLite habilitado EXPLÍCITAMENTE para demo/pruebas locales.
-    # No es un fallback automático: la app no cambia de motor por sí sola.
-    # `database` siempre muestra el motor real en uso.
+    # `demo` means SQLite was enabled EXPLICITLY for local demos and tests.
+    # It is not an automatic fallback: the app never switches engines by itself.
+    # `database` always shows the real engine in use.
     return {
         "status": status,
         "database": _engine_label(),
@@ -34,6 +34,6 @@ def health_ready():
         db.session.execute(text("SELECT 1"))
         return jsonify(_payload("ready")), 200
     except Exception as exc:
-        # No incluir URL, usuario ni contraseña. Solo el tipo de error.
+        # Never include the URL, user or password. Only the error type.
         current_app.logger.warning("db_not_ready error_type=%s", type(exc).__name__)
         return jsonify(_payload("not_ready")), 503

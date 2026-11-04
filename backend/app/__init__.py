@@ -7,7 +7,7 @@ import click
 from flask import Flask, g, jsonify, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-# config.py carga backend/.env antes de evaluar sus atributos.
+# config.py loads backend/.env before its attributes are evaluated.
 from .config import Config
 from .extensions import db, migrate
 from .security import resolve_session, validate_csrf
@@ -25,8 +25,8 @@ def create_app(config_class: type = Config) -> Flask:
 
     if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
         app.logger.warning(
-            "DB: SQLite explícito (DB_MODE=sqlite). Solo para demo/pruebas locales; "
-            "el modo normal y producción requieren PostgreSQL (DATABASE_URL)."
+            "DB: explicit SQLite (DB_MODE=sqlite). Only for local demos and tests; "
+            "normal mode and production require PostgreSQL (DATABASE_URL)."
         )
     else:
         app.logger.info(
@@ -36,7 +36,7 @@ def create_app(config_class: type = Config) -> Flask:
             app.config.get("DB_SCHEMA") or "public",
         )
 
-    # Render entrega la IP real en X-Forwarded-*; confianza acotada a 1 salto.
+    # Render passes the real IP in X-Forwarded-*; trust is limited to 1 hop.
     if not _is_dev() or os.environ.get("TRUST_PROXY", "false").lower() == "true":
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
@@ -97,7 +97,7 @@ def _register_hooks(app: Flask) -> None:
                         {
                             "error": {
                                 "code": "csrf_failed",
-                                "message": "Token CSRF inválido o ausente",
+                                "message": "Missing or invalid CSRF token",
                                 "request_id": g.request_id,
                             }
                         }
@@ -125,7 +125,7 @@ def _register_hooks(app: Flask) -> None:
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         response.headers["X-Request-ID"] = getattr(g, "request_id", "")
 
-        # Persistir únicamente si la operación terminó bien.
+        # Commit only if the operation succeeded.
         if response.status_code < 400:
             try:
                 db.session.commit()
@@ -148,11 +148,11 @@ def _register_errors(app: Flask) -> None:
 
     @app.errorhandler(405)
     def _405(_e):
-        return jsonify({"error": {"code": "method_not_allowed", "message": "Método no permitido"}}), 405
+        return jsonify({"error": {"code": "method_not_allowed", "message": "Method not allowed"}}), 405
 
     @app.errorhandler(PermissionError)
     def _perm(_e):
-        return jsonify({"error": {"code": "forbidden", "message": "No autorizado para esta empresa"}}), 403
+        return jsonify({"error": {"code": "forbidden", "message": "Not authorized for this company"}}), 403
 
     @app.errorhandler(ValueError)
     def _value(e):
@@ -170,36 +170,36 @@ def _register_cli(app: Flask) -> None:
     @click.option(
         "--yes",
         is_flag=True,
-        help="Confirma que se cargarán datos ficticios (obligatorio salvo SEED_CONFIRM=1).",
+        help="Confirm that demo data will be loaded (required unless SEED_CONFIRM=1).",
     )
     def seed_demo_command(yes: bool):
-        """Carga datos de demostración ficticios (idempotente, nunca automático)."""
+        """Load fictitious demo data (idempotent, never automatic)."""
         from .seed import seed_demo
 
         confirmed = yes or os.environ.get("SEED_CONFIRM", "").strip().lower() in ("1", "true", "yes")
         if not confirmed:
             raise click.ClickException(
-                "Carga cancelada. Este comando inserta datos ficticios. "
-                "Ejecuta 'flask seed-demo --yes' o define SEED_CONFIRM=1 para confirmar."
+                "Load cancelled. This command inserts fictitious data. "
+                "Run 'flask seed-demo --yes' or set SEED_CONFIRM=1 to confirm."
             )
         summary = seed_demo()
         click.echo(summary)
 
     @app.cli.command("create-admin")
     def create_admin_command():
-        """Crea un usuario administrador sin datos de ejemplo."""
+        """Create an administrator user without sample data."""
         import getpass
 
         from .models import Company, CompanyMembership, User
         from .security import hash_password
 
         email = input("Email: ").strip().lower()
-        name = input("Nombre completo: ").strip()
-        password = getpass.getpass("Contraseña (mín. 10): ")
+        name = input("Full name: ").strip()
+        password = getpass.getpass("Password (min. 10): ")
         if len(password) < 10:
-            print("Contraseña demasiado corta")
+            print("Password too short")
             return
-        company_name = input("Empresa: ").strip() or "Mi empresa"
+        company_name = input("Company: ").strip() or "My company"
         nit = input("NIT: ").strip() or "000.000.000-0"
 
         user = db.session.query(User).filter_by(email=email).first()
@@ -219,10 +219,10 @@ def _register_cli(app: Flask) -> None:
 
     @app.cli.command("context-load")
     @click.argument("manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-    @click.option("--dry-run", is_flag=True, help="Valida el manifiesto sin escribir en la base.")
-    @click.option("--replace", is_flag=True, help="Recarga los agregados de la versión.")
+    @click.option("--dry-run", is_flag=True, help="Validate the manifest without writing to the database.")
+    @click.option("--replace", is_flag=True, help="Reload the aggregates of the version.")
     def context_load_command(manifest: Path, dry_run: bool, replace: bool):
-        """Carga un manifiesto de contexto externo (idempotente, sin alertas)."""
+        """Load an external context manifest (idempotent, no alerts)."""
         from .modules.context.loader import load_manifest_file
 
         result = load_manifest_file(manifest, dry_run=dry_run, replace=replace)

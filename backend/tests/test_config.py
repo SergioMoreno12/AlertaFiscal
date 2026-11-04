@@ -1,4 +1,4 @@
-"""Pruebas de los guards de configuración (sin conectar a bases de datos)."""
+"""Tests of the configuration guards (without connecting to any database)."""
 
 import os
 import subprocess
@@ -47,7 +47,7 @@ def _run_config(overrides: dict[str, str | None]):
 def test_normal_dev_requires_database_url():
     result = _run_config({"APP_ENV": "development"})
     assert result.returncode != 0
-    assert "DATABASE_URL no está definida" in result.stderr
+    assert "DATABASE_URL is not set" in result.stderr
 
 
 def test_sqlite_requires_explicit_mode():
@@ -83,13 +83,13 @@ def test_production_rejects_sqlite():
         }
     )
     assert result.returncode != 0
-    assert "SQLite está prohibido" in result.stderr
+    assert "SQLite is not allowed in production" in result.stderr
 
 
 def test_production_requires_database_url():
     result = _run_config({"APP_ENV": "production", "SECRET_KEY": "x" * 48})
     assert result.returncode != 0
-    assert "DATABASE_URL no está definida" in result.stderr
+    assert "DATABASE_URL is not set" in result.stderr
 
 
 def test_production_requires_strong_secret_key():
@@ -119,7 +119,7 @@ def test_production_accepts_postgres_with_strong_secret(app_env):
 
 
 def test_sqlite_health_reports_explicit_demo(tmp_path):
-    """SQLite solo existe con opt-in: /health/ready debe decir demo=true, no fallback."""
+    """SQLite exists only as an opt-in: /health/ready must say demo=true, not fallback."""
     db_path = tmp_path / "health.db"
     env = {
         key: value

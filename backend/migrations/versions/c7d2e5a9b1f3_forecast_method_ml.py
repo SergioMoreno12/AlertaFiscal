@@ -1,4 +1,4 @@
-"""Amplía el método de proyección para incluir el modelo estacional.
+"""Extend the forecast method to include the seasonal model.
 
 Revision ID: c7d2e5a9b1f3
 Revises: f3b8c2d1a7e4

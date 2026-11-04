@@ -42,9 +42,9 @@ def list_alerts(company_id: int):
 
 @alerts_bp.post("/evaluate")
 def evaluate(company_id: int):
-    """Ejecuta las reglas y persiste/actualiza las alertas abiertas.
+    """Run the rules and store or update the open alerts.
 
-    Es una acción explícita: el dashboard en GET nunca escribe alertas.
+    It is an explicit action: the dashboard GET never writes alerts.
     """
     authorized_company(company_id, min_role="contador")
     result = evaluate_alerts(company_id)
@@ -61,10 +61,10 @@ def create_alert(company_id: int):
         return error("invalid_payload", "title es obligatorio", 422)
     priority = str(data.get("priority", "media"))
     if priority not in ("alta", "media", "baja"):
-        return error("invalid_payload", "priority inválida", 422)
+        return error("invalid_payload", "Invalid priority", 422)
     origin = str(data.get("origin", "erp"))
     if origin not in ("erp", "plan", "proyeccion", "configuracion"):
-        return error("invalid_payload", "origin inválido", 422)
+        return error("invalid_payload", "Invalid origin", 422)
 
     row = Alert(
         company_id=company_id,
@@ -86,7 +86,7 @@ def alert_detail(company_id: int, alert_id: int):
     authorized_company(company_id)
     row = db.session.get(Alert, alert_id)
     if row is None or row.company_id != company_id:
-        return error("not_found", "Alerta no encontrada", 404)
+        return error("not_found", "Alert not found", 404)
     comments = (
         db.session.query(AlertComment)
         .filter_by(alert_id=alert_id)
@@ -101,15 +101,15 @@ def update_alert(company_id: int, alert_id: int):
     authorized_company(company_id, min_role="contador")
     row = db.session.get(Alert, alert_id)
     if row is None or row.company_id != company_id:
-        return error("not_found", "Alerta no encontrada", 404)
+        return error("not_found", "Alert not found", 404)
     data = get_json()
     if "status" in data:
         if data["status"] not in ("pending", "in_review", "reviewed"):
-            return error("invalid_payload", "status inválido", 422)
+            return error("invalid_payload", "Invalid status", 422)
         row.status = data["status"]
     if "priority" in data:
         if data["priority"] not in ("alta", "media", "baja"):
-            return error("invalid_payload", "priority inválida", 422)
+            return error("invalid_payload", "Invalid priority", 422)
         row.priority = data["priority"]
     record_audit(company_id, "alert.update", f"alert:{row.id}", {"status": row.status})
     return jsonify(_alert_dict(row))
@@ -120,7 +120,7 @@ def add_comment(company_id: int, alert_id: int):
     authorized_company(company_id)
     row = db.session.get(Alert, alert_id)
     if row is None or row.company_id != company_id:
-        return error("not_found", "Alerta no encontrada", 404)
+        return error("not_found", "Alert not found", 404)
     data = get_json()
     body = str(data.get("body", "")).strip()
     if not body:

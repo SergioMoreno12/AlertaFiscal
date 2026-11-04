@@ -1,4 +1,4 @@
-"""Utilidades HTTP compartidas: autorización por empresa, paginación y auditoría."""
+"""Shared HTTP helpers: per-company authorization, pagination and audit."""
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -24,7 +24,7 @@ def get_json() -> dict:
 
 
 def money(value) -> str:
-    """Los importes viajan como cadenas decimales para no perder precisión."""
+    """Amounts travel as decimal strings so no precision is lost."""
     if value is None:
         return "0.00"
     return f"{Decimal(str(value)):.2f}"
@@ -39,10 +39,10 @@ def iso(value: datetime | None) -> str | None:
 
 
 def date_iso(value: datetime | None) -> str | None:
-    """Fechas de calendario (emisión, vencimiento, corte) sin hora ni zona.
+    """Calendar dates (issue, due, cutoff) without time or time zone.
 
-    Si se serializaran como medianoche UTC, un cliente en Colombia (UTC-5)
-    las mostraría un día antes. El día es el dato, no un instante.
+    Serialized as UTC midnight, a client in Colombia (UTC-5) would show
+    them one day earlier. The day is the data, not an instant.
     """
     if value is None:
         return None
@@ -66,14 +66,14 @@ def parse_money(raw, field: str):
     try:
         value = Decimal(str(raw)).quantize(Decimal("0.01"))
     except Exception:
-        raise ValueError(f"{field} debe ser un número válido")
+        raise ValueError(f"{field} must be a valid number")
     if value < 0:
         raise ValueError(f"{field} no puede ser negativo")
     return value
 
 
 def authorized_company(company_id: int, min_role: str | None = None) -> Company:
-    """Verifica autenticación, membresía activa y rol. Denegación por defecto."""
+    """Check authentication, active membership and role. Deny by default."""
     company = db.session.get(Company, company_id)
     if company is None or not company.is_active:
         raise PermissionError("not_found")

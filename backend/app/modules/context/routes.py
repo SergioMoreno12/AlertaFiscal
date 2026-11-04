@@ -1,7 +1,7 @@
-"""API de solo lectura para el contexto externo.
+"""Read-only API for the external context.
 
-Requiere sesión autenticada. No acepta escrituras, no genera alertas y no
-mezcla los agregados externos con los KPI internos de la empresa.
+It requires an authenticated session. It accepts no writes, creates no alerts and
+never mixes the external aggregates with the company's internal KPIs.
 """
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from ...security import require_auth
 context_bp = Blueprint("context", __name__, url_prefix="/api/v1/context")
 
 DISCLAIMER = (
-    "Contexto externo agregado. No es una obligación tributaria de la empresa, "
-    "no se une por NIT y no alimenta el pronóstico ni las alertas."
+    "Aggregated external context. It is not a tax obligation of the company, "
+    "it is not joined by NIT and it does not feed the forecast or the alerts."
 )
 
 

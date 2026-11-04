@@ -14,7 +14,7 @@ def test_login_wrong_password_generic(client):
         headers={"X-CSRF-Token": token},
     )
     assert response.status_code == 401
-    assert response.get_json()["error"]["message"] == "Credenciales inválidas"
+    assert response.get_json()["error"]["message"] == "Invalid credentials"
 
 
 def test_login_and_me(auth):
