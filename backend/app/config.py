@@ -174,10 +174,11 @@ class Config:
     LOGIN_WINDOW_MINUTES = _env_int("LOGIN_WINDOW_MINUTES", 15, minimum=1)
 
     # ── ML forecast ──────────────────────────────────────────────────
-    # The artifact is trained offline and read at request time.
-    # Flask nunca entrena ni importa scikit-learn.
+    # Artifacts are trained offline and read at request time; Flask never trains or
+    # imports scikit-learn. The default folder is committed inside backend/ because
+    # Render builds from backend/ (rootDir) and ml/artifacts/ would not exist there.
     FORECAST_ARTIFACT_DIR = os.environ.get(
-        "FORECAST_ARTIFACT_DIR", str(BACKEND_DIR.parent / "ml" / "artifacts")
+        "FORECAST_ARTIFACT_DIR", str(BACKEND_DIR / "model_artifacts")
     ).strip()
     FORECAST_PLAN_DIFF_PCT = _env_int("FORECAST_PLAN_DIFF_PCT", 15, minimum=0, maximum=100)
     OBLIGATION_DUE_SOON_DAYS = _env_int("OBLIGATION_DUE_SOON_DAYS", 10, minimum=1, maximum=90)
