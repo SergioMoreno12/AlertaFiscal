@@ -20,11 +20,12 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# This file lives in ml/company_trainer/sources/, so the repository root is three levels up.
+REPO_ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = REPO_ROOT / "ml" / "data" / "raw"
 PROCESSED_DIR = REPO_ROOT / "ml" / "data" / "processed"
-MANIFEST_DIR = REPO_ROOT / "ml" / "sources" / "manifests"
-EVIDENCE_DIR = REPO_ROOT / "docs" / "evidence"
+MANIFEST_DIR = Path(__file__).resolve().parent / "manifests"
+EVIDENCE_DIR = REPO_ROOT / "docs" / "erp" / "evidence"
 
 SOCRATA_DOMAIN = "https://www.datos.gov.co"
 SUPERSOCIEDADES_ID = "6cat-2gcs"

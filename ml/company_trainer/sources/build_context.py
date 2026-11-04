@@ -2,9 +2,9 @@
 
 Uso (desde la raíz del repositorio):
 
-    ml/.venv/Scripts/python.exe -m ml.sources.build_context supersociedades
-    ml/.venv/Scripts/python.exe -m ml.sources.build_context dian
-    ml/.venv/Scripts/python.exe -m ml.sources.build_context all
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.build_context supersociedades
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.build_context dian
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.build_context all
 
 No descarga datos. Lee el manifiesto de adquisición, procesa los originales
 locales y escribe CSV derivados en ``ml/data/processed`` (fuera de git),
@@ -188,7 +188,7 @@ def latest_manifest(source_code: str) -> Path:
     if not candidates:
         raise SourceError(
             f"No hay manifiestos para {source_code} en {directory}. "
-            "Ejecuta primero ml.sources.acquire."
+            "Ejecuta primero ml.company_trainer.sources.acquire."
         )
     return candidates[-1]
 
@@ -384,7 +384,7 @@ def _read_sheet(path: Path) -> list[tuple]:
         import openpyxl
     except ImportError as exc:  # pragma: no cover - depende del entorno ml
         raise SourceError(
-            "Falta openpyxl en el entorno. Instala ml/requirements.txt en ml/.venv."
+            "Falta openpyxl en el entorno. Instala ml/company_trainer/requirements.txt en ml/company_trainer/.venv."
         ) from exc
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     return list(workbook.active.iter_rows(values_only=True))

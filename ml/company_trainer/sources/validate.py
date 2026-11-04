@@ -2,7 +2,7 @@
 
 Uso (desde la raíz del repositorio):
 
-    ml/.venv/Scripts/python.exe -m ml.sources.validate
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.validate
 
 No descarga ni escribe datos. Comprueba invariantes que ya fallaron una vez
 (por ejemplo, una fila de total seccional tratada como departamento) y compara

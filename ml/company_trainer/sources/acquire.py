@@ -2,9 +2,9 @@
 
 Uso (desde la raíz del repositorio):
 
-    ml/.venv/Scripts/python.exe -m ml.sources.acquire supersociedades
-    ml/.venv/Scripts/python.exe -m ml.sources.acquire supersociedades --download
-    ml/.venv/Scripts/python.exe -m ml.sources.acquire dian
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.acquire supersociedades
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.acquire supersociedades --download
+    ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.acquire dian
 
 El comando ``supersociedades`` no vuelve a descargar por defecto: verifica el
 archivo local contra el conteo y la paginación de Socrata. ``--download``
@@ -357,7 +357,7 @@ def _xlsx_shape(path: Path) -> dict:
         import openpyxl
     except ImportError as exc:  # pragma: no cover - depende del entorno ml
         raise SourceError(
-            "Falta openpyxl en el entorno. Instala ml/requirements.txt en ml/.venv."
+            "Falta openpyxl en el entorno. Instala ml/company_trainer/requirements.txt en ml/company_trainer/.venv."
         ) from exc
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     sheet = workbook.active
