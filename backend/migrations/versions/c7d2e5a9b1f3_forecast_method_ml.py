@@ -13,19 +13,17 @@ branch_labels = None
 depends_on = None
 
 
+def _replace_check(condition: str) -> None:
+    # Batch mode: a plain ALTER on PostgreSQL, a table copy on SQLite (which cannot
+    # alter constraints in place). The explicit SQLite demo mode needs it to migrate.
+    with op.batch_alter_table("forecast_runs", schema=None) as batch_op:
+        batch_op.drop_constraint("ck_forecast_method", type_="check")
+        batch_op.create_check_constraint("ck_forecast_method", condition)
+
+
 def upgrade():
-    op.drop_constraint("ck_forecast_method", "forecast_runs", type_="check")
-    op.create_check_constraint(
-        "ck_forecast_method",
-        "forecast_runs",
-        "method in ('manual','seasonal_naive','linear','random_forest','mlp')",
-    )
+    _replace_check("method in ('manual','seasonal_naive','linear','random_forest','mlp')")
 
 
 def downgrade():
-    op.drop_constraint("ck_forecast_method", "forecast_runs", type_="check")
-    op.create_check_constraint(
-        "ck_forecast_method",
-        "forecast_runs",
-        "method in ('manual','linear','random_forest','mlp')",
-    )
+    _replace_check("method in ('manual','linear','random_forest','mlp')")

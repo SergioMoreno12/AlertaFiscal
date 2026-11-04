@@ -269,7 +269,7 @@ def _rule_stale_forecast(company_id: int) -> list[tuple[str, Alert]]:
 
     assumptions = run.assumptions or {}
     trained_signature = assumptions.get("history_signature")
-    current = monthly_history(company_id)
+    current = monthly_history(company_id, closed_only=True)  # the same months the forecast uses
     if not current["months"] or not trained_signature:
         return []
     if trained_signature == current["signature"]:

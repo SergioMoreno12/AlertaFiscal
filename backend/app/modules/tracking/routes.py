@@ -15,7 +15,7 @@ from ...common.http import (
     record_audit,
 )
 from ...extensions import db
-from ...models import AuditEvent, TaxObligation
+from ...models import AuditEvent, TaxObligation, User
 
 tracking_bp = Blueprint("tracking", __name__, url_prefix="/api/v1/companies/<int:company_id>")
 
@@ -115,4 +115,10 @@ def list_audit(company_id: int):
         .offset((page - 1) * size)
         .all()
     )
-    return paginated([audit_dict(r) for r in rows], total, page, size)
+    actor_ids = {r.actor_id for r in rows if r.actor_id is not None}
+    names = (
+        {u.id: u.full_name for u in db.session.query(User).filter(User.id.in_(actor_ids)).all()}
+        if actor_ids
+        else {}
+    )
+    return paginated([audit_dict(r, names) for r in rows], total, page, size)

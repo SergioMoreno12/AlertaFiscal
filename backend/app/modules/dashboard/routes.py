@@ -58,13 +58,21 @@ def summary(company_id: int):
 
     income_rows = (
         db.session.query(month_expr_income.label("month"), func.sum(IncomeDocument.total))
-        .filter(IncomeDocument.company_id == company_id, IncomeDocument.issue_date >= six_months_ago)
+        .filter(
+            IncomeDocument.company_id == company_id,
+            IncomeDocument.issue_date >= six_months_ago,
+            IncomeDocument.status != "void",
+        )
         .group_by(month_expr_income)
         .all()
     )
     expense_rows = (
         db.session.query(month_expr_expense.label("month"), func.sum(ExpenseDocument.total))
-        .filter(ExpenseDocument.company_id == company_id, ExpenseDocument.issue_date >= six_months_ago)
+        .filter(
+            ExpenseDocument.company_id == company_id,
+            ExpenseDocument.issue_date >= six_months_ago,
+            ExpenseDocument.status != "void",
+        )
         .group_by(month_expr_expense)
         .all()
     )

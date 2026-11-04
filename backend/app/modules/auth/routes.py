@@ -32,6 +32,21 @@ def _rate_limited(key: str) -> bool:
 
 def _register_attempt(key: str) -> None:
     _attempts.setdefault(key, []).append(time.time())
+    if len(_attempts) > 10000:  # keep the in-memory limiter bounded
+        window = current_app.config["LOGIN_WINDOW_MINUTES"] * 60
+        now = time.time()
+        for stale in [k for k, hits in _attempts.items() if not hits or now - hits[-1] >= window]:
+            _attempts.pop(stale, None)
+
+
+_DUMMY_HASH: str | None = None
+
+
+def _dummy_hash() -> str:
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = hash_password("not-a-real-password-" + str(time.time()))
+    return _DUMMY_HASH
 
 
 def _serialize_user(user: User, memberships) -> dict:
@@ -72,7 +87,11 @@ def login():
         return error("too_many_attempts", "Too many attempts. Try again later.", 429)
 
     user = db.session.query(User).filter_by(email=email).first()
-    if user is None or not user.is_active or not verify_password(user.password_hash, password):
+    # Verify against a dummy hash when the user does not exist, so the response time
+    # does not reveal which emails are registered.
+    stored_hash = user.password_hash if user is not None else _dummy_hash()
+    password_ok = verify_password(stored_hash, password)
+    if user is None or not user.is_active or not password_ok:
         _register_attempt(key)
         current_app.logger.info("login_failed email_domain=%s", email.split("@")[-1])
         return error("invalid_credentials", "Invalid credentials", 401)
