@@ -67,7 +67,7 @@ jobs:
       - name: Tests (SQLite unit tests + PostgreSQL integration)
         run: python -m pytest -q
 
-      - name: Migraciones contra PostgreSQL de CI
+      - name: Migrations against the CI PostgreSQL
         run: flask db upgrade
 
       - name: Idempotent demo seed
@@ -75,7 +75,7 @@ jobs:
           flask seed-demo --yes
           flask seed-demo --yes
 
-      - name: Health check contra PostgreSQL
+      - name: Health check against PostgreSQL
         run: |
           python - <<'PY'
           from app import create_app
