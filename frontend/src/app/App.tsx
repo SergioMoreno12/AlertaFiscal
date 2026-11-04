@@ -3497,8 +3497,8 @@ const planVersionUi = (status: string) => {
 const forecastMethodLabel = (run: ForecastRun) =>
   run.method_label ??
   ({
-    manual: "Promedio manual",
-    promedio_manual: "Promedio manual",
+    manual: "Manual average",
+    promedio_manual: "Manual average",
     seasonal_naive: "Seasonal naive (lag-12)",
     linear: "Linear regression",
     random_forest: "Random Forest",
