@@ -1,0 +1,1538 @@
+{
+  "generated_at_utc": "2026-11-03T16:19:47Z",
+  "environment": {
+    "python": "3.14.7",
+    "scikit_learn": "1.9.1",
+    "pandas": "2.3.3",
+    "numpy": "2.5.4"
+  },
+  "random_state": 42,
+  "features": {
+    "columns": [
+      "t",
+      "month_sin",
+      "month_cos",
+      "lag1",
+      "lag2",
+      "lag3"
+    ],
+    "normalization": {
+      "type": "mean_last_n",
+      "n": 3
+    },
+    "sector_used_as_feature": false
+  },
+  "data": {
+    "rows_used": 12750,
+    "companies": 425,
+    "rows_blocked": 5250,
+    "splits_used": [
+      "train",
+      "validation"
+    ],
+    "splits_blocked": [
+      "test",
+      "holdout"
+    ],
+    "train_months": [
+      1,
+      24
+    ],
+    "validation_months": [
+      25,
+      30
+    ],
+    "size_tercile_bounds_income_mean": {
+      "p33": 70.5622222222222,
+      "p67": 196.32847222222222
+    }
+  },
+  "protocol": {
+    "validation_origin_month_index": 24,
+    "horizon": 6,
+    "recursive": true,
+    "targets": [
+      "income",
+      "expenses"
+    ]
+  },
+  "constraints": {
+    "exportable_models": [
+      "seasonal_naive",
+      "linear_regression",
+      "random_forest"
+    ],
+    "non_exportable_models": [
+      "mlp"
+    ],
+    "random_forest_limits": {
+      "n_estimators_max": 100,
+      "max_depth_max": 8,
+      "min_samples_leaf_min": 5
+    }
+  },
+  "search": [
+    {
+      "model": "linear_regression",
+      "target": "income",
+      "params": {},
+      "validation_mae": 35.0805
+    },
+    {
+      "model": "linear_regression",
+      "target": "expenses",
+      "params": {},
+      "validation_mae": 36.8054
+    },
+    {
+      "model": "random_forest",
+      "target": "income",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "min_samples_leaf": 5
+      },
+      "validation_mae": 20.6631
+    },
+    {
+      "model": "random_forest",
+      "target": "income",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "min_samples_leaf": 10
+      },
+      "validation_mae": 20.6578
+    },
+    {
+      "model": "random_forest",
+      "target": "income",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "min_samples_leaf": 5
+      },
+      "validation_mae": 17.3605
+    },
+    {
+      "model": "random_forest",
+      "target": "income",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "min_samples_leaf": 10
+      },
+      "validation_mae": 17.3796
+    },
+    {
+      "model": "random_forest",
+      "target": "income",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "min_samples_leaf": 5
+      },
+      "validation_mae": 17.3637
+    },
+    {
+      "model": "random_forest",
+      "target": "income",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "min_samples_leaf": 10
+      },
+      "validation_mae": 17.2234
+    },
+    {
+      "model": "random_forest",
+      "target": "expenses",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "min_samples_leaf": 5
+      },
+      "validation_mae": 22.8575
+    },
+    {
+      "model": "random_forest",
+      "target": "expenses",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "min_samples_leaf": 10
+      },
+      "validation_mae": 22.8527
+    },
+    {
+      "model": "random_forest",
+      "target": "expenses",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "min_samples_leaf": 5
+      },
+      "validation_mae": 17.368
+    },
+    {
+      "model": "random_forest",
+      "target": "expenses",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "min_samples_leaf": 10
+      },
+      "validation_mae": 17.4823
+    },
+    {
+      "model": "random_forest",
+      "target": "expenses",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "min_samples_leaf": 5
+      },
+      "validation_mae": 17.3908
+    },
+    {
+      "model": "random_forest",
+      "target": "expenses",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "min_samples_leaf": 10
+      },
+      "validation_mae": 17.4121
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.0001
+      },
+      "validation_mae": 363.162
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.001
+      },
+      "validation_mae": 363.7059
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.01
+      },
+      "validation_mae": 272.8303
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.1
+      },
+      "validation_mae": 223.6858
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.0001
+      },
+      "validation_mae": 162.8658
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.001
+      },
+      "validation_mae": 162.8936
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.01
+      },
+      "validation_mae": 145.272
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.1
+      },
+      "validation_mae": 105.0239
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.0001
+      },
+      "validation_mae": 49.5077
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.001
+      },
+      "validation_mae": 58.4655
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.01
+      },
+      "validation_mae": 55.6345
+    },
+    {
+      "model": "mlp",
+      "target": "income",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.1
+      },
+      "validation_mae": 50.7612
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.0001
+      },
+      "validation_mae": 310.6771
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.001
+      },
+      "validation_mae": 314.2544
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.01
+      },
+      "validation_mae": 340.7869
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          16
+        ],
+        "alpha": 0.1
+      },
+      "validation_mae": 189.8121
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.0001
+      },
+      "validation_mae": 193.6226
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.001
+      },
+      "validation_mae": 189.6369
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.01
+      },
+      "validation_mae": 175.8995
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32
+        ],
+        "alpha": 0.1
+      },
+      "validation_mae": 104.654
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.0001
+      },
+      "validation_mae": 71.7985
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.001
+      },
+      "validation_mae": 46.9091
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.01
+      },
+      "validation_mae": 41.5146
+    },
+    {
+      "model": "mlp",
+      "target": "expenses",
+      "params": {
+        "hidden_layer_sizes": [
+          32,
+          16
+        ],
+        "alpha": 0.1
+      },
+      "validation_mae": 53.5324
+    }
+  ],
+  "validation": {
+    "seasonal_naive": {
+      "income": {
+        "mae": 27.9743,
+        "rmse": 49.3634,
+        "mape_pct": 15.4702,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          24.4533,
+          25.5614,
+          30.1229,
+          32.3124,
+          29.2564,
+          26.1394
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 13.1936,
+              "median": 10.573,
+              "p90": 29.7894
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 13.7502,
+              "median": 11.3046,
+              "p90": 28.5952
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 16.4278,
+              "median": 13.0833,
+              "p90": 37.2015
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 17.7785,
+              "median": 14.1111,
+              "p90": 35.5226
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 14.7181,
+              "median": 11.6524,
+              "p90": 30.6686
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 15.0416,
+              "median": 12.5348,
+              "p90": 29.9456
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 15.1516,
+            "median": 12.5211,
+            "p90": 27.9531
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 12.1858,
+              "median": 10.091,
+              "p90": 19.4877
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 18.6859,
+              "median": 16.5589,
+              "p90": 31.3131
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 13.1627,
+              "median": 10.3058,
+              "p90": 22.4485
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 20.0429,
+              "median": 16.7239,
+              "p90": 40.178
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 17.0839,
+              "median": 15.1811,
+              "p90": 30.2729
+            },
+            "services": {
+              "companies": 125,
+              "mean": 13.3151,
+              "median": 11.0919,
+              "p90": 23.8535
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 12.1068,
+              "median": 10.053,
+              "p90": 20.4457
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 16.4191,
+              "median": 13.4637,
+              "p90": 31.8051
+            },
+            "large": {
+              "companies": 142,
+              "mean": 16.9379,
+              "median": 14.2309,
+              "p90": 29.2581
+            }
+          }
+        }
+      },
+      "expenses": {
+        "mae": 27.8369,
+        "rmse": 49.1309,
+        "mape_pct": 15.9279,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          24.2412,
+          25.0846,
+          30.6945,
+          32.5903,
+          28.7507,
+          25.6603
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 12.914,
+              "median": 10.4813,
+              "p90": 27.671
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 13.518,
+              "median": 11.1013,
+              "p90": 29.3756
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 16.5897,
+              "median": 12.461,
+              "p90": 36.1772
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 17.8449,
+              "median": 14.0549,
+              "p90": 36.2954
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 14.4477,
+              "median": 11.1061,
+              "p90": 29.2977
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 14.5979,
+              "median": 11.5733,
+              "p90": 31.4021
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 14.9854,
+            "median": 12.2913,
+            "p90": 27.1036
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 12.431,
+              "median": 10.3989,
+              "p90": 19.6403
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 17.4757,
+              "median": 15.3734,
+              "p90": 24.985
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 12.88,
+              "median": 10.6359,
+              "p90": 22.2587
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 16.8691,
+              "median": 13.5282,
+              "p90": 31.3261
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 17.1832,
+              "median": 14.8672,
+              "p90": 30.3839
+            },
+            "services": {
+              "companies": 125,
+              "mean": 13.2625,
+              "median": 10.663,
+              "p90": 24.9096
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 12.1321,
+              "median": 10.2191,
+              "p90": 20.7995
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 15.815,
+              "median": 13.0921,
+              "p90": 30.2933
+            },
+            "large": {
+              "companies": 142,
+              "mean": 17.0148,
+              "median": 14.8323,
+              "p90": 32.0989
+            }
+          }
+        }
+      }
+    },
+    "linear_regression": {
+      "income": {
+        "mae": 35.0805,
+        "rmse": 53.8698,
+        "mape_pct": 24.8988,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          39.0397,
+          38.1218,
+          24.4947,
+          21.341,
+          33.9179,
+          53.568
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 23.9111,
+              "median": 24.1273,
+              "p90": 40.0595
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 22.7997,
+              "median": 23.234,
+              "p90": 36.8119
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 14.7329,
+              "median": 13.4163,
+              "p90": 27.6523
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 12.7534,
+              "median": 11.535,
+              "p90": 24.9228
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 21.4766,
+              "median": 21.4351,
+              "p90": 35.1761
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 32.1637,
+              "median": 32.5667,
+              "p90": 47.5372
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 21.3063,
+            "median": 21.2929,
+            "p90": 31.161
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 21.1167,
+              "median": 23.0607,
+              "p90": 31.2413
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 21.6716,
+              "median": 19.7694,
+              "p90": 31.6761
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 21.5145,
+              "median": 21.4614,
+              "p90": 30.7775
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 24.4007,
+              "median": 22.4347,
+              "p90": 30.3834
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 20.1581,
+              "median": 20.0012,
+              "p90": 29.5574
+            },
+            "services": {
+              "companies": 125,
+              "mean": 22.3853,
+              "median": 22.7285,
+              "p90": 32.674
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 21.3696,
+              "median": 21.0645,
+              "p90": 31.1272
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 21.906,
+              "median": 22.3559,
+              "p90": 31.0027
+            },
+            "large": {
+              "companies": 142,
+              "mean": 20.6474,
+              "median": 20.1783,
+              "p90": 31.0981
+            }
+          }
+        },
+        "hyperparameters": {}
+      },
+      "expenses": {
+        "mae": 36.8054,
+        "rmse": 56.721,
+        "mape_pct": 26.9211,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          39.633,
+          40.573,
+          25.5897,
+          21.3532,
+          36.9058,
+          56.7778
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 24.2272,
+              "median": 23.4006,
+              "p90": 41.3397
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 24.2293,
+              "median": 24.7366,
+              "p90": 38.9241
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 15.1887,
+              "median": 14.1678,
+              "p90": 28.2461
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 12.8099,
+              "median": 11.1921,
+              "p90": 25.58
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 23.0676,
+              "median": 23.3052,
+              "p90": 37.3472
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 33.8447,
+              "median": 34.4936,
+              "p90": 49.2316
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 22.2279,
+            "median": 21.6247,
+            "p90": 32.4883
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 22.0572,
+              "median": 23.4155,
+              "p90": 32.4771
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 21.7653,
+              "median": 18.7854,
+              "p90": 34.3005
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 22.254,
+              "median": 21.771,
+              "p90": 31.3437
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 22.5399,
+              "median": 21.8643,
+              "p90": 25.7862
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 21.5156,
+              "median": 20.5116,
+              "p90": 31.2509
+            },
+            "services": {
+              "companies": 125,
+              "mean": 23.2365,
+              "median": 22.963,
+              "p90": 35.3211
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 22.294,
+              "median": 21.7789,
+              "p90": 31.8563
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 22.6856,
+              "median": 22.0856,
+              "p90": 32.8083
+            },
+            "large": {
+              "companies": 142,
+              "mean": 21.7073,
+              "median": 20.3661,
+              "p90": 33.3588
+            }
+          }
+        },
+        "hyperparameters": {}
+      }
+    },
+    "random_forest": {
+      "income": {
+        "mae": 17.2234,
+        "rmse": 28.7524,
+        "mape_pct": 10.9681,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          16.5251,
+          16.8198,
+          15.8852,
+          17.1965,
+          18.031,
+          18.8831
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 9.253,
+              "median": 8.062,
+              "p90": 18.6614
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 9.279,
+              "median": 8.1223,
+              "p90": 18.4086
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 9.6148,
+              "median": 8.0539,
+              "p90": 20.3023
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 9.9585,
+              "median": 8.1863,
+              "p90": 21.0635
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 10.3212,
+              "median": 8.9396,
+              "p90": 21.3753
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 11.2895,
+              "median": 10.2875,
+              "p90": 21.5244
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 9.9527,
+            "median": 8.9294,
+            "p90": 16.7628
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 10.0927,
+              "median": 9.5913,
+              "p90": 16.6071
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 9.3161,
+              "median": 8.9391,
+              "p90": 13.2709
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 9.4417,
+              "median": 7.593,
+              "p90": 16.4756
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 12.4483,
+              "median": 10.9719,
+              "p90": 16.8332
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 10.0997,
+              "median": 9.036,
+              "p90": 17.0563
+            },
+            "services": {
+              "companies": 125,
+              "mean": 10.1162,
+              "median": 9.2527,
+              "p90": 16.8481
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 8.9398,
+              "median": 7.6062,
+              "p90": 14.7007
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 10.361,
+              "median": 9.4569,
+              "p90": 17.8125
+            },
+            "large": {
+              "companies": 142,
+              "mean": 10.5601,
+              "median": 9.9172,
+              "p90": 16.5644
+            }
+          }
+        },
+        "hyperparameters": {
+          "n_estimators": 100,
+          "max_depth": 8,
+          "min_samples_leaf": 10
+        }
+      },
+      "expenses": {
+        "mae": 17.368,
+        "rmse": 29.1498,
+        "mape_pct": 11.3434,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          15.6221,
+          17.096,
+          16.9333,
+          17.4256,
+          18.4711,
+          18.6599
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 8.7925,
+              "median": 7.2839,
+              "p90": 18.0708
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 9.5217,
+              "median": 8.4002,
+              "p90": 19.0022
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 9.7915,
+              "median": 8.2511,
+              "p90": 20.0018
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 10.0957,
+              "median": 8.9947,
+              "p90": 19.7203
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 10.3877,
+              "median": 8.6314,
+              "p90": 20.6758
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 10.8259,
+              "median": 9.311,
+              "p90": 21.9724
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 9.9025,
+            "median": 8.8605,
+            "p90": 16.4506
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 9.0296,
+              "median": 8.5662,
+              "p90": 14.7552
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 9.5753,
+              "median": 8.8605,
+              "p90": 15.9894
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 9.1602,
+              "median": 8.1305,
+              "p90": 14.7979
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 10.1329,
+              "median": 9.5378,
+              "p90": 13.2769
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 10.4549,
+              "median": 9.4132,
+              "p90": 17.6327
+            },
+            "services": {
+              "companies": 125,
+              "mean": 9.8975,
+              "median": 8.702,
+              "p90": 15.1188
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 8.9172,
+              "median": 7.7065,
+              "p90": 14.4523
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 10.0405,
+              "median": 9.4851,
+              "p90": 16.0261
+            },
+            "large": {
+              "companies": 142,
+              "mean": 10.7508,
+              "median": 9.3921,
+              "p90": 18.8719
+            }
+          }
+        },
+        "hyperparameters": {
+          "n_estimators": 100,
+          "max_depth": 6,
+          "min_samples_leaf": 5
+        }
+      }
+    },
+    "mlp": {
+      "income": {
+        "mae": 49.5077,
+        "rmse": 79.9603,
+        "mape_pct": 33.8817,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          27.3789,
+          46.589,
+          38.6998,
+          24.5786,
+          51.9039,
+          107.8963
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 16.9139,
+              "median": 16.4399,
+              "p90": 29.1878
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 27.3859,
+              "median": 27.654,
+              "p90": 45.3182
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 23.5032,
+              "median": 23.2355,
+              "p90": 40.3425
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 15.1019,
+              "median": 13.839,
+              "p90": 27.7509
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 32.3708,
+              "median": 32.6639,
+              "p90": 47.5096
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 63.7003,
+              "median": 63.1066,
+              "p90": 80.9011
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 29.8293,
+            "median": 29.8548,
+            "p90": 40.8373
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 30.2651,
+              "median": 32.9916,
+              "p90": 39.5636
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 29.9523,
+              "median": 28.258,
+              "p90": 40.7912
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 29.3571,
+              "median": 30.0484,
+              "p90": 38.4139
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 33.3244,
+              "median": 33.0288,
+              "p90": 36.712
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 29.2082,
+              "median": 28.8636,
+              "p90": 40.1516
+            },
+            "services": {
+              "companies": 125,
+              "mean": 30.6588,
+              "median": 30.2695,
+              "p90": 41.3375
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 29.5858,
+              "median": 29.1986,
+              "p90": 38.9607
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 30.8256,
+              "median": 31.0126,
+              "p90": 42.0481
+            },
+            "large": {
+              "companies": 142,
+              "mean": 29.0836,
+              "median": 28.8262,
+              "p90": 40.8171
+            }
+          }
+        },
+        "hyperparameters": {
+          "hidden_layer_sizes": [
+            32,
+            16
+          ],
+          "alpha": 0.0001
+        }
+      },
+      "expenses": {
+        "mae": 41.5146,
+        "rmse": 66.4394,
+        "mape_pct": 29.593,
+        "n_points": 2550,
+        "per_horizon_mae": [
+          33.554,
+          42.9211,
+          28.1027,
+          26.8254,
+          36.7826,
+          80.9017
+        ],
+        "normalized_mae_pct": {
+          "definition": "absolute error divided by the company's mean monthly income (train months 1-24), in percent",
+          "per_horizon": [
+            {
+              "horizon": 1,
+              "companies": 425,
+              "mean": 20.4062,
+              "median": 20.0009,
+              "p90": 34.6092
+            },
+            {
+              "horizon": 2,
+              "companies": 425,
+              "mean": 25.0551,
+              "median": 25.3923,
+              "p90": 41.3593
+            },
+            {
+              "horizon": 3,
+              "companies": 425,
+              "mean": 16.9383,
+              "median": 14.9554,
+              "p90": 32.3806
+            },
+            {
+              "horizon": 4,
+              "companies": 425,
+              "mean": 16.5853,
+              "median": 15.435,
+              "p90": 30.764
+            },
+            {
+              "horizon": 5,
+              "companies": 425,
+              "mean": 22.2368,
+              "median": 21.6538,
+              "p90": 38.6463
+            },
+            {
+              "horizon": 6,
+              "companies": 425,
+              "mean": 47.5481,
+              "median": 47.045,
+              "p90": 66.4117
+            }
+          ],
+          "overall": {
+            "companies": 425,
+            "mean": 24.795,
+            "median": 24.3575,
+            "p90": 36.2299
+          },
+          "by_sector": {
+            "agriculture": {
+              "companies": 17,
+              "mean": 24.4535,
+              "median": 22.72,
+              "p90": 37.1522
+            },
+            "construction": {
+              "companies": 31,
+              "mean": 23.282,
+              "median": 20.9898,
+              "p90": 36.2808
+            },
+            "manufacturing": {
+              "companies": 86,
+              "mean": 24.9823,
+              "median": 24.6923,
+              "p90": 34.647
+            },
+            "mining": {
+              "companies": 7,
+              "mean": 25.0106,
+              "median": 25.0158,
+              "p90": 26.7065
+            },
+            "retail": {
+              "companies": 159,
+              "mean": 24.1067,
+              "median": 23.2909,
+              "p90": 35.5098
+            },
+            "services": {
+              "companies": 125,
+              "mean": 25.9511,
+              "median": 25.649,
+              "p90": 39.3669
+            }
+          },
+          "by_size_tercile": {
+            "small": {
+              "companies": 142,
+              "mean": 24.5688,
+              "median": 23.9016,
+              "p90": 35.6196
+            },
+            "medium": {
+              "companies": 141,
+              "mean": 25.2054,
+              "median": 24.8245,
+              "p90": 36.5732
+            },
+            "large": {
+              "companies": 142,
+              "mean": 24.6136,
+              "median": 24.0142,
+              "p90": 35.9796
+            }
+          }
+        },
+        "hyperparameters": {
+          "hidden_layer_sizes": [
+            32,
+            16
+          ],
+          "alpha": 0.01
+        }
+      }
+    }
+  },
+  "scores": {
+    "mean_mae": {
+      "seasonal_naive": 27.9056,
+      "linear_regression": 35.9429,
+      "random_forest": 17.2957,
+      "mlp": 45.5112
+    },
+    "exportable_mean_mae": {
+      "seasonal_naive": 27.9056,
+      "linear_regression": 35.9429,
+      "random_forest": 17.2957
+    },
+    "baseline_mean_mae": 27.9056
+  },
+  "selection": {
+    "criterion": "lowest mean of income and expenses MAE on validation months 25-30, restricted to models the backend can evaluate",
+    "recommended_model": "random_forest",
+    "beats_baseline": true,
+    "experiments_not_exportable": [
+      "mlp"
+    ]
+  }
+}
