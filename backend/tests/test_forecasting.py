@@ -312,7 +312,7 @@ def test_list_forecasts_tolerates_manual_run_without_ml_metadata(auth, app, ml_c
     assert item["trained_at"] is None
     assert item["history_months"] is None
     assert item["data_provenance"] == {}
-    assert item["method_label"] == "Promedio manual"
+    assert item["method_label"] == "Manual average"
     assert item["projected_result"] == "600.00"
 
 
