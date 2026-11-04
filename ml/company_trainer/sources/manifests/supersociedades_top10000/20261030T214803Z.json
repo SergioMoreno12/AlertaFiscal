@@ -1,0 +1,178 @@
+{
+  "manifest_version": 1,
+  "generated_at": "2026-10-30T22:11:06Z",
+  "source": {
+    "code": "supersociedades_top10000",
+    "name": "10.000 Empresas mas Grandes del País",
+    "publisher": "Superintendencia de Sociedades (Supersociedades)",
+    "dataset_id": "6cat-2gcs",
+    "source_url": "https://www.datos.gov.co/Comercio-Industria-y-Turismo/10-000-Empresas-mas-Grandes-del-Pa-s/6cat-2gcs",
+    "metadata_url": "https://www.datos.gov.co/api/views/6cat-2gcs.json",
+    "attribution": "Superintendencia de Sociedades SuperSociedades, Bogotá D.C.",
+    "attribution_url": "https://www.supersociedades.gov.co/",
+    "license": {
+      "name": "Creative Commons Attribution | Share Alike 4.0 International",
+      "license_id": "CC_40_BY_SA",
+      "terms_url": "http://creativecommons.org/licenses/by-sa/4.0/legalcode",
+      "status": "verified",
+      "evidence_path": "docs/evidence/supersociedades-license.json"
+    },
+    "cadence": "Irregular: el publicador actualiza el dataset sin calendario fijo. No se debe asumir una frecuencia mensual.",
+    "description": "Reporte de las diez mil empresas más grandes del país, todas las cifras en este reporte se muestran en Billones de Pesos. Lo invitamos a participar en la siguiente encuesta https://forms.office.com/r/QNC1FantDU"
+  },
+  "version": {
+    "version_label": "20261030T214803Z",
+    "identity_sha256": "5162638b205f752277cdc6c5965bf6d5169dc932d332288a188f95fbb59b017f",
+    "acquired_at": "2026-10-30T21:48:03Z",
+    "cutoff_date": "2025-12-31",
+    "period_start": "2021-01-01",
+    "period_end": "2025-12-31",
+    "is_partial": false,
+    "is_preliminary": false,
+    "status": "succeeded",
+    "source_updated_at": "2026-09-16T20:29:04Z",
+    "row_count": 50000,
+    "column_count": 14,
+    "columns": [
+      "nit",
+      "raz_n_social",
+      "supervisor",
+      "regi_n",
+      "departamento_domicilio",
+      "ciudad_domicilio",
+      "ciiu",
+      "macrosector",
+      "ingresos_operacionales",
+      "ganancia_p_rdida",
+      "total_activos",
+      "total_pasivos",
+      "total_patrimonio",
+      "a_o_de_corte"
+    ],
+    "file": {
+      "path": "ml/data/raw/supersociedades_10000_empresas.csv",
+      "file_name": "supersociedades_10000_empresas.csv",
+      "bytes": 9100868,
+      "sha256": "5162638b205f752277cdc6c5965bf6d5169dc932d332288a188f95fbb59b017f"
+    },
+    "integrity": {
+      "method": "count + paginación estable",
+      "endpoint": "https://www.datos.gov.co/resource/6cat-2gcs.json",
+      "order": "nit,a_o_de_corte,raz_n_social",
+      "page_size": 5000,
+      "api_count": 50000,
+      "local_rows": 50000,
+      "downloaded_rows": 50000,
+      "pages": 10,
+      "duplicate_keys_in_pagination": 0,
+      "local_keys_sha256": "366645ff4b4690747077a547425b0783bf633149be751ef501874a65037e1b94",
+      "remote_keys_sha256": "366645ff4b4690747077a547425b0783bf633149be751ef501874a65037e1b94",
+      "keys_match": true,
+      "page_evidence": [
+        {
+          "offset": 0,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "800000118|2021|EMPRESA SOCIAL DEL ESTADO HOSPITAL DEPARTAMENTAL UNIVERSITARIO DEL QUINDIO SAN JUAN DE DIOS|0.21",
+          "last_key": "800208449|2025|GALCO S.A.S.|0.02",
+          "sha256": "613505111eb1fd090c23c52939c71f75ff189e8c1497016711203626d139aae6"
+        },
+        {
+          "offset": 5000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "800208590|2021|UMBRAL PROPIEDAD RAIZ S.A.S.|0.21",
+          "last_key": "811030191|2025|EQUITRONIC S.A.|0.07",
+          "sha256": "1b71861a69082c0770fbb41aaba7319b8b0f9a9258b55cf4391ba5eefceaa8a6"
+        },
+        {
+          "offset": 10000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "811030294|2021|FERRETERIA DISTRIVALVULAS S.A.S.|0.01",
+          "last_key": "830078644|2024|OBEN DISTRIBUIDORA COLOMBIA LIMITADA.|0.15",
+          "sha256": "d875c77f1f0f528198d4f27ebf853adc08af4750c0e3a03529450e5c41a5bf96"
+        },
+        {
+          "offset": 15000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "830078644|2025|OBEN DISTRIBUIDORA COLOMBIA LIMITADA.|0.14",
+          "last_key": "860042985|2024|COHA S.A.S.|0.03",
+          "sha256": "37f2b181a7fe498a5ee537ade68e0b6169b175e5822d3542efa4f73488ab808e"
+        },
+        {
+          "offset": 20000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "860043044|2021|PENGUIN RANDOM HOUSE GRUPO EDITORIAL S.A.S.|0.04",
+          "last_key": "890806999|2024|ARMETALES S.A.S.|0.08",
+          "sha256": "6eacbeffe5434bb1eef606040a2b212c3cefe3a3d31b9154cb5675f922ffad81"
+        },
+        {
+          "offset": 25000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "890806999|2025|ARMETALES S.A.S.|0.09",
+          "last_key": "900088915|2024|EMPRESA AEREA DE SERVICIOS Y FACILITACION LOGISTICA INTEGRAL S.A.|0.65",
+          "sha256": "0216ea1451714e823c82c2a0ff00783f039594e7f38404801e5d39962f4ede77"
+        },
+        {
+          "offset": 30000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "900088915|2025|EMPRESA AEREA DE SERVICIOS Y FACILITACION LOGISTICA INTEGRAL S.A.|0.68",
+          "last_key": "900322290|2021|COOPER INDUSTRIES COLOMBIA S.A.S.|0.04",
+          "sha256": "d56c9b7c2d2ff624ae50ebb5a8adaa2ce403e7d3de2812f63575e53ea82720d3"
+        },
+        {
+          "offset": 35000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "900322290|2022|COOPER INDUSTRIES COLOMBIA S.A.S.|0.04",
+          "last_key": "900535212|2021|AUTOPISTA SUR S.A.|0.00",
+          "sha256": "fcbd8abc5d21ed6a5753340487f83123bf6411b5d44352ab295407679f258f5f"
+        },
+        {
+          "offset": 40000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "900535212|2022|AUTOPISTA SUR S.A.|0.00",
+          "last_key": "900958287|2022|AXE INTERNATIONAL SUCURSAL COLOMBIA|0.01",
+          "sha256": "8dd23e70297b91d94d82ef9e7a859162a8d6ce204330e17d4adf2a6618a3fdce"
+        },
+        {
+          "offset": 45000,
+          "limit": 5000,
+          "returned": 5000,
+          "first_key": "900958564|2021|SUBRED INTEGRADA DE SERVICIOS DE SALUD SUR E.S.E.|0.72",
+          "last_key": "901966600|2025|ATERA COLOMBIA S.A.S.|0.47",
+          "sha256": "68d395a7d6d7b865b678ca59f96c8d0db1aa30af83937e293f53f5d2c9a3ea35"
+        }
+      ]
+    },
+    "processed": [
+      {
+        "table": "sector_benchmarks",
+        "path": "ml/data/processed/supersociedades_top10000/20261030T214803Z/sector_benchmarks.csv",
+        "file_name": "sector_benchmarks.csv",
+        "bytes": 29046,
+        "sha256": "6e33d3ad4ff605b33e2fba77ec8d56dec2ba7a6925be7010cf6c8a1f251c15ee",
+        "rows": 175
+      },
+      {
+        "table": "quality",
+        "path": "ml/data/processed/supersociedades_top10000/20261030T214803Z/quality.json",
+        "file_name": "quality.json",
+        "bytes": 1011,
+        "sha256": "687d6b076df40857f8196d6a67677b458c11fa8c72e33abf86cf1ac8754cfd2b"
+      }
+    ],
+    "notes": [
+      "Cifras publicadas en billones de pesos (10^12 COP), no en miles de millones.",
+      "El dataset cubre las 10.000 empresas más grandes; no es representativo del universo empresarial.",
+      "Los datos se usan solo como contexto agregado; no se unen por NIT con el ERP."
+    ],
+    "processed_at": "2026-10-30T22:11:10Z"
+  }
+}
