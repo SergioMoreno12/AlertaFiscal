@@ -1950,12 +1950,14 @@ const ProyeccionesScreen = ({
               {[
                 { label: "Method (income)", value: models.income?.label ?? result.method_label ?? "—" },
                 { label: "Method (expenses)", value: models.expenses?.label ?? "—" },
+                { label: "Model", value: result.scope === "global" ? "Global model (425 companies, evaluated in Phase 4)" : result.scope === "company" ? "This company's own model" : "—" },
                 { label: "Model version", value: result.model_version ?? "no version" },
+                { label: "Artifact SHA-256", value: result.artifact_sha256 ? `${result.artifact_sha256.slice(0, 12)}…` : "—" },
                 { label: "Trained", value: fmtDate(result.trained_at) },
                 { label: "History cutoff", value: fmtDate(result.cutoff_date) },
                 { label: "Months of history", value: String(result.history_months ?? "—") },
                 { label: "Horizon", value: `${months} months` },
-                { label: "Evaluation", value: result.assumptions?.evaluation?.method === "temporal_holdout" ? `Time-based validation for selection (${result.assumptions.evaluation.test_months ?? "—"} months); one-month error with real lags. The full recursive horizon is not evaluated` : "Not declared" },
+                { label: "Evaluation", value: result.scope === "global" ? "Evaluated once on test and holdout companies: accepted (docs/04_evaluation_report.md)" : result.assumptions?.evaluation?.method === "temporal_holdout" ? `Time-based validation for selection (${result.assumptions.evaluation.test_months ?? "—"} months); one-month error with real lags. The full recursive horizon is not evaluated` : "Not declared" },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                   <span style={{ fontSize: 12, color: "#78909C" }}>{item.label}</span>
@@ -1969,11 +1971,19 @@ const ProyeccionesScreen = ({
           </div>
 
           <Card style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>Model metrics (time-based validation)</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>{result.scope === "global" ? "Model evaluation" : "Model metrics (time-based validation)"}</div>
             <div style={{ fontSize: 12, color: "#78909C", marginBottom: 16 }}>
-              One-month error on the months used for selection (real lags). The full recursive horizon is not evaluated. Lower MAE is better. These are not probabilities or promises of savings.
+              {result.scope === "global" ? "Six-month recursive forecasts, as the app makes them." : "One-month error on the months used for selection (real lags). The full recursive horizon is not evaluated. Lower MAE is better."} These are not probabilities or promises of savings.
             </div>
-            {Object.entries(models).map(([target, info]) => (
+            {result.scope === "global" && (
+              <div style={{ fontSize: 12, color: "#37474F", lineHeight: 1.7, marginBottom: 8 }}>
+                The global model was evaluated once on data nobody used to train or choose it (Phase 4, verdict: accepted).
+                Typical error, as a share of a company's monthly income: income 10.2 % and expenses 10.7 % on the temporal test,
+                income 12.3 % and expenses 11.8 % on companies never seen in training. The seasonal naive baseline scored 15–17 %.
+                The figures come from a semi-synthetic dataset, so they describe the method, not this company.
+              </div>
+            )}
+            {result.scope !== "global" && Object.entries(models).map(([target, info]) => (
               <div key={target} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#37474F" }}>
                   {target === "income" ? "Income" : "Expenses"} · selected model: {info.label}
@@ -1990,7 +2000,7 @@ const ProyeccionesScreen = ({
                 </div>
               </div>
             ))}
-            {Object.keys(models).length === 0 && (
+            {result.scope !== "global" && Object.keys(models).length === 0 && (
               <div style={{ fontSize: 12, color: "#78909C" }}>The run declares no metrics.</div>
             )}
           </Card>
