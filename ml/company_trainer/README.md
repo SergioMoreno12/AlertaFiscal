@@ -1,72 +1,67 @@
-# Módulo de Machine Learning (offline)
+# Per-company trainer (offline, from the ERP)
 
-Este directorio es **independiente del servidor web**. El backend Flask no importa
-scikit-learn ni ejecuta entrenamientos durante una petición. La app funciona sin este
-módulo: la planificación manual es el modo por defecto.
+This folder is **independent of the web server**. The Flask backend never imports scikit-learn or trains during a request. The app works without this module: the global model of Phase 3 (`backend/model_artifacts/model_global.json`) is the default, and manual planning is always available.
 
-## Qué hace
+A company artifact produced here takes priority over the global model for that company.
+
+## What it does
 
 `train.py`:
 
-1. Lee ingresos y gastos de la base de AlertaFiscal (PostgreSQL o SQLite de desarrollo).
-2. Los agrega por mes y empresa, rellenando meses sin movimientos con cero.
-3. Construye características: tendencia, tres rezagos y estacionalidad (seno/coseno del mes).
-4. Evalúa con una **partición temporal** (los últimos meses son prueba, nunca aleatoria):
-   - `seasonal_naive` (línea base: valor del mes anterior),
-   - regresión lineal,
-   - Random Forest.
-5. Reporta MAE, RMSE y MAPE por modelo y elige el de menor MAE.
-6. Reentrena el mejor modelo con toda la serie y proyecta `--horizon` meses de forma
-   recursiva.
-7. Guarda artefactos en `ml/artifacts/` (ignorado por git).
+1. Reads income and expenses from the AlertaFiscal database (PostgreSQL, or SQLite for development).
+2. Groups them by month and company, filling months without movements with zero.
+3. Builds features: trend, three lags and seasonality (sine/cosine of the month).
+4. Evaluates with a **time-based split** (the last months are the test set, never random):
+   - `seasonal_naive` (baseline: value of the same month a year earlier, or the previous month),
+   - linear regression,
+   - random forest.
+5. Reports MAE, RMSE and MAPE per model and picks the one with the lowest MAE.
+6. Retrains the best model on the whole series and forecasts `--horizon` months recursively.
+7. Saves the artifacts in `ml/artifacts/` (ignored by git).
 
-## Instalación
+## Installation
 
 ```powershell
-# Desde la raíz del repositorio
+# From the repository root
 python -m venv ml/company_trainer/.venv
 ml\company_trainer\.venv\Scripts\Activate.ps1
 pip install -r ml/company_trainer/requirements.txt
 ```
 
-Python 3.11+ recomendado. El script usa las mismas variables de entorno que el backend
-(`DATABASE_URL`, leída también desde `backend/.env`).
+Python 3.11+ recommended. The script uses the same environment variables as the backend (`DATABASE_URL`, also read from `backend/.env`).
 
-## Uso
+## Usage
 
 ```powershell
-# Usa DATABASE_URL de backend/.env (PostgreSQL)
+# Uses DATABASE_URL from backend/.env (PostgreSQL)
 python ml/company_trainer/train.py
 
-# Demo explícita con backend/instance/dev.db (sin DATABASE_URL)
+# Explicit demo with backend/instance/dev.db (no DATABASE_URL)
 $env:DB_MODE = "sqlite"
 python ml/company_trainer/train.py
 
-# Empresa concreta y horizonte de 6 meses
+# One company and a 6-month horizon
 python ml/company_trainer/train.py --company-id 1 --horizon 6
 
-# Contra PostgreSQL
-python ml/company_trainer/train.py --database-url "postgresql+psycopg://usuario:clave@host:5432/alertafiscal"
+# Against PostgreSQL
+python ml/company_trainer/train.py --database-url "postgresql+psycopg://user:password@host:5432/alertafiscal"
 
-# Salida personalizada
+# Custom output folder
 python ml/company_trainer/train.py --out ml/artifacts
 ```
 
-Mínimo por defecto: 12 meses por empresa (`--min-months`). La semilla de demostración crea
-18 meses, suficiente para entrenar y evaluar. Si no hay historial, el script lo dice y no
-inventa datos.
+Default minimum: 12 months per company (`--min-months`). The demo seed creates 18 months, enough to train and evaluate. If there is no history, the script says so and makes up no data.
 
-## Artefactos
+## Artifacts
 
 ```
 ml/artifacts/
-├── metrics.json                          # métricas, proyecciones y metadatos
-├── dataset_company1.csv                  # serie mensual usada
-├── model_company1_income.joblib
-└── model_company1_expenses.joblib
+├── metrics.json                 # metrics, forecasts and metadata
+├── dataset_company1.csv         # monthly series used
+└── model_company1.json          # interpretable JSON artifact read by the backend
 ```
 
-Ejemplo de `metrics.json`:
+Example of `metrics.json`:
 
 ```json
 {
@@ -89,19 +84,16 @@ Ejemplo de `metrics.json`:
       }
     }
   ],
-  "disclaimer": "Proyecciones orientativas..."
+  "disclaimer": "Planning forecasts for guidance only..."
 }
 ```
 
-Los valores del ejemplo son ilustrativos; ejecuta el script para obtener los reales.
+The values in the example are illustrative; run the script to get the real ones.
 
-## Límites y uso responsable
+## Limits and responsible use
 
-- Con 18 meses de datos sintéticos, las métricas miden el pipeline, **no** la capacidad
-  predictiva sobre una empresa real.
-- El MAPE es inestable cuando hay meses en cero; se reporta `null` si no hay valores
-  distintos de cero.
-- La proyección es recursiva: los errores se acumulan con el horizonte.
-- **No** es una liquidación oficial de impuestos ni reemplaza al contador. El backend
-  muestra siempre el aviso de estimación.
-- No se guardan datos personales en los artefactos: solo series agregadas por empresa.
+- With 18 months of synthetic data, the metrics measure the pipeline, **not** the predictive power on a real company.
+- MAPE is unstable when there are zero months; it is reported as `null` if there are no non-zero values.
+- The forecast is recursive: errors add up over the horizon.
+- It is **not** an official tax assessment and does not replace the accountant. The backend always shows the estimate notice.
+- No personal data is stored in the artifacts: only aggregated series per company.

@@ -1,188 +1,151 @@
-# Arquitectura de AlertaFiscal
+# AlertaFiscal Architecture
 
-## Visión general
+## Overview
 
-AlertaFiscal es un monorepo con tres piezas desplegables de forma independiente:
+AlertaFiscal is a monorepo with three pieces that deploy independently:
 
 ```
-frontend/  React 18 + TypeScript + Vite  → Static Site (Render)
-backend/   Flask + Blueprints + SQLAlchemy → Web Service (Render)
-ml/        Entrenamiento/evaluación offline → se ejecuta aparte, no en el servidor web
+frontend/  React 18 + TypeScript + Vite      → Static Site (Render)
+backend/   Flask + Blueprints + SQLAlchemy   → Web Service (Render)
+ml/        Offline training and evaluation   → runs separately, never on the web server
 ```
 
-La base de datos es PostgreSQL. En local corre en Docker; en la nube se aloja en
-Supabase. El navegador **nunca** habla directamente con la base de datos: solo consume la
-API REST versionada en `/api/v1`.
+The database is PostgreSQL. Locally it runs in Docker; in the cloud it is hosted on Supabase. The browser **never** talks to the database directly: it only uses the versioned REST API under `/api/v1`.
 
 ```
 LOCAL
-Navegador ──HTTP──> Vite :5173 ──proxy /api,/health──> Flask :5000 ──psycopg──> PostgreSQL :5433 (Docker)
+Browser ──HTTP──> Vite :5173 ──proxy /api,/health──> Flask :5000 ──psycopg──> PostgreSQL :5433 (Docker)
 
-NUBE
-Navegador ──HTTPS──> Render Static Site ──HTTPS/fetch──> Render Web Service (Flask/Gunicorn)
-                                                              └──TLS──> Supabase PostgreSQL
+CLOUD
+Browser ──HTTPS──> Render Static Site ──HTTPS/fetch──> Render Web Service (Flask/Gunicorn)
+                                                            └──TLS──> Supabase PostgreSQL
 ```
 
-Supabase se usa **solo como proveedor de PostgreSQL**. No se usa Supabase Auth, ni el SDK
-de Supabase, ni la Data API, ni claves `anon`/`service_role` en el frontend. Flask sigue
-siendo el único intermediario de datos del ERP.
+Supabase is used **only as a PostgreSQL provider**. Supabase Auth, the Supabase SDK, the Data API and the `anon`/`service_role` keys are not used in the frontend. Flask is the only intermediary for ERP data.
 
-## Backend: monolito modular
+## Backend: modular monolith
 
 ```
 backend/
-├── wsgi.py                  # punto de entrada (gunicorn / flask run)
+├── wsgi.py                  # entry point (gunicorn / flask run)
 ├── app/
 │   ├── __init__.py          # application factory, hooks, CLI
-│   ├── config.py            # modos de BD, guards de producción, pool
+│   ├── config.py            # database modes, production guards, pool
+│   ├── db_schema.py         # DB_SCHEMA applied per pooled connection
 │   ├── extensions.py        # db (SQLAlchemy), migrate (Alembic)
-│   ├── models.py            # esquema completo (multiempresa)
-│   ├── security.py          # Argon2id, sesiones revocables, CSRF
-│   ├── seed.py              # datos de demostración idempotentes
+│   ├── models.py            # full schema (multi-company)
+│   ├── security.py          # Argon2id, revocable sessions, CSRF
+│   ├── seed.py              # idempotent demo data
 │   ├── common/
-│   │   ├── http.py          # autorización por empresa, paginación, auditoría
-│   │   └── health.py        # /health/live y /health/ready
+│   │   ├── http.py          # per-company authorization, pagination, audit
+│   │   └── health.py        # /health/live and /health/ready
 │   └── modules/
-│       ├── auth/            # login, logout, /me, sesiones
-│       ├── companies/       # empresas visibles para el usuario
-│       ├── dashboard/       # agregados del período
-│       ├── movements/       # ingresos, gastos, cobros, pagos, terceros
-│       ├── planning/        # parámetros, planes versionados, reservas, proyecciones
-│       ├── tracking/        # obligaciones tributarias y auditoría
-│       └── alerts/          # alertas y comentarios
-├── migrations/              # Alembic (una migración inicial)
-└── tests/                   # unitarias SQLite + integración PostgreSQL
+│       ├── auth/            # login, logout, /me, sessions
+│       ├── companies/       # companies visible to the user
+│       ├── dashboard/       # period aggregates
+│       ├── movements/       # income, expenses, receipts, payments, counterparties
+│       ├── planning/        # parameters, versioned plans, reserves, forecasts
+│       ├── tracking/        # tax obligations and audit
+│       ├── alerts/          # alerts and comments
+│       └── context/         # read-only external context (DIAN, Supersociedades)
+├── migrations/              # Alembic
+└── tests/                   # SQLite unit tests + PostgreSQL integration
 ```
 
-Cada módulo es un Blueprint con su propio `url_prefix`. No hay lógica de negocio en el
-frontend que sea fuente de verdad: permisos, aislamiento por empresa, estados y montos se
-validan en el servidor.
+Each module is a Blueprint with its own `url_prefix`. No business logic in the frontend is a source of truth: permissions, per-company isolation, statuses and amounts are validated on the server.
 
 ### Application factory
 
-`create_app()` en `app/__init__.py`:
+`create_app()` in `app/__init__.py`:
 
-1. Carga configuración (`Config`); `config.py` lee `backend/.env` **antes** de evaluar
-   sus atributos.
-2. Inicializa `db` y `migrate`.
-3. Registra Blueprints.
-4. Registra hooks: `X-Request-ID`, resolución de sesión, validación CSRF, cabeceras CORS,
-   cabeceras de seguridad y commit/rollback por petición.
-5. Registra manejadores de error uniformes (`{"error": {...}}`).
-6. Registra comandos CLI: `flask seed-demo --yes`, `flask create-admin`.
+1. Loads the configuration (`Config`); `config.py` reads `backend/.env` **before** its attributes are evaluated.
+2. Initializes `db` and `migrate`.
+3. Registers the Blueprints.
+4. Registers hooks: `X-Request-ID`, session resolution, CSRF validation, CORS headers, security headers and commit/rollback per request.
+5. Registers uniform error handlers (`{"error": {...}}`).
+6. Registers CLI commands: `flask seed-demo --yes`, `flask create-admin`, `flask context-load`.
 
-### Modos de base de datos
+### Database modes
 
-No hay fallback silencioso a SQLite.
+There is no silent fallback to SQLite.
 
-| Situación | Resultado |
+| Situation | Result |
 |---|---|
-| `DATABASE_URL=postgresql+psycopg://...` | PostgreSQL; modo normal |
-| Sin `DATABASE_URL` y sin `DB_MODE` | Error de arranque con instrucciones |
-| Sin `DATABASE_URL` y `DB_MODE=sqlite` | SQLite demo en `backend/instance/dev.db` |
-| `DATABASE_URL` sqlite sin `DB_MODE=sqlite` | Error de arranque |
-| `APP_ENV=production` + SQLite o sin URL | Error de arranque |
-| `APP_ENV=production` + `SECRET_KEY` débil | Error de arranque |
+| `DATABASE_URL=postgresql+psycopg://...` | PostgreSQL; normal mode |
+| No `DATABASE_URL` and no `DB_MODE` | Startup error with instructions |
+| No `DATABASE_URL` and `DB_MODE=sqlite` | SQLite demo in `backend/instance/dev.db` |
+| SQLite `DATABASE_URL` without `DB_MODE=sqlite` | Startup error |
+| `APP_ENV=production` + SQLite or no URL | Startup error |
+| `APP_ENV=production` + weak `SECRET_KEY` | Startup error |
 
-`/health/ready` expone el motor real (`postgresql` o `sqlite-dev`) y `demo`. `demo: true`
-significa que SQLite fue habilitado explícitamente con `DB_MODE=sqlite`; **no** indica un
-fallback automático.
+`/health/ready` shows the real engine (`postgresql` or `sqlite-dev`) and `demo`. `demo: true` means SQLite was enabled explicitly with `DB_MODE=sqlite`; it does **not** mean an automatic fallback.
 
-### Pool de conexiones
+### Connection pool
 
-En PostgreSQL:
+On PostgreSQL:
 
 - `pool_pre_ping=True`;
-- `DB_POOL_SIZE` (5 por defecto), `DB_MAX_OVERFLOW` (5), `pool_timeout` (15 s) y
-  `pool_recycle` (1800 s);
-- `connect_timeout` configurable (5 s);
-- TLS opcional con `DB_SSLMODE` y `DB_SSLROOTCERT` (local no lo exige);
-- `DB_SCHEMA` opcional para un esquema dedicado (debe existir antes de migrar).
+- `DB_POOL_SIZE` (default 5), `DB_MAX_OVERFLOW` (5), `pool_timeout` (15 s) and `pool_recycle` (1800 s);
+- configurable `connect_timeout` (5 s);
+- optional TLS with `DB_SSLMODE` and `DB_SSLROOTCERT` (not required locally);
+- optional `DB_SCHEMA` for a dedicated schema. It is applied with `SET search_path` on every physical connection, because the Supabase session pooler ignores the startup `options` parameter. The schema must exist and the role must have `USAGE` on it; otherwise the backend fails instead of falling back to `public`.
 
-Con un worker de Gunicorn el máximo teórico es `pool_size + max_overflow` (10). Ese valor
-debe caber en el límite de conexiones del proyecto Supabase, restando las conexiones que
-consumen los servicios del proveedor. No se aumenta a ciegas.
+With one Gunicorn worker the theoretical maximum is `pool_size + max_overflow` (10). That value must fit in the connection limit of the Supabase project, after subtracting the connections used by the provider's own services. It is never increased blindly.
 
-### Multiempresa
+### Multi-company
 
-Toda entidad de negocio lleva `company_id`. El helper `authorized_company(company_id)`
-comprueba, en este orden:
+Every business entity has `company_id`. The helper `authorized_company(company_id)` checks, in this order:
 
-1. La empresa existe y está activa.
-2. El usuario autenticado tiene una membresía activa.
-3. Si la operación exige rol mínimo (`auxiliar < contador < admin`), lo valida.
+1. The company exists and is active.
+2. The authenticated user has an active membership.
+3. If the operation needs a minimum role (`auxiliar < contador < admin`), it checks it.
 
-Si algo falla, responde `403` genérico. No se revela si la empresa existe. Las pruebas de
-`tests/test_isolation.py` y `tests/test_postgres_integration.py` cubren el acceso cruzado.
+If anything fails, it answers a generic `403`. It does not reveal whether the company exists. The tests in `tests/test_isolation.py` and `tests/test_postgres_integration.py` cover cross-company access.
 
-### Dinero
+### Money
 
-Los importes se guardan como `Numeric(18, 2)` y viajan en la API como **cadenas**
-(`"1190000.00"`) para no perder precisión con `float`. El frontend solo formatea. En
-PostgreSQL la prueba de integración verifica que el valor sigue siendo `numeric` y se lee
-como `Decimal`.
+Amounts are stored as `Numeric(18, 2)` and travel in the API as **strings** (`"1190000.00"`) so no precision is lost with `float`. The frontend only formats them. On PostgreSQL the integration test checks that the value is still `numeric` and is read as `Decimal`.
 
-### Planes versionados
+### Versioned plans
 
-`FiscalPlan` tiene versiones inmutables (`FiscalPlanVersion`). Crear una versión nueva no
-sobrescribe las anteriores; marcar una versión como `reviewed` impide volver a revisarla
-(`409`). Esto materializa el requisito de trazabilidad contable.
+`FiscalPlan` has immutable versions (`FiscalPlanVersion`). Creating a new version does not overwrite the previous ones; marking a version as `reviewed` prevents reviewing it again (`409`). This implements the accounting traceability requirement.
 
-### Proyecciones
+### Forecasts
 
-La planificación manual funciona sin ningún modelo. `POST /forecasts` calcula un promedio
-simple del historial (mínimo 3 meses con registros) y devuelve `available: false` con el
-motivo si no hay datos suficientes. La respuesta siempre incluye un `disclaimer`: es una
-estimación de planificación, **no** una liquidación oficial de la DIAN.
+Manual planning works without any model. `POST /forecasts` computes a simple average of the history (at least 3 months with records) and returns `available: false` with the reason if there is not enough data. The answer always includes a `disclaimer`: it is a planning estimate, **not** an official DIAN assessment.
 
-El entrenamiento de modelos vive en `ml/` y es un proceso offline. El backend no importa
-scikit-learn ni carga modelos al arrancar.
+`POST /forecasts/model` runs a model artifact (JSON) on the company's monthly history in pure Python. The backend never imports scikit-learn and never trains. Training lives in `ml/` and is an offline process.
 
 ## Frontend
 
 - React 18 + TypeScript + Vite 6.
-- Estado de navegación local (sin router): `Screen` en `App.tsx`.
-- Cliente HTTP centralizado en `src/api/client.ts`:
-  - `credentials: "include"` (cookie de sesión),
-  - token CSRF en memoria (nunca en `localStorage`),
-  - timeout, `AbortController` y errores tipados (`ApiError`).
-- La UI del prototipo se conserva; las pantallas principales leen datos reales de la API
-  cuando hay sesión y usan datos de ejemplo solo en el modo "demo visual" explícito.
-- El estado de la API/base de datos se muestra en el login, la barra superior y el menú
-  lateral (`/health/live` y `/health/ready`).
+- Local navigation state (no router): `Screen` in `App.tsx`.
+- Central HTTP client in `src/api/client.ts`:
+  - `credentials: "include"` (session cookie),
+  - CSRF token in memory (never in `localStorage`),
+  - timeout, `AbortController` and typed errors (`ApiError`).
+- The main screens read real data from the API when there is a session, and use sample data only in the explicit "visual demo" mode.
+- The API and database status is shown on the login screen, the top bar and the side menu (`/health/live` and `/health/ready`).
+- The interface is in English (locale `en-US`, currency COP). Stored codes such as priorities (`alta`, `media`, `baja`) and origins keep their original values and are translated only for display.
 
 ## ML (offline)
 
-`ml/train.py` agrega ingresos y gastos mensuales por empresa, entrena modelos de regresión
-(media móvil/lineal y Random Forest), evalúa con partición temporal y guarda métricas y
-artefactos en `ml/artifacts/` (ignorado por git). No se ejecuta en Render ni en el request
-del usuario.
+- `ml/src/` trains, selects and evaluates the **global model** used by default (Phases 2–4 of the course project).
+- `ml/company_trainer/train.py` (from the ERP) groups a company's monthly income and expenses, trains regression models (moving average/linear and random forest), evaluates them with a time-based split and stores metrics and artifacts in `ml/artifacts/` (ignored by git). It never runs on Render or inside a user request.
 
-## Pruebas
+## Tests
 
-- `backend/tests/conftest.py` usa por defecto SQLite temporal **explícito** para pruebas
-  unitarias/API.
-- Si existe `TEST_DATABASE_URL`, todas las pruebas de esa ejecución usan PostgreSQL y el
-  esquema se recrea con las migraciones de Alembic. El fixture exige que el nombre de la
-  base termine en `_test` o empiece por `test_`; así se impide una limpieza accidental de
-  la base demo.
-- `backend/tests/test_postgres_integration.py` valida migraciones, `Numeric`/`Decimal`,
-  fechas de calendario, claves foráneas, unicidad, roles, sesiones, CSRF, aislamiento
-  multiempresa, planes, reservas, alertas, comentarios y obligaciones.
-- No se sustituye PostgreSQL por SQLite cuando falta `TEST_DATABASE_URL`: las pruebas de
-  integración se **saltan** y se informa el motivo.
+- `backend/tests/conftest.py` uses an **explicit** temporary SQLite database by default for unit and API tests.
+- If `TEST_DATABASE_URL` is set, every test of that run uses PostgreSQL and the schema is recreated with the Alembic migrations. The fixture requires the database name to end in `_test` or start with `test_` and the host to be `localhost`, and it never reads `backend/.env`; this prevents an accidental wipe of the demo or Supabase database.
+- `backend/tests/test_postgres_integration.py` validates migrations, `Numeric`/`Decimal`, calendar dates, foreign keys, uniqueness, roles, sessions, CSRF, multi-company isolation, plans, reserves, alerts, comments and obligations.
+- PostgreSQL is never replaced by SQLite when `TEST_DATABASE_URL` is missing: the integration tests are **skipped** and the reason is reported.
+- CI (`.github/workflows/ci.yml`) runs the whole suite against a PostgreSQL 16 service, then the migrations, the idempotent seed, a health check and the frontend build.
 
-## Decisiones y límites conocidos
+## Decisions and known limits
 
-- **PostgreSQL es el objetivo**; SQLite solo se habilita con `DB_MODE=sqlite` para demo o
-  pruebas y está prohibido en producción.
-- **Supabase = solo PostgreSQL**. La Data API se desactiva; no se usan claves de Supabase
-  en el navegador. Ver `docs/security.md`.
-- **Sin facturación electrónica**: los documentos son registros internos, no documentos
-  tributarios certificados.
-- **Sin integración DIAN**: las fechas y valores son responsabilidad del contador.
-- **Rate limiting en memoria**: válido para una réplica; con varias réplicas debe moverse a
-  Redis (ver `docs/security.md`).
-- **Esquema dedicado opcional**: `DB_SCHEMA` permite migrar a un esquema no expuesto por la
-  Data API, pero requiere crear el esquema y los privilegios antes de migrar. La validación
-  local documentada usa `public` con la Data API desactivada.
+- **PostgreSQL is the target**; SQLite is enabled only with `DB_MODE=sqlite` for demos or tests and is forbidden in production.
+- **Supabase = PostgreSQL only**. The Data API is disabled; no Supabase key is used in the browser. See `docs/erp/security.md`.
+- **No electronic invoicing**: documents are internal records, not certified tax documents.
+- **No DIAN integration**: dates and amounts are the accountant's responsibility.
+- **In-memory rate limiting**: valid for one replica; with several replicas it must move to Redis (see `docs/erp/security.md`).
+- **Optional dedicated schema**: `DB_SCHEMA` allows migrating to a schema not exposed by the Data API, but the schema and its privileges must be created before migrating.

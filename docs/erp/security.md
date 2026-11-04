@@ -1,148 +1,102 @@
-# Seguridad
+# Security
 
-## Modelo de amenazas (alcance académico)
+## Threat model (academic scope)
 
-Activos: credenciales, sesiones, datos financieros por empresa y planes fiscales.
-Adversarios considerados: usuario autenticado de otra empresa, atacante en red (MITM),
-sitio externo que intenta CSRF, cliente que manipula IDs en la API y exposición accidental
-de la base de datos por servicios del proveedor.
+Assets: credentials, sessions, per-company financial data and tax plans. Adversaries considered: an authenticated user of another company, a network attacker (MITM), an external site attempting CSRF, a client tampering with IDs in the API, and accidental exposure of the database through the provider's services.
 
-Fuera de alcance: auditoría formal, pentest, cumplimiento PCI, integración DIAN.
+Out of scope: formal audit, pentest, PCI compliance, DIAN integration.
 
-## Autenticación
+## Authentication
 
-- Contraseñas con **Argon2id** (`argon2-cffi`), parámetros: `time_cost=2`,
-  `memory_cost=65536` (64 MiB), `parallelism=2`. Si `argon2-cffi` no está instalado,
-  el sistema cae a `scrypt` de Werkzeug y lo registra vía `PASSWORD_SCHEME`.
-- El login devuelve el mismo mensaje (`Credenciales inválidas`) exista o no el correo.
-- Límite de intentos: 10 por ventana de 15 minutos por IP + correo (`429`).
-  **Limitación**: el contador vive en memoria del proceso. Con varias réplicas o reinicios
-  se reinicia; para producción real debe moverse a Redis o a la base de datos.
-- No hay autorregistro: los usuarios se crean con `flask create-admin` o por un admin.
+- Passwords with **Argon2id** (`argon2-cffi`), parameters `time_cost=2`, `memory_cost=65536` (64 MiB), `parallelism=2`. If `argon2-cffi` is not installed, the system falls back to Werkzeug's `scrypt` and records it in `PASSWORD_SCHEME`.
+- Sign-in returns the same message (`Invalid credentials`) whether or not the email exists.
+- Attempt limit: 10 per 15-minute window per IP + email (`429`). **Limitation:** the counter lives in the process memory. With several replicas or restarts it resets; for real production it must move to Redis or the database.
+- There is no self-registration: users are created with `flask create-admin` or by an admin.
 
-## Sesiones
+## Sessions
 
-- Cookie de sesión **HttpOnly**, `Secure` en producción, `SameSite` configurable
-  (`Lax` en local, `None` para frontend y API en dominios distintos).
-- El token de sesión es aleatorio (`secrets.token_urlsafe(32)`) y se guarda **hasheado**
-  (SHA-256) en la tabla `sessions`; la base de datos no permite reutilizar un token robado
-  desde un dump.
-- Expiración por inactividad (`SESSION_IDLE_MINUTES`, 120 por defecto) y absoluta
-  (`SESSION_ABSOLUTE_HOURS`, 12 por defecto).
-- El login rota la sesión: cualquier sesión previa asociada a la cookie se revoca.
-- El usuario puede listar y revocar sus sesiones (`/api/v1/auth/sessions`).
-- El estado de autenticación **no** se guarda en `localStorage` ni en `sessionStorage`.
-- `SECRET_KEY` es obligatoria en producción, con al menos 32 caracteres y sin valores de
-  ejemplo. El backend se niega a arrancar si falta o es débil.
+- **HttpOnly** session cookie, `Secure` in production, configurable `SameSite` (`Lax` locally, `None` for frontend and API on different domains).
+- The session token is random (`secrets.token_urlsafe(32)`) and stored **hashed** (SHA-256) in the `sessions` table; a token stolen from a dump cannot be reused.
+- Idle expiry (`SESSION_IDLE_MINUTES`, default 120) and absolute expiry (`SESSION_ABSOLUTE_HOURS`, default 12).
+- Sign-in rotates the session: any previous session of the cookie is revoked.
+- Users can list and revoke their sessions (`/api/v1/auth/sessions`).
+- The authentication state is **not** stored in `localStorage` or `sessionStorage`.
+- `SECRET_KEY` is required in production, with at least 32 characters and no example values. The backend refuses to start if it is missing or weak.
 
 ## CSRF
 
-Patrón *double submit* con firma:
+Signed *double submit* pattern:
 
-1. El cliente pide `GET /api/v1/auth/csrf`.
-2. El servidor devuelve el token en el cuerpo y en la cookie `af_csrf` (legible por JS).
-3. Toda petición `POST/PUT/PATCH/DELETE` a `/api/*` debe enviar `X-CSRF-Token`.
-4. El servidor compara encabezado, cookie, firma HMAC y el hash asociado a la sesión.
+1. The client calls `GET /api/v1/auth/csrf`.
+2. The server returns the token in the body and in the `af_csrf` cookie (readable by JS).
+3. Every `POST/PUT/PATCH/DELETE` request to `/api/*` must send `X-CSRF-Token`.
+4. The server compares the header, the cookie, the HMAC signature and the hash linked to the session.
 
-El token se mantiene en memoria en el frontend. Si se recarga la página, se solicita uno
-nuevo. Las peticiones sin token se rechazan con `403 csrf_failed` **antes** de ejecutar la
-vista.
+The frontend keeps the token in memory. If the page reloads, a new one is requested. Requests without a token are rejected with `403 csrf_failed` **before** the view runs.
 
-## Autorización y aislamiento multiempresa
+## Authorization and multi-company isolation
 
-- Roles en base de datos: `admin` > `contador` > `auxiliar`.
-- Toda ruta con `company_id` llama a `authorized_company()`: verifica que la empresa exista,
-  que el usuario tenga membresía **activa** y, si aplica, el rol mínimo.
-- Las consultas siempre filtran por `company_id`; un ID de otra empresa devuelve `403`
-  (no `404`, para no confirmar existencia).
-- Las pruebas `tests/test_isolation.py` y `tests/test_postgres_integration.py` intentan
-  acceder a una empresa ajena por detalle, dashboard e ingresos.
+- Roles in the database: `admin` > `contador` (accountant) > `auxiliar` (assistant).
+- Every route with `company_id` calls `authorized_company()`: it checks that the company exists, that the user has an **active** membership and, when needed, the minimum role.
+- Queries always filter by `company_id`; an ID of another company returns `403` (not `404`, so existence is not confirmed).
+- The tests `tests/test_isolation.py` and `tests/test_postgres_integration.py` try to reach another company through detail, dashboard and income.
 
-**Supabase no sustituye estas comprobaciones.** El aislamiento multiempresa se sigue
-validando en Flask, con SQLAlchemy y el rol de base de datos de la aplicación.
+**Supabase does not replace these checks.** Multi-company isolation is still validated in Flask, with SQLAlchemy and the application's database role.
 
-## CORS y cabeceras
+## CORS and headers
 
-- Orígenes permitidos: `FRONTEND_ORIGIN` + `CORS_ORIGINS` (lista explícita). Nunca `*`.
-- `Access-Control-Allow-Credentials: true` solo para orígenes de la lista.
-- Cabeceras de respuesta: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
-  `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`
-  y HSTS cuando la cookie es `Secure`.
-- `X-Request-ID` por petición para correlacionar logs.
+- Allowed origins: `FRONTEND_ORIGIN` + `CORS_ORIGINS` (explicit list). Never `*`.
+- `Access-Control-Allow-Credentials: true` only for origins in the list.
+- Response headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` and HSTS when the cookie is `Secure`.
+- `X-Request-ID` per request to correlate logs.
 
-## Base de datos: modos y credenciales
+## Database: modes and credentials
 
-- PostgreSQL es el modo normal. SQLite requiere `DB_MODE=sqlite` explícito, solo para demo o
-  pruebas, y está prohibido en producción.
-- En producción `DATABASE_URL` es obligatoria; el arranque falla si falta.
-- Las URLs de conexión no se imprimen en logs, respuestas ni mensajes de error. Las
-  contraseñas de Supabase se percent-encodean en la URL; no se concatenan a mano.
-- El pool está acotado (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, timeout y reciclado) para no
-  agotar las conexiones del proveedor.
-- TLS: en Supabase usar como mínimo `sslmode=require`; para verificar el servidor,
-  `verify-full` con el certificado raíz descargado del dashboard. No se desactiva TLS para
-  resolver errores.
-- La credencial de ejecución debe tener privilegios mínimos (DML y secuencias). Las
-  migraciones pueden usar una credencial separada, más privilegiada, y una conexión directa.
+- PostgreSQL is the normal mode. SQLite requires an explicit `DB_MODE=sqlite`, only for demos or tests, and is forbidden in production.
+- In production `DATABASE_URL` is required; startup fails without it.
+- Connection URLs are never printed in logs, responses or error messages. Supabase passwords are percent-encoded in the URL; they are never concatenated by hand.
+- The pool is bounded (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, timeout and recycle) so the provider's connections are not exhausted.
+- TLS: on Supabase use at least `sslmode=require`; to verify the server, `verify-full` with the root certificate downloaded from the dashboard. TLS is never disabled to work around errors.
+- The runtime credential should have minimum privileges (DML and sequences). Migrations can use a separate, more privileged credential.
 
-## Supabase como proveedor PostgreSQL
+## Supabase as a PostgreSQL provider
 
-Arquitectura: **navegador → Flask → Supabase PostgreSQL**. El navegador nunca recibe una
-cadena de conexión ni una clave de base de datos.
+Architecture: **browser → Flask → Supabase PostgreSQL**. The browser never receives a connection string or a database key.
 
-Reglas:
+Rules:
 
-1. **Desactivar la Data API** si Flask es el único intermediario. Sin Data API no hay
-   endpoints REST/GraphQL automáticos sobre las tablas del ERP.
-2. **No usar** Supabase Auth, `supabase-js`, ni claves `anon`, `service_role`,
-   `sb_publishable_*` o `sb_secret_*` en el frontend. No hay ninguna variable `VITE_*` con
-   credenciales de base de datos.
-3. **No asumir que RLS protege al backend.** El rol de conexión de Flask puede tener
-   privilegios que omitan RLS; las comprobaciones de empresa siguen en el backend.
-4. Si en el futuro se habilita la Data API, las tablas expuestas deben tener RLS y
-   privilegios revisados. Las tablas de `public` pueden recibir grants automáticos a
-   `anon`/`authenticated` según la configuración del proyecto; hay que verificarlo y
-   revocarlos si no se usan.
-5. Preferir un **esquema dedicado no expuesto** para el ERP si se va a usar la Data API para
-   otros fines. La app admite `DB_SCHEMA`, pero el esquema y sus privilegios deben crearse
-   antes de migrar. Esta modalidad no se validó localmente.
-6. La conexión directa es preferible para un backend persistente con IPv6; el pooler
-   compartido en modo sesión es la alternativa IPv4. No usar transaction pooling por
-   defecto: no soporta prepared statements.
-7. Las migraciones usan conexión directa. No se asume que un pooler sea equivalente para
-   DDL.
+1. **Disable the Data API** if Flask is the only client. Without the Data API there are no automatic REST or GraphQL endpoints on the ERP tables.
+2. **Do not use** Supabase Auth, `supabase-js`, or the `anon`, `service_role`, `sb_publishable_*` or `sb_secret_*` keys in the frontend. No `VITE_*` variable holds database credentials.
+3. **Do not assume RLS protects the backend.** Flask's connection role can have privileges that skip RLS; the company checks stay in the backend.
+4. If the Data API is ever enabled, the exposed tables must have RLS and reviewed privileges. Tables in `public` can receive automatic grants to `anon`/`authenticated` depending on the project settings; check them and revoke them if unused.
+5. Prefer a **dedicated, non-exposed schema** for the ERP. The app supports `DB_SCHEMA` (applied with `SET search_path` on every connection, with no fallback to `public`), but the schema and its privileges must be created before migrating.
+6. The direct connection is preferred for a persistent backend with IPv6; the shared pooler in session mode is the IPv4 alternative. Do not use transaction pooling by default: it does not support prepared statements.
+7. The destructive test suite only runs against a local database (`localhost`) and never reads `backend/.env`, so it cannot reach Supabase.
 
-## Auditoría
+## Audit
 
-Cada operación relevante escribe un `AuditEvent` con empresa, actor, acción, recurso,
-detalle y `request_id`: login/logout, creación de ingresos/gastos, cobros, pagos, cambios de
-plan, reservas, obligaciones, alertas y comentarios. El historial se consulta en
-`GET /api/v1/companies/{id}/audit` (rol `contador` o superior).
+Every relevant operation writes an `AuditEvent` with company, actor, action, resource, detail and `request_id`: sign-in/sign-out, income and expense creation, receipts, payments, plan changes, reserves, obligations, alerts, comments and model forecasts (`forecast.model_run`). The history is read at `GET /api/v1/companies/{id}/audit` (role `contador` or higher).
 
-## Validación de entrada
+## Input validation
 
-- Importes: `Decimal` con 2 decimales, no negativos, convertidos a cadena en la respuesta.
-- Fechas: `YYYY-MM-DD` (se acepta `YYYY-MM-DDTHH:MM:SS`).
-- Enums validados en servidor (`status`, `priority`, `origin`, `kind`, `unit`, `role`).
-- Longitudes acotadas por columna; los textos libres se truncan.
-- Documentos duplicados por empresa devuelven `409` (restricción única en base de datos).
-- En PostgreSQL las claves foráneas, unicidad y `CHECK` se validan en el motor; las pruebas
-  de integración lo comprueban.
+- Amounts: `Decimal` with 2 decimals, not negative, converted to strings in the response.
+- Dates: `YYYY-MM-DD` (`YYYY-MM-DDTHH:MM:SS` is also accepted).
+- Enums validated on the server (`status`, `priority`, `origin`, `kind`, `unit`, `role`).
+- Lengths bounded per column; free text is truncated.
+- Duplicate documents per company return `409` (unique constraint in the database).
+- On PostgreSQL, foreign keys, uniqueness and `CHECK` constraints are enforced by the engine; the integration tests check it.
 
-## Recomendaciones antes de un uso real
+## Recommendations before real use
 
-1. Definir `SECRET_KEY` larga y aleatoria; nunca reutilizar la de ejemplo.
-2. Usar PostgreSQL administrado con respaldos y TLS; en Supabase, verificar la versión de
-   PostgreSQL antes de la validación final.
-3. Mover el rate limiting a Redis.
-4. Implementar recuperación de contraseña con correo transaccional (hoy solo registra la
-   solicitud en logs, sin revelar si el correo existe).
-5. Rotar las credenciales de la demo o desactivar `flask seed-demo` en producción real.
-6. Añadir monitoreo de errores 5xx y alertas de `/health/ready`.
-7. Si se agregan varias réplicas, revisar `preload_app`, el rate limiting compartido y el
-   presupuesto de conexiones.
-8. Revisar periódicamente los grants y la configuración de la Data API en Supabase.
+1. Set a long, random `SECRET_KEY`; never reuse the example.
+2. Use managed PostgreSQL with backups and TLS.
+3. Move rate limiting to Redis.
+4. Implement password recovery with transactional email (today it only logs the request, without revealing whether the email exists).
+5. Rotate the demo credentials or disable `flask seed-demo` in real production.
+6. Add monitoring of 5xx errors and alerts on `/health/ready`.
+7. If replicas are added, review `preload_app`, shared rate limiting and the connection budget.
+8. Review the Supabase grants and the Data API settings regularly.
 
-## Reporte de vulnerabilidades
+## Vulnerability reports
 
-Este es un proyecto académico sin canal formal. No publiques credenciales reales en issues.
+This is an academic project without a formal channel. Never publish real credentials in issues.

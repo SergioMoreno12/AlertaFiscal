@@ -1,13 +1,13 @@
-"""Validaciones offline de los CSV procesados de contexto.
+"""Offline validation of the processed context CSV files.
 
-Uso (desde la raíz del repositorio):
+Usage (from the repository root):
 
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.validate
 
-No descarga ni escribe datos. Comprueba invariantes que ya fallaron una vez
-(por ejemplo, una fila de total seccional tratada como departamento) y compara
-los archivos con los hashes y conteos del manifiesto. Termina con código 1 si
-alguna comprobación falla.
+It downloads and writes nothing. It checks invariants that already failed once
+(for example, a regional total row treated as a department) and compares
+the files with the hashes and counts of the manifest. It exits with code 1 if
+any check fails.
 """
 from __future__ import annotations
 
@@ -28,12 +28,12 @@ from .common import (
     sha256_file,
 )
 
-# La fuente publica millones con dos decimales. Desde 2013 la suma seccional
-# sigue al total nacional con diferencias de redondeo (cada seccional se
-# publica en millones enteros); 50 millones cubre 48 celdas redondeadas.
+# The source publishes millions with two decimals. Since 2013 the regional sum
+# follows the national total with rounding differences (each regional office is
+# published in whole millions); 50 million covers 48 rounded cells.
 TOLERANCE_COP = Decimal("50000000")
-# Antes de 2013 la hoja seccional no cubre todo el recaudo nacional; se reporta
-# como información, no como falla.
+# Before 2013 the regional sheet does not cover all national collection; it is reported
+# as information, not as a failure.
 RECONCILED_FROM_YEAR = 2013
 
 
@@ -51,7 +51,7 @@ def _latest_dir(source_code: str) -> Path:
     base = PROCESSED_DIR / source_code
     candidates = sorted(path for path in base.glob("*") if path.is_dir())
     if not candidates:
-        raise FileNotFoundError(f"No hay procesados para {source_code} en {base}")
+        raise FileNotFoundError(f"No processed files for {source_code} in {base}")
     return candidates[-1]
 
 
@@ -59,7 +59,7 @@ def _latest_manifest(source_code: str) -> dict:
     base = MANIFEST_DIR / source_code
     candidates = sorted(base.glob("*.json"))
     if not candidates:
-        raise FileNotFoundError(f"No hay manifiestos para {source_code} en {base}")
+        raise FileNotFoundError(f"No manifests for {source_code} in {base}")
     return load_manifest(candidates[-1])
 
 
@@ -73,7 +73,7 @@ def _manifest_entry(manifest: dict, table: str) -> dict | None:
 def _check_manifest(path: Path, manifest: dict, table: str, rows: int, checks: list[dict]) -> None:
     entry = _manifest_entry(manifest, table)
     if entry is None:
-        checks.append({"name": f"{table}.manifest_entry", "ok": False, "detail": "falta la entrada en el manifiesto"})
+        checks.append({"name": f"{table}.manifest_entry", "ok": False, "detail": "the entry is missing in the manifest"})
         return
     digest = sha256_file(path)
     checks.append(
@@ -209,10 +209,10 @@ def validate_benchmarks(path: Path, manifest: dict) -> dict:
         low = _decimal(row["min_cop"])
         high = _decimal(row["max_cop"])
         if sample <= 0 or None in (p25, median, p75, low, high):
-            quantile_errors.append(f"{row['year']}/{row['metric']}/{row['sector']}: muestra o cuantiles inválidos")
+            quantile_errors.append(f"{row['year']}/{row['metric']}/{row['sector']}: invalid sample or quantiles")
             continue
         if not (low <= p25 <= median <= p75 <= high):
-            quantile_errors.append(f"{row['year']}/{row['metric']}/{row['sector']}: cuantiles fuera de orden")
+            quantile_errors.append(f"{row['year']}/{row['metric']}/{row['sector']}: quantiles out of order")
         total = _decimal(row["total_cop"])
         mean = _decimal(row["mean_cop"])
         if total is None or mean is None or abs((total / sample) - mean) > Decimal("1"):
@@ -238,8 +238,8 @@ def validate_benchmarks(path: Path, manifest: dict) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Valida los procesados de contexto sin usar la red.")
-    parser.add_argument("--json", action="store_true", help="Imprime solo el JSON de resultado")
+    parser = argparse.ArgumentParser(description="Validate the processed context files without using the network.")
+    parser.add_argument("--json", action="store_true", help="Print only the result JSON")
     args = parser.parse_args(argv)
 
     try:

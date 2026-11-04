@@ -1,14 +1,14 @@
-"""Procesamiento reproducible de los originales a tablas de contexto.
+"""Reproducible processing of the originals into context tables.
 
-Uso (desde la raíz del repositorio):
+Usage (from the repository root):
 
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.build_context supersociedades
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.build_context dian
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.build_context all
 
-No descarga datos. Lee el manifiesto de adquisición, procesa los originales
-locales y escribe CSV derivados en ``ml/data/processed`` (fuera de git),
-actualizando el manifiesto versionado con hashes y conteos.
+It downloads nothing. It reads the acquisition manifest, processes the local
+originals and writes derived CSV files in ``ml/data/processed`` (outside git),
+updating the versioned manifest with hashes and counts.
 """
 from __future__ import annotations
 
@@ -53,11 +53,11 @@ SUPERSOCIEDADES_CODE = "supersociedades_top10000"
 DIAN_CODE = "dian_recaudo"
 
 SUPERSOCIEDADES_METRICS = [
-    ("ingresos_operacionales", "Ingresos operacionales"),
-    ("ganancia_p_rdida", "Ganancia o pérdida"),
-    ("total_activos", "Total activos"),
-    ("total_pasivos", "Total pasivos"),
-    ("total_patrimonio", "Total patrimonio"),
+    ("ingresos_operacionales", "Operating income"),
+    ("ganancia_p_rdida", "Profit or loss"),
+    ("total_activos", "Total assets"),
+    ("total_pasivos", "Total liabilities"),
+    ("total_patrimonio", "Total equity"),
 ]
 
 ANNUAL_CODES = [
@@ -187,8 +187,8 @@ def latest_manifest(source_code: str) -> Path:
     candidates = sorted(directory.glob("*.json"), key=lambda item: item.stem)
     if not candidates:
         raise SourceError(
-            f"No hay manifiestos para {source_code} en {directory}. "
-            "Ejecuta primero ml.company_trainer.sources.acquire."
+            f"There are no manifests for {source_code} in {directory}. "
+            "Run ml.company_trainer.sources.acquire first."
         )
     return candidates[-1]
 
@@ -314,11 +314,11 @@ def build_supersociedades(manifest_path: Path) -> dict:
             "rows_over_0_01": identity_over_tolerance,
         },
         "benchmark_rows": len(output_rows),
-        "units": "COP (los originales están en billones de 10^12 COP)",
+        "units": "COP (the originals are in trillions, 10^12 COP)",
         "limitations": [
-            "Muestra de las 10.000 empresas más grandes; sesgo de selección.",
-            "No es un censo ni un promedio del universo empresarial colombiano.",
-            "Los agregados por macrosector no se unen por NIT con el ERP.",
+            "Sample of the 10,000 largest companies; selection bias.",
+            "It is not a census or an average of all Colombian companies.",
+            "Macro-sector aggregates are not joined by NIT with the ERP.",
         ],
     }
     quality_path = out_dir / "quality.json"
@@ -357,11 +357,11 @@ def _to_decimal(value) -> Decimal | None:
 
 
 def _is_total_department_row(name: str) -> bool:
-    """Detecta la fila de total anual de la hoja seccional.
+    """Detect the annual total row of the regional sheet.
 
-    La fuente escribe habitualmente ``TOTAL AÑO 2026``, pero en la publicación
-    de 2026 aparece ``TOTA  AÑO 2026`` (sin la L y con doble espacio). Si esa
-    fila se trata como una seccional, el total departamental se duplica.
+    The source usually writes ``TOTAL AÑO 2026``, but in the 2026 publication
+    ``TOTA  AÑO 2026`` appears (without the L and with a double space). If that
+    row is treated as a regional office, the departmental total doubles.
     """
     normalized = unicodedata.normalize("NFKD", name)
     normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
@@ -382,9 +382,9 @@ def _labels(row: tuple, codes: list[str], fallback_row: tuple | None = None) -> 
 def _read_sheet(path: Path) -> list[tuple]:
     try:
         import openpyxl
-    except ImportError as exc:  # pragma: no cover - depende del entorno ml
+    except ImportError as exc:  # pragma: no cover - depends on the ml environment
         raise SourceError(
-            "Falta openpyxl en el entorno. Instala ml/company_trainer/requirements.txt en ml/company_trainer/.venv."
+            "openpyxl is missing. Install ml/company_trainer/requirements.txt in ml/company_trainer/.venv."
         ) from exc
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     return list(workbook.active.iter_rows(values_only=True))
@@ -418,7 +418,7 @@ def build_dian(manifest_path: Path) -> dict:
     monthly_months: dict[int, set[int]] = defaultdict(set)
     department_totals: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
 
-    # Anual: encabezado en la fila 10 (índice 9), datos desde la fila 11 (índice 10).
+    # Annual: header in row 10 (index 9), data from row 11 (index 10).
     annual_path = require_file(REPO_ROOT / files["annual"]["path"])
     annual_rows = _read_sheet(annual_path)
     header = annual_rows[9]
@@ -439,7 +439,7 @@ def build_dian(manifest_path: Path) -> dict:
                 annual_totals[year] = millones_to_cop(value) or Decimal("0")
     quality["files"]["annual"] = {"path": relative_to_repo(annual_path), "years": year_count, "header_row": 10}
 
-    # Mensual: encabezado en la fila 9 (índice 8), datos desde la fila 10 (índice 9).
+    # Monthly: header in row 9 (index 8), data from row 10 (index 9).
     monthly_path = require_file(REPO_ROOT / files["monthly"]["path"])
     monthly_rows = _read_sheet(monthly_path)
     monthly_header = monthly_rows[8]
@@ -463,7 +463,7 @@ def build_dian(manifest_path: Path) -> dict:
                 monthly_totals[year] += millones_to_cop(value) or Decimal("0")
     quality["files"]["monthly"] = {"path": relative_to_repo(monthly_path), "months": month_count, "header_row": 9}
 
-    # Seccional: encabezado en la fila 6 (índice 5), datos desde la fila 8 (índice 7).
+    # Regional: header in row 6 (index 5), data from row 8 (index 7).
     department_path = require_file(REPO_ROOT / files["department"]["path"])
     department_rows = _read_sheet(department_path)
     department_header = department_rows[5]
@@ -481,9 +481,9 @@ def build_dian(manifest_path: Path) -> dict:
         department = str(row[1] or "").strip() if len(row) > 1 else ""
         if not department:
             continue
-        # La hoja incluye una fila de total anual por año; no es una seccional
-        # y sumarla duplicaría el recaudo. La fuente tiene variantes como
-        # "TOTAL AÑO 2026" y "TOTA  AÑO 2026".
+        # The sheet has an annual total row per year; it is not a regional office
+        # and adding it would double the collection. The source has variants such as
+        # "TOTAL AÑO 2026" and "TOTA  AÑO 2026".
         if _is_total_department_row(department):
             excluded_total_rows += 1
             continue
@@ -518,7 +518,7 @@ def build_dian(manifest_path: Path) -> dict:
     csv_path = out_dir / "tax_collection.csv"
     write_csv(csv_path, TAX_FIELDS, rows)
 
-    # Conciliación mensual-anual 2010-2025 (años completos en ambas series).
+    # Monthly-annual reconciliation 2010-2025 (complete years in both series).
     reconciliation = []
     max_diff = Decimal("0")
     for year in range(2010, 2026):
@@ -542,7 +542,7 @@ def build_dian(manifest_path: Path) -> dict:
             "years": sorted({row["period_year"] for row in rows}),
             "scopes": sorted({row["scope"] for row in rows}),
             "frequencies": sorted({row["frequency"] for row in rows}),
-            "units": "COP (originales en millones de pesos corrientes)",
+            "units": "COP (originals in millions of current pesos)",
             "reconciliation_monthly_annual": {
                 "range": "2010-2025",
                 "max_abs_diff_cop": decimal_str(max_diff),
@@ -563,13 +563,13 @@ def build_dian(manifest_path: Path) -> dict:
                 "abs_diff_cop": decimal_str(
                     abs(annual_totals.get(2026, Decimal("0")) - department_totals.get(2026, Decimal("0")))
                 ),
-                "note": "2026 es parcial y preliminar; la comparación verifica que no se duplique la fila de total.",
+                "note": "2026 is partial and preliminary; the comparison checks that the total row is not duplicated.",
             },
             "limitations": [
-                "El recaudo agregado no es la obligación tributaria de una empresa individual.",
-                "2026 es parcial (a septiembre) y preliminar.",
-                "Las cifras se publican en millones de pesos corrientes; no se deflactan.",
-                "No se une por NIT con el ERP ni se usa para etiquetar incumplimiento.",
+                "Aggregated collection is not the tax obligation of an individual company.",
+                "2026 is partial (up to September) and preliminary.",
+                "Figures are published in millions of current pesos; they are not deflated.",
+                "It is not joined by NIT with the ERP or used to label non-compliance.",
             ],
         }
     )
@@ -590,7 +590,7 @@ def build_dian(manifest_path: Path) -> dict:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", choices=["supersociedades", "dian", "all"])
-    parser.add_argument("--manifest", help="Ruta explícita del manifiesto de adquisición")
+    parser.add_argument("--manifest", help="Explicit path of the acquisition manifest")
     return parser
 
 

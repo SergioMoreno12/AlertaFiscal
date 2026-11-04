@@ -23,9 +23,9 @@
     "field": "attributionLink",
     "value": "https://www.supersociedades.gov.co/"
   },
-  "conclusion": "CC BY-SA 4.0 (Creative Commons Atribución-CompartirIgual 4.0 Internacional)",
+  "conclusion": "CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International)",
   "caveats": [
-    "El campo license.logoUrl apunta a un archivo llamado cc30bysa.png; se prioriza licenseId=CC_40_BY_SA y termsLink=by-sa/4.0/legalcode.",
-    "La atribución debe conservarse y las adaptaciones deben compartirse bajo la misma licencia."
+    "The field license.logoUrl points to a file named cc30bysa.png; licenseId=CC_40_BY_SA and termsLink=by-sa/4.0/legalcode take priority.",
+    "The attribution must be kept and adaptations must be shared under the same license."
   ]
 }

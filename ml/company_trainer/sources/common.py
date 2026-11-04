@@ -1,8 +1,8 @@
-"""Utilidades compartidas por los scripts de fuentes externas.
+"""Helpers shared by the external source scripts.
 
-Solo usa la biblioteca estándar. La adquisición por red ocurre únicamente
-cuando se invoca explícitamente ``acquire.py``; el resto del pipeline es
-offline y determinista.
+They only use the standard library. Network acquisition happens only
+when ``acquire.py`` is called explicitly; the rest of the pipeline is
+offline and deterministic.
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ DIAN_BASE_URL = "https://www.dian.gov.co/dian/cifras/EstadisticasRecaudo"
 USER_AGENT = "AlertaFiscal-source-acquisition/1.0 (proyecto academico; contacto local)"
 
 COP_QUANTUM = Decimal("0.01")
-BILLONES = Decimal("1000000000000")  # 10^12: "billones" en sentido español.
+BILLONES = Decimal("1000000000000")  # 10^12: "billones" in the Spanish sense (trillions).
 MILLONES = Decimal("1000000")
 
 MONTHS_ES = {
@@ -60,10 +60,10 @@ MONTHS_ES = {
 
 
 class SourceError(RuntimeError):
-    """Error controlado de adquisición o procesamiento de una fuente."""
+    """Controlled error while acquiring or processing a source."""
 
 
-# ─────────────────────────── Tiempo y archivos ───────────────────────────
+# ─────────────────────────── Time and files ───────────────────────────
 
 
 def utcnow() -> datetime:
@@ -87,7 +87,7 @@ def parse_iso(raw: str) -> datetime:
 
 
 def version_label(value: datetime | None = None) -> str:
-    """Etiqueta segura para nombre de archivo: 2026-10-30T214803Z."""
+    """Safe label for a file name: 2026-10-30T214803Z."""
     return iso_z(value or utcnow()).replace("-", "").replace(":", "")
 
 
@@ -147,7 +147,7 @@ def read_csv_rows(path: Path):
 
 def require_file(path: Path, hint: str = "") -> Path:
     if not path.exists():
-        message = f"No existe el archivo requerido: {path}"
+        message = f"The required file does not exist: {path}"
         if hint:
             message += f". {hint}"
         raise SourceError(message)
@@ -178,7 +178,7 @@ def manifest_path(source_code: str, label: str) -> Path:
 def load_manifest(path: Path) -> dict:
     data = read_json(require_file(path))
     if not isinstance(data, dict) or "source" not in data or "version" not in data:
-        raise SourceError(f"Manifiesto inválido (faltan 'source' o 'version'): {path}")
+        raise SourceError(f"Invalid manifest ('source' or 'version' is missing): {path}")
     return data
 
 
@@ -196,19 +196,19 @@ def http_get_bytes(url: str, *, timeout: int = 90, retries: int = 3) -> bytes:
             last_error = exc
             if attempt + 1 < retries:
                 time.sleep(1.5 * (attempt + 1))
-    raise SourceError(f"No se pudo descargar {url}: {last_error}")
+    raise SourceError(f"Could not download {url}: {last_error}")
 
 
 def http_get_json(url: str, *, timeout: int = 90, retries: int = 3):
     payload = http_get_bytes(url, timeout=timeout, retries=retries)
     try:
         return json.loads(payload.decode("utf-8"))
-    except json.JSONDecodeError as exc:  # pragma: no cover - respuesta no JSON
-        raise SourceError(f"Respuesta no JSON de {url}: {exc}") from exc
+    except json.JSONDecodeError as exc:  # pragma: no cover - non-JSON response
+        raise SourceError(f"Non-JSON response from {url}: {exc}") from exc
 
 
 class SocrataClient:
-    """Cliente mínimo para un dataset de Socrata (datos.gov.co)."""
+    """Minimal client for a Socrata dataset (datos.gov.co)."""
 
     def __init__(self, dataset_id: str, domain: str = SOCRATA_DOMAIN):
         self.dataset_id = dataset_id
@@ -221,7 +221,7 @@ class SocrataClient:
         url = f"{self.domain}/resource/{self.dataset_id}.json?" + urlencode({"$select": "count(*)"})
         payload = http_get_json(url)
         if not payload or "count" not in payload[0]:
-            raise SourceError(f"Conteo inesperado de Socrata: {payload!r}")
+            raise SourceError(f"Unexpected Socrata count: {payload!r}")
         return int(payload[0]["count"])
 
     def select(
@@ -245,14 +245,14 @@ class SocrataClient:
         return http_get_bytes(url)
 
 
-# ─────────────────────────── Parsing numérico ───────────────────────────
+# ─────────────────────────── Numeric parsing ───────────────────────────
 
 
 def parse_supersociedades_amount(raw) -> Decimal | None:
     """Convierte ``"$ 100.59"`` / ``"-$ 0.82"`` a Decimal en billones.
 
-    El dataset publica las cifras en billones (10^12 COP) con dos decimales.
-    No se inventa precisión: el resultado conserva exactamente lo publicado.
+    The dataset publishes the figures in trillions (10^12 COP) with two decimals.
+    No precision is made up: the result keeps exactly what was published.
     """
     if raw is None:
         return None
@@ -341,7 +341,7 @@ def decimal_str(value: Decimal | None) -> str:
 
 
 def quantile(sorted_values: list[Decimal], q: Decimal) -> Decimal | None:
-    """Cuantil con interpolación lineal sobre una lista ya ordenada."""
+    """Quantile with linear interpolation over an already sorted list."""
     if not sorted_values:
         return None
     if len(sorted_values) == 1:

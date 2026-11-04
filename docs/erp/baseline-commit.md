@@ -1,130 +1,100 @@
-# Commit basal: estado, comprobaciones y autorización pendiente
+# Baseline commit: status, checks and approval (historical record)
 
-Documento de registro del commit inicial local. **No hay remoto configurado y no se hizo
-push.** La tabla siguiente conserva el estado previo a la creación del commit; después del
-commit, `HEAD` existe y el árbol queda limpio salvo los dos documentos de usuario excluidos.
+Record of the initial local commit of the ERP working copy (`PROYECTO_FINAL_MACHINE`), before it was ported into this repository. At that time **no remote was configured and nothing was pushed**. Since November 3, 2026 the ERP lives in the AlertaFiscal repository (branch `erp-port`, ported by Manuel Eduardo Alarcon Aza); this file is kept as history.
 
-## 1. Estado previo a la creación del commit
+## 1. Status before the commit
 
-| Comprobación | Resultado |
+| Check | Result |
 |---|---|
-| `git rev-parse --verify HEAD` | Falla: el repositorio **no tiene commits** (rama sin nacer) |
-| `git remote -v` | Vacío: **no hay remoto configurado** |
-| `git status --short` | 82 entradas (archivos únicos) |
-| Preparados (`git diff --cached`) | 64 archivos |
-| Con cambios sin preparar (`git diff --name-only`) | 18 archivos |
-| Sin rastrear (`git ls-files --others --exclude-standard`) | 27 archivos |
+| `git rev-parse --verify HEAD` | Failed: the repository **had no commits** (unborn branch) |
+| `git remote -v` | Empty: **no remote configured** |
+| `git status --short` | 82 entries (unique files) |
+| Staged (`git diff --cached`) | 64 files |
+| Unstaged changes (`git diff --name-only`) | 18 files |
+| Untracked (`git ls-files --others --exclude-standard`) | 27 files |
 
-Los 18 archivos con cambios sin preparar son modificaciones posteriores a la preparación
-inicial (por ejemplo `README.md`, `docs/sources.md`, `docs/decisions.md`,
-`frontend/src/app/App.tsx`, `ml/train.py`). Los 27 sin rastrear incluyen el módulo de
-contexto, la migración `f3b8c2d1a7e4`, los scripts y manifiestos de fuentes, las pruebas
-nuevas, la documentación de fuentes y dos documentos de usuario.
+The 18 files with unstaged changes were edits after the first staging (for example `README.md`, `docs/sources.md`, `docs/decisions.md`, `frontend/src/app/App.tsx`, `ml/train.py`). The 27 untracked files included the context module, the migration `f3b8c2d1a7e4`, the source scripts and manifests, the new tests, the source documentation and two user documents.
 
-Distribución de los 64 preparados: `backend/` 39, `frontend/` 14, `docs/` 4, `ml/` 3,
-más `README.md`, `.gitignore`, `render.yaml` y `.github/workflows/ci.yml`.
+Distribution of the 64 staged files: `backend/` 39, `frontend/` 14, `docs/` 4, `ml/` 3, plus `README.md`, `.gitignore`, `render.yaml` and `.github/workflows/ci.yml`.
 
-## 2. Archivos que no deben versionarse
+## 2. Files that must not be committed
 
-Verificado con `git check-ignore -v`:
+Checked with `git check-ignore -v`:
 
-| Ruta | Regla |
+| Path | Rule |
 |---|---|
-| `backend/.env` | `.gitignore:2` (`.env`) |
-| `.env.docker` | `.gitignore:3` (`.env.*`) |
-| `ml/data/` (crudos y procesados) | `.gitignore:42` |
-| `frontend/node_modules/` | `.gitignore:31` |
-| `backend/.venv/` | `.gitignore:13` |
-| `backend/dev.db` y `*.db` | `.gitignore:23` |
-| `frontend/dist/` | ignorado |
+| `backend/.env` | `.env` |
+| `.env.docker` | `.env.*` |
+| `ml/data/` (raw and processed) | ignored |
+| `frontend/node_modules/` | ignored |
+| `backend/.venv/` | ignored |
+| `backend/dev.db` and `*.db` | ignored |
+| `frontend/dist/` | ignored |
 
-No hay bases de datos, crudos de DIAN/Supersociedades, entornos virtuales ni `node_modules`
-entre los archivos preparados o sin rastrear.
+There were no databases, DIAN/Supersociedades raw files, virtual environments or `node_modules` among the staged or untracked files.
 
-## 3. Escaneo de secretos y archivos impropios
+## 3. Secret and improper file scan
 
-Se escanearon los 86 archivos de texto preparados o sin rastrear con estos patrones:
+The 86 staged or untracked text files were scanned with these patterns:
 
-| Patrón | Coincidencias | Interpretación |
+| Pattern | Matches | Meaning |
 |---|---|---|
-| `BEGIN (RSA\|OPENSSH\|EC\|PGP) PRIVATE KEY` | 0 | Sin claves privadas |
-| `AKIA[0-9A-Z]{16}` | 0 | Sin claves AWS |
-| `gh[pousr]_[A-Za-z0-9]{20,}` | 0 | Sin tokens de GitHub |
-| `sk-[A-Za-z0-9]{20,}` | 0 | Sin claves de API tipo OpenAI |
-| `xox[baprs]-...` | 0 | Sin tokens de Slack |
-| `postgres(ql)?://usuario:clave@` | 2 | Credenciales **solo de CI/prueba** (ver abajo) |
-| `password = "..."` | 1 | Contraseña demo documentada |
-| `SECRET_KEY = "..."` | 0 | Sin secreto embebido |
+| `BEGIN (RSA\|OPENSSH\|EC\|PGP) PRIVATE KEY` | 0 | No private keys |
+| `AKIA[0-9A-Z]{16}` | 0 | No AWS keys |
+| `gh[pousr]_[A-Za-z0-9]{20,}` | 0 | No GitHub tokens |
+| `sk-[A-Za-z0-9]{20,}` | 0 | No OpenAI-style API keys |
+| `xox[baprs]-...` | 0 | No Slack tokens |
+| `postgres(ql)?://user:password@` | 2 | **CI/test-only** credentials (see below) |
+| `password = "..."` | 1 | Documented demo password |
+| `SECRET_KEY = "..."` | 0 | No embedded secret |
 
-Las tres coincidencias son esperadas y no son secretos reales:
+The three matches are expected and are not real secrets:
 
-- `.github/workflows/ci.yml:56` → `postgresql://alertafiscal:alertafiscal@localhost:5432/alertafiscal_ci`
-  es el servicio efímero de PostgreSQL del propio workflow de CI.
-- `backend/tests/test_config.py:112` → `postgresql://u:p@127.0.0.1:5432/db` es una URL
-  ficticia usada para probar el parseo de configuración.
-- `backend/app/seed.py:24` → `DEMO_PASSWORD = "demo2026"` es la credencial de demostración
-  ya documentada en `README.md`; el seed solo se ejecuta manualmente.
+- `.github/workflows/ci.yml` → `postgresql://alertafiscal:alertafiscal@localhost:5432/alertafiscal_ci` is the workflow's own ephemeral PostgreSQL service.
+- `backend/tests/test_config.py` → `postgresql://u:p@127.0.0.1:5432/db` is a fictitious URL used to test configuration parsing.
+- `backend/app/seed.py` → `DEMO_PASSWORD = "demo2026"` is the demo credential documented in `README.md`; the seed only runs manually.
 
-No se encontraron archivos `.env` reales, `.pem`, `.key`, respaldos, capturas ni binarios
-grandes entre los candidatos. Los únicos binarios sin rastrear son dos documentos de usuario
-(ver punto 4).
+No real `.env`, `.pem` or `.key` files, backups, screenshots or large binaries were among the candidates. The only untracked binaries were two user documents (point 4).
 
-## 4. Documentos de usuario sin rastrear
+## 4. Untracked user documents
 
-| Archivo | Tamaño | Recomendación |
+| File | Size | Recommendation |
 |---|---|---|
-| `Guia_Pruebas_Locales_AlertaFiscal.docx` | 42,1 KB | Decidir si forma parte del entregable; si no, dejar fuera |
-| `Mapa de empatía — plantilla horizontal.pdf` | 1.655,6 KB | Material de diseño; probablemente fuera del repositorio de código |
+| `Guia_Pruebas_Locales_AlertaFiscal.docx` | 42.1 KB | Decide whether it is part of the deliverable; otherwise leave it out |
+| Empathy map template (PDF) | 1,655.6 KB | Design material; probably outside the code repository |
 
-Ninguno es necesario para ejecutar o probar el sistema. Se recomienda **no incluirlos** en el
-commit basal salvo que el usuario indique lo contrario, para no mezclar material de
-presentación con el código y evitar un PDF de 1,6 MB en el historial.
+Neither is needed to run or test the system. They were **not included** in the baseline commit, so presentation material is not mixed with code and a 1.6 MB PDF is kept out of the history. They were not ported either.
 
-## 5. Contenido propuesto del commit basal
+## 5. Contents of the baseline commit
 
-Un único commit inicial con todo el estado actual (aplicación, pruebas, migraciones,
-documentación y etapa 2 limitada), excluyendo los dos documentos del punto 4:
+A single initial commit with the whole state (application, tests, migrations, documentation and limited stage 2), excluding the two documents of point 4:
 
-```
-chore: estado inicial de AlertaFiscal con contexto externo etiquetado
+- Base ERP: auth with session/CSRF, companies, movements, planning, tracking and alerts.
+- Read-only external context (limited stage 2): sources, versions, DIAN aggregates and sector benchmarks; authenticated API and a secondary screen. It does not feed the forecast or create alerts.
+- Migration `f3b8c2d1a7e4` (new tables only, with downgrade).
+- Offline acquisition and processing scripts, versioned manifests, license evidence and a reproducible validator.
+- Tests: 30 passed and 10 skipped on SQLite; 40 passed on PostgreSQL.
 
-- ERP base: auth con sesión/CSRF, empresas, movimientos, planificación,
-  seguimiento y alertas.
-- Contexto externo de solo lectura (etapa 2 limitada): fuentes, versiones,
-  agregados DIAN y benchmarks sectoriales; API autenticada y pantalla
-  secundaria. No alimenta el pronóstico ni genera alertas.
-- Migración f3b8c2d1a7e4 (solo tablas nuevas, con downgrade).
-- Scripts offline de adquisición/procesamiento, manifiestos versionados,
-  evidencia de licencias y validador reproducible.
-- Pruebas: 30 pasan y 10 se omiten en SQLite; 40 pasan en PostgreSQL.
-```
+It was not split into "baseline" and "stage 2" because several files (`backend/app/models.py`, `backend/app/__init__.py`, `frontend/src/app/App.tsx`, `ml/train.py`, `README.md`) already contained changes of both stages; splitting them would have required rebuilding intermediate versions and produced an artificial history.
 
-No se propone dividir en “basal” y “etapa 2” porque varios archivos preparados
-(`backend/app/models.py`, `backend/app/__init__.py`, `frontend/src/app/App.tsx`,
-`ml/train.py`, `README.md`) ya contienen cambios de ambas etapas; separarlos exigiría
-reconstruir versiones intermedias y produciría un historial artificial.
+## 6. Checks run before the commit
 
-## 6. Verificaciones ejecutadas antes de proponer el commit
-
-| Verificación | Resultado |
+| Check | Result |
 |---|---|
-| `npm run build` (`tsc --noEmit && vite build`) | Pasa; aviso de chunk > 500 kB, no bloqueante |
-| `pytest` con SQLite temporal | 30 pasan, 10 omitidas por diseño |
-| `pytest` con `TEST_DATABASE_URL` PostgreSQL | 40 pasan |
-| `python -m ml.sources.validate` | Exit 0; 28.064 filas DIAN y 175 benchmarks coherentes con el manifiesto |
-| Escaneo de secretos | Sin hallazgos reales (3 coincidencias justificadas) |
-| `git check-ignore` | `.env`, `.env.docker`, `ml/data`, `node_modules`, `.venv`, `*.db` ignorados |
+| `npm run build` (`tsc --noEmit && vite build`) | Passed; warning about a chunk > 500 kB, not blocking |
+| `pytest` with temporary SQLite | 30 passed, 10 skipped by design |
+| `pytest` with a PostgreSQL `TEST_DATABASE_URL` | 40 passed |
+| `python -m ml.sources.validate` | Exit 0; 28,064 DIAN rows and 175 benchmarks consistent with the manifest |
+| Secret scan | No real findings (3 justified matches) |
+| `git check-ignore` | `.env`, `.env.docker`, `ml/data`, `node_modules`, `.venv`, `*.db` ignored |
 
-Los avisos `LF will be replaced by CRLF` de Git son normales en Windows y no alteran el
-contenido lógico.
+Git's `LF will be replaced by CRLF` warnings are normal on Windows and do not change the logical content.
 
-## 7. Autorización y estado
+## 7. Approval and status at that time
 
-- [x] Migración `f3b8c2d1a7e4` aplicada **solo** en la base local de desarrollo `alertafiscal`
-      (revisión final `f3b8c2d1a7e4`), con respaldo previo verificado.
-- [x] Excluir del commit `Guia_Pruebas_Locales_AlertaFiscal.docx` y
-      `Mapa de empatía — plantilla horizontal.pdf`, conservándolos en el equipo.
-- [x] Commit inicial local creado (hash en `git log -1`); sin remoto ni push.
-- [ ] Configurar remoto o hacer push: **no autorizado**.
-- [ ] Renombrar la rama: **no autorizado**.
-- [ ] Eliminar `alertafiscal_verify_test` o cualquier base/volumen: **no autorizado** en esta tarea.
+- [x] Migration `f3b8c2d1a7e4` applied **only** to the local development database `alertafiscal`, with a verified prior backup.
+- [x] `Guia_Pruebas_Locales_AlertaFiscal.docx` and the PDF excluded from the commit and kept on the computer.
+- [x] Initial local commit created; no remote and no push.
+- [ ] Configure a remote or push: **not approved** at that time (later done through the port to this repository).
+- [ ] Rename the branch: **not approved**.
+- [ ] Delete `alertafiscal_verify_test` or any database or volume: **not approved** in that task.

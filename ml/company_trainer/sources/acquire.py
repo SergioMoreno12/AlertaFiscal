@@ -1,15 +1,15 @@
-"""Adquisición y verificación de fuentes externas.
+"""Acquisition and verification of external sources.
 
-Uso (desde la raíz del repositorio):
+Usage (from the repository root):
 
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.acquire supersociedades
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.acquire supersociedades --download
     ml/company_trainer/.venv/Scripts/python.exe -m ml.company_trainer.sources.acquire dian
 
-El comando ``supersociedades`` no vuelve a descargar por defecto: verifica el
-archivo local contra el conteo y la paginación de Socrata. ``--download``
-descarga una copia nueva en una carpeta versionada y nunca sobrescribe una
-descarga anterior.
+The ``supersociedades`` command does not download again by default: it checks the
+local file against the Socrata count and pagination. ``--download``
+downloads a new copy into a versioned folder and never overwrites a
+previous download.
 """
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ def _download_supersociedades(client: SocrataClient, page_size: int, label: str)
             offset += len(rows)
     if written != total:
         tmp.unlink(missing_ok=True)
-        raise SourceError(f"Descarga incompleta: {written} filas de {total} esperadas")
+        raise SourceError(f"Incomplete download: {written} rows of {total} expected")
     tmp.replace(destination)
     return destination, pages
 
@@ -192,7 +192,7 @@ def _verify_pagination(client: SocrataClient, local_rows: list[dict], page_size:
     remote_hashes = sha256_text("\n".join(remote_sorted))
     duplicate_keys = len(remote_keys) - len(set(remote_keys))
     evidence = {
-        "method": "count + paginación estable",
+        "method": "count + stable pagination",
         "endpoint": SUPERSOCIEDADES_KEYS_URL,
         "order": SUPERSOCIEDADES_ORDER,
         "page_size": page_size,
@@ -207,18 +207,18 @@ def _verify_pagination(client: SocrataClient, local_rows: list[dict], page_size:
         "page_evidence": pages,
     }
     if len(remote_keys) != total:
-        raise SourceError(f"La paginación devolvió {len(remote_keys)} filas; el conteo declara {total}")
+        raise SourceError(f"The pagination returned {len(remote_keys)} rows; the count declares {total}")
     if duplicate_keys:
-        raise SourceError(f"La paginación devolvió {duplicate_keys} claves duplicadas")
+        raise SourceError(f"The pagination returned {duplicate_keys} duplicate keys")
     if len(local_rows) != total:
         raise SourceError(
-            f"El archivo local tiene {len(local_rows)} filas; Socrata declara {total}. "
-            "Posible truncamiento de la descarga original."
+            f"The local file has {len(local_rows)} rows; Socrata declares {total}. "
+            "The original download may have been truncated."
         )
     if local_hashes != remote_hashes:
         raise SourceError(
-            "Las claves locales no coinciden con la paginación remota. "
-            "La fuente pudo actualizarse después de la descarga; conserva el original y documenta el cambio."
+            "The local keys do not match the remote pagination. "
+            "The source may have been updated after the download; keep the original and document the change."
         )
     return evidence
 
@@ -250,11 +250,11 @@ def _license_evidence(metadata: dict, retrieved_at: datetime) -> dict:
             "field": "attributionLink",
             "value": metadata.get("attributionLink"),
         },
-        "conclusion": "CC BY-SA 4.0 (Creative Commons Atribución-CompartirIgual 4.0 Internacional)",
+        "conclusion": "CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International)",
         "caveats": [
-            "El campo license.logoUrl apunta a un archivo llamado cc30bysa.png; "
-            "se prioriza licenseId=CC_40_BY_SA y termsLink=by-sa/4.0/legalcode.",
-            "La atribución debe conservarse y las adaptaciones deben compartirse bajo la misma licencia.",
+            "The field license.logoUrl points to a file named cc30bysa.png; "
+            "licenseId=CC_40_BY_SA and termsLink=by-sa/4.0/legalcode take priority.",
+            "The attribution must be kept and adaptations must be shared under the same license.",
         ],
     }
 
@@ -286,7 +286,7 @@ def acquire_supersociedades(args) -> dict:
 
     years = sorted({int(Decimal(str(row["a_o_de_corte"]))) for row in local_rows if row.get("a_o_de_corte")})
     if not years:
-        raise SourceError("No se pudieron determinar los años del dataset")
+        raise SourceError("The years of the dataset could not be determined")
     label = args.version_label or version_label(acquired_at)
     evidence = _license_evidence(metadata, utcnow())
     evidence_path = EVIDENCE_DIR / "supersociedades-license.json"
@@ -313,8 +313,8 @@ def acquire_supersociedades(args) -> dict:
                 "evidence_path": relative_to_repo(evidence_path),
             },
             "cadence": (
-                "Irregular: el publicador actualiza el dataset sin calendario fijo. "
-                "No se debe asumir una frecuencia mensual."
+                "Irregular: the publisher updates the dataset without a fixed calendar. "
+                "A monthly frequency must not be assumed."
             ),
             "description": metadata.get("description"),
         },
@@ -338,9 +338,9 @@ def acquire_supersociedades(args) -> dict:
             "integrity": integrity,
             "processed": [],
             "notes": [
-                "Cifras publicadas en billones de pesos (10^12 COP), no en miles de millones.",
-                "El dataset cubre las 10.000 empresas más grandes; no es representativo del universo empresarial.",
-                "Los datos se usan solo como contexto agregado; no se unen por NIT con el ERP.",
+                "Figures published in trillions of pesos (10^12 COP), not in billions.",
+                "The dataset covers the 10,000 largest companies; it does not represent all companies.",
+                "The data is used only as aggregated context; it is not joined by NIT with the ERP.",
             ],
         },
     }
@@ -355,9 +355,9 @@ def acquire_supersociedades(args) -> dict:
 def _xlsx_shape(path: Path) -> dict:
     try:
         import openpyxl
-    except ImportError as exc:  # pragma: no cover - depende del entorno ml
+    except ImportError as exc:  # pragma: no cover - depends on the ml environment
         raise SourceError(
-            "Falta openpyxl en el entorno. Instala ml/company_trainer/requirements.txt en ml/company_trainer/.venv."
+            "openpyxl is missing. Install ml/company_trainer/requirements.txt in ml/company_trainer/.venv."
         ) from exc
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     sheet = workbook.active
@@ -376,41 +376,41 @@ def _write_dian_license_note(manifest: dict, evidence_path: Path) -> None:
         f"| `{item['file_name']}` | `{item['sha256']}` | {item['bytes']} |"
         for item in manifest["version"]["files"]
     )
-    content = f"""# DIAN: estado de licencia y condiciones de uso
+    content = f"""# DIAN: license status and terms of use
 
-**Fecha de revisión:** {manifest['generated_at']}
-**Fuente:** {manifest['source']['source_url']}
-**Estado:** incertidumbre de licencia (no verificada en la fuente)
+**Review date:** {manifest['generated_at']}
+**Source:** {manifest['source']['source_url']}
+**Status:** license uncertainty (not verified at the source)
 
-## Qué se observó
+## What was observed
 
-La página de estadísticas de recaudo de la DIAN no declara, en el HTML
-consultado, una licencia de reutilización explícita. Los archivos se publican
-como información pública y las hojas incluyen la leyenda "El contenido de este
-documento corresponde a información pública", pero esa leyenda no equivale por
-sí sola a una licencia de redistribución.
+The DIAN collection statistics page does not declare, in the HTML
+consulted, an explicit reuse license. The files are published
+as public information and the sheets include the note "El contenido de este
+documento corresponde a información pública" ("the content of this document is public
+information"), but that note alone is not a redistribution license.
 
-## Decisión operativa (no es una conclusión legal)
+## Operational decision (not a legal conclusion)
 
-- Los archivos crudos **no se publican ni se versionan en git**.
-- No se redistribuyen fuera del repositorio local.
-- Se usan únicamente como contexto agregado, con atribución a la DIAN.
-- No se afirma que exista una prohibición legal: solo que la licencia no está
-  verificada y que falta autorización explícita para redistribuir.
-- Antes de publicar derivados o crudos, se debe revisar la fuente o pedir
-  autorización a la DIAN.
+- The raw files are **not published or committed to git**.
+- They are not redistributed outside the local repository.
+- They are used only as aggregated context, with attribution to the DIAN.
+- No legal prohibition is claimed: only that the license is not
+  verified and that explicit permission to redistribute is missing.
+- Before publishing derived or raw files, review the source or ask the
+  DIAN for permission.
 
-## Evidencia de archivos (originales locales, fuera de git)
+## File evidence (local originals, outside git)
 
-| Archivo | SHA-256 | Bytes |
+| File | SHA-256 | Bytes |
 |---|---|---|
 {files}
 
-## Cifras y unidades
+## Figures and units
 
-- Millones de pesos corrientes.
-- Corte declarado: {manifest['version']['cutoff_date']}.
-- 2026 es parcial y preliminar; no se compara como año completo.
+- Millions of current pesos.
+- Declared cutoff: {manifest['version']['cutoff_date']}.
+- 2026 is partial and preliminary; it is not compared as a full year.
 """
     ensure_dir(evidence_path.parent)
     evidence_path.write_text(content, encoding="utf-8", newline="\n")
@@ -422,7 +422,7 @@ def acquire_dian(args) -> dict:
     for item in DIAN_FILES:
         path = require_file(
             raw_dir / item["name"],
-            hint="Conserva el original descargado; este script no lo vuelve a descargar.",
+            hint="Keep the downloaded original; this script does not download it again.",
         )
         evidence = file_evidence(path)
         evidence.update({"kind": item["kind"], "source_url": item["url"]})
@@ -448,7 +448,7 @@ def acquire_dian(args) -> dict:
         "generated_at": iso_z(utcnow()),
         "source": {
             "code": DIAN_CODE,
-            "name": "Estadísticas de recaudo de la DIAN",
+            "name": "DIAN collection statistics",
             "publisher": "Dirección de Impuestos y Aduanas Nacionales (DIAN)",
             "dataset_id": None,
             "source_url": DIAN_PAGE_URL,
@@ -456,19 +456,19 @@ def acquire_dian(args) -> dict:
             "attribution": "DIAN — Subdirección de Estudios Económicos",
             "attribution_url": DIAN_PAGE_URL,
             "license": {
-                "name": "No verificada en la fuente",
+                "name": "Not verified at the source",
                 "license_id": None,
                 "terms_url": None,
                 "status": "uncertain",
                 "evidence_path": "docs/evidence/dian-license-uncertainty.md",
             },
             "cadence": (
-                "Mensual/irregular: la DIAN publica cifras con corte mensual; "
-                "las seccionales pueden aparecer días después que las nacionales."
+                "Monthly/irregular: the DIAN publishes figures with a monthly cutoff; "
+                "regional offices can appear days after the national figures."
             ),
             "description": (
-                "Recaudo bruto por tipo de impuesto y por dirección seccional. "
-                "No representa la obligación tributaria de una empresa individual."
+                "Gross collection by tax type and by regional office. "
+                "It does not represent the tax obligation of an individual company."
             ),
         },
         "version": {
@@ -486,16 +486,16 @@ def acquire_dian(args) -> dict:
             "column_count": None,
             "files": files,
             "integrity": {
-                "method": "sha256 de originales + estructura de hojas",
+                "method": "sha256 of the originals + sheet structure",
                 "files_present": len(files),
                 "all_hashes_recorded": all(bool(item["sha256"]) for item in files),
             },
             "processed": [],
             "notes": [
-                "Unidades: millones de pesos corrientes.",
-                "2026 es parcial (a septiembre) y preliminar.",
-                "No se une por NIT ni se usa para etiquetar incumplimiento.",
-                "No se redistribuyen los crudos mientras la licencia siga sin verificar.",
+                "Units: millions of current pesos.",
+                "2026 is partial (up to September) and preliminary.",
+                "It is not joined by NIT or used to label non-compliance.",
+                "The raw files are not redistributed while the license stays unverified.",
             ],
         },
     }
@@ -513,14 +513,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sup = sub.add_parser("supersociedades", help="Verifica o descarga Supersociedades")
-    sup.add_argument("--download", action="store_true", help="Descarga una copia nueva versionada")
+    sup = sub.add_parser("supersociedades", help="Verify or download Supersociedades")
+    sup.add_argument("--download", action="store_true", help="Download a new versioned copy")
     sup.add_argument("--page-size", type=int, default=5000)
-    sup.add_argument("--raw", help="Ruta del CSV local a verificar")
-    sup.add_argument("--version-label", help="Etiqueta de versión (por defecto, fecha de adquisición)")
+    sup.add_argument("--raw", help="Path of the local CSV to verify")
+    sup.add_argument("--version-label", help="Version label (default: acquisition date)")
     sup.set_defaults(func=acquire_supersociedades)
 
-    dian = sub.add_parser("dian", help="Registra los originales DIAN y su incertidumbre de licencia")
+    dian = sub.add_parser("dian", help="Record the DIAN originals and their license uncertainty")
     dian.add_argument("--raw-dir")
     dian.add_argument("--version-label")
     dian.add_argument("--cutoff-date")

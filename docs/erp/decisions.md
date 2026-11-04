@@ -1,186 +1,121 @@
-# Decisiones de diseño — etapa 2 limitada
+# Design decisions — limited stage 2
 
-Registro de decisiones con su contexto, la alternativa descartada y el estado real. Las
-decisiones marcadas **diferidas** no están implementadas y no deben presentarse como hechas.
+Record of decisions with their context, the discarded alternative and the real status. Decisions marked **deferred** are not implemented and must not be presented as done.
 
-## D1. El contexto externo es contexto, no etiqueta ni predictor
+## D1. External context is context, not a label or a predictor
 
-**Contexto.** Se dispone de recaudo DIAN y de agregados de Supersociedades.
+**Context.** DIAN collection data and Supersociedades aggregates are available.
 
-**Decisión.** Se incorporan como información de referencia etiquetada. No entrenan el
-modelo, no son etiquetas de incumplimiento y no generan alertas ni tareas.
+**Decision.** They are added as labeled reference information. They do not train the model, they are not non-compliance labels and they create no alerts or tasks.
 
-**Por qué.** El recaudo nacional no dice qué debía pagar una empresa; los agregados
-sectoriales de las 10.000 empresas más grandes no representan a una pyme. Usarlos como
-predictores introduciría fuga de información y comparaciones inválidas.
+**Why.** National collection does not say what a company had to pay; sector aggregates of the 10,000 largest companies do not represent a small business. Using them as predictors would leak information and produce invalid comparisons.
 
-**Estado.** Implementado: la API y la pantalla muestran un aviso explícito y el cargador
-no toca la tabla de alertas.
+**Status.** Implemented: the API and the screen show an explicit notice and the loader never touches the alerts table.
 
-## D2. Sin unión por NIT y sin unir fuentes artificialmente
+## D2. No join by NIT and no artificial joins between sources
 
-**Contexto.** Ambas fuentes tienen NIT o identificadores, pero con propósitos distintos.
+**Context.** Both sources have NITs or identifiers, but for different purposes.
 
-**Decisión.** No se hace join por NIT con empresas del ERP ni entre fuentes. No se suman
-totales nacionales como si fueran observaciones independientes.
+**Decision.** There is no join by NIT with ERP companies or between sources. National totals are not added up as if they were independent observations.
 
-**Por qué.** Un mismo NIT puede aparecer con variantes, y la cobertura de cada fuente es
-distinta. Un join produciría falsos positivos y duplicaría conteos.
+**Why.** The same NIT can appear in different forms, and each source has a different coverage. A join would produce false positives and double counts.
 
-**Estado.** Implementado: el esquema no tiene clave foránea a `companies` y los agregados
-se guardan por año/métrica/sector o por período/serie.
+**Status.** Implemented: the schema has no foreign key to `companies`, and the aggregates are stored by year/metric/sector or by period/series.
 
-## D3. Persistir agregados, no una tabla por empresa
+## D3. Store aggregates, not a per-company table
 
-**Decisión.** Se guardan `tax_collections` y `sector_benchmarks`. No se crea una tabla de
-“contexto por empresa”.
+**Decision.** `tax_collections` and `sector_benchmarks` are stored. No "context per company" table is created.
 
-**Por qué.** El uso previsto es comparar magnitudes agregadas, no afirmar hechos
-individuales. Una tabla por empresa invitaría a un join indebido.
+**Why.** The intended use is comparing aggregated magnitudes, not stating individual facts. A per-company table would invite an improper join.
 
-**Estado.** Implementado.
+**Status.** Implemented.
 
-## D4. Fuente lógica separada de versión de adquisición
+## D4. Logical source separate from acquisition version
 
-**Contexto.** Una fuente se actualiza varias veces y puede cambiar sin aviso.
+**Context.** A source is updated several times and can change without notice.
 
-**Decisión.** `external_sources` describe la fuente; `external_dataset_versions` describe
-cada adquisición. La identidad es el hash del contenido, no la etiqueta de fecha. Se admite
-más de una descarga y solo una versión vigente por fuente mediante un índice único parcial.
+**Decision.** `external_sources` describes the source; `external_dataset_versions` describes each acquisition. The identity is the content hash, not the date label. More than one download is allowed, and only one current version per source, through a partial unique index.
 
-**Por qué.** Sobrescribir la versión anterior impediría auditar qué se sabía en cada
-momento. La etiqueta de fecha puede repetirse si dos descargas ocurren en el mismo segundo.
+**Why.** Overwriting the previous version would make it impossible to audit what was known at each moment. The date label can repeat if two downloads happen in the same second.
 
-**Estado.** Implementado: `uq_external_version_current (source_id) WHERE is_current`.
+**Status.** Implemented: `uq_external_version_current (source_id) WHERE is_current`.
 
-## D5. Adquisición offline y carga explícita
+## D5. Offline acquisition and explicit loading
 
-**Decisión.** La red solo se usa al ejecutar `ml.sources.acquire`. El procesamiento y la
-carga son offline. Flask no descarga, no entrena al arrancar, no ejecuta semillas
-automáticas y la API nunca sale a internet.
+**Decision.** The network is used only when running `ml.company_trainer.sources.acquire`. Processing and loading are offline. Flask does not download, does not train on startup, runs no automatic seeds, and the API never goes to the internet.
 
-**Por qué.** Reproducibilidad, auditabilidad y arranque predecible. También evita que una
-caída de la fuente bloquee la aplicación.
+**Why.** Reproducibility, auditability and a predictable startup. It also prevents an outage of the source from blocking the application.
 
-**Estado.** Implementado.
+**Status.** Implemented.
 
-## D6. Licencias: evidencia y prudencia
+## D6. Licenses: evidence and caution
 
-**Contexto.** Supersociedades declara CC BY-SA 4.0. La DIAN no declara una licencia de
-reutilización explícita en la página consultada.
+**Context.** Supersociedades declares CC BY-SA 4.0. The DIAN does not declare an explicit reuse license on the page consulted.
 
-**Decisión.** Se guarda evidencia de la licencia de Supersociedades
-(`docs/evidence/supersociedades-license.json`) y se registra la incertidumbre de DIAN
-(`docs/evidence/dian-license-uncertainty.md`) con estado `uncertain`. Los crudos no se
-versionan ni se redistribuyen. No se afirma que exista una prohibición legal.
+**Decision.** Evidence of the Supersociedades license is kept (`docs/erp/evidence/supersociedades-license.json`) and the DIAN uncertainty is recorded (`docs/erp/evidence/dian-license-uncertainty.md`) with status `uncertain`. Raw files are not committed or redistributed. No legal prohibition is claimed.
 
-**Por qué.** La leyenda “información pública” no equivale por sí sola a una licencia de
-redistribución. La postura conservadora evita un uso indebido sin inventar una conclusión
-jurídica.
+**Why.** The label "public information" alone is not a redistribution license. The conservative position avoids misuse without making up a legal conclusion.
 
-**Estado.** Implementado. Antes de publicar derivados de DIAN se debe revisar la fuente o
-pedir autorización.
+**Status.** Implemented. Before publishing DIAN derivatives, the source must be reviewed or permission requested.
 
-## D7. Reservas y versionado de planes
+## D7. Reserves and plan versioning
 
-**Contexto.** `FiscalPlanVersion.estimated_reserve` es una **meta** del plan. `ReserveEntry`
-es una **reserva registrada**, con `plan_version_id` opcional. Versionar un plan crea una
-versión nueva y no reescribe la anterior.
+**Context.** `FiscalPlanVersion.estimated_reserve` is a plan **target**. `ReserveEntry` is a **recorded reserve**, with an optional `plan_version_id`. Versioning a plan creates a new version and does not rewrite the previous one.
 
-**Decisión.** Se mantiene la separación entre meta de reserva y reserva registrada. La
-reserva conserva la referencia a la versión con la que se registró; versionar no la pierde
-ni la duplica. No se cambia todavía la cobertura para sumar solo reservas de la versión
-vigente.
+**Decision.** The separation between reserve target and recorded reserve is kept. A reserve keeps the reference to the version it was recorded with; versioning neither loses nor duplicates it. The coverage is not yet changed to add only the reserves of the current version.
 
-**Por qué.** Cambiar la cobertura sin una política explícita haría que una reserva
-histórica desapareciera del indicador o se contara dos veces. Primero debe definirse cómo
-se conserva una reserva al versionar y cómo se distingue “reservado” de “asignado al plan”.
+**Why.** Changing the coverage without an explicit policy would make a historical reserve disappear from the indicator or count twice. First it must be defined how a reserve is kept when versioning and how "reserved" differs from "assigned to the plan".
 
-**Estado.** Comportamiento actual probado en `backend/tests/test_context.py`
-(`test_versioning_plan_does_not_lose_or_duplicate_reserves`). La nueva política de cobertura
-está **diferida**.
+**Status.** Current behavior tested in `backend/tests/test_context.py` (`test_versioning_plan_does_not_lose_or_duplicate_reserves`). The new coverage policy is **deferred**.
 
-## D8. Proyección desactualizada
+## D8. Out-of-date forecast
 
-**Contexto.** Una proyección depende de las entradas usadas al generarla. Cambiar una
-reserva o revisar una alerta no cambia los ingresos ni los gastos históricos.
+**Context.** A forecast depends on the inputs used to generate it. Changing a reserve or reviewing an alert does not change historical income or expenses.
 
-**Decisión.** La proyección debe guardar las entradas reales y una revisión/hash de esas
-entradas. Los cambios de reservas o de revisión de alertas **no** deben invalidarla
-automáticamente. Solo un cambio en las entradas del pronóstico justifica marcarla
-desactualizada.
+**Decision.** The forecast stores the real inputs and a signature (hash) of those inputs. Changes to reserves or to alert reviews do **not** invalidate it. Only a change in the forecast inputs justifies marking it out of date.
 
-**Por qué.** Invalidar por cambios no relacionados obligaría a recalcular sin motivo y
-ocultaría la diferencia entre “dato de entrada cambió” y “otra parte del plan cambió”.
+**Why.** Invalidating on unrelated changes would force recomputation for no reason and hide the difference between "an input changed" and "another part of the plan changed".
 
-**Estado.** **Diferida.** En esta etapa no se modifica el módulo de proyecciones ni se
-añade el hash de entradas.
+**Status.** Implemented later: every model run stores `history_signature` in its assumptions, and the alert rule "Forecast out of date because the inputs changed" compares it with the current history.
 
-## D9. Ciclo de vida de alertas y contexto informativo
+## D9. Alert life cycle and informative context
 
-**Contexto.** Las alertas actuales no tienen `code`, `period`, recurso, `resolved_at` ni
-deduplicación. `TaxObligation` solo tiene un `status`, sin separar presentación, pago y
-revisión.
+**Context.** The current alerts have no `code`, `period`, resource or `resolved_at`. `TaxObligation` has a single `status`, without separating filing, payment and review.
 
-**Decisión.** El contexto informativo no crea por defecto alertas pendientes ni tareas del
-contador. Primero deben implementarse reglas accionables y definir revisión, resolución,
-descarte, condición activa y reaparición. Un descarte justificado no se reabre sin una
-política explícita. La auditoría se conserva.
+**Decision.** Informative context creates no pending alerts or accountant tasks by default. Actionable rules come first, with review, resolution, dismissal, active condition and reappearance defined. A justified dismissal is not reopened without an explicit policy. The audit trail is kept.
 
-**Por qué.** Generar alertas a partir de cifras nacionales produciría ruido y falsos
-positivos; además, sin deduplicación se repetirían en cada carga.
+**Why.** Creating alerts from national figures would produce noise and false positives; without deduplication they would also repeat on every load.
 
-**Estado.** **Diferida.** El cargador de contexto registra auditoría (`context.load`,
-`context.record`) pero no crea alertas.
+**Status.** Rule alerts are deduplicated by title + origin + open status. The context loader records audit events (`context.load`, `context.record`) but creates no alerts.
 
-## D10. Protocolo de ML y datos
+## D10. ML protocol and data
 
-**Contexto.** El baseline usa 18 meses de una empresa; la segunda empresa tiene un mes y se
-omite con `--min-months 12`.
+**Context.** The ERP's own baseline used 18 months of one company; the second company had one month and was skipped with `--min-months 12`.
 
-**Decisión.** No se afirma que 24–36 meses garanticen validez universal de una MLP. Se
-documenta el origen real o simulado de los datos, los ejemplos efectivos, los rezagos, el
-horizonte, las ventanas y la complejidad. Las métricas ya reportadas se explican con su
-protocolo (empresa, meses, horizonte, método y MAE).
+**Decision.** It is not claimed that 24–36 months guarantee the universal validity of an MLP. The real or simulated origin of the data, the effective examples, the lags, the horizon, the windows and the complexity are documented. Reported metrics are explained with their protocol (company, months, horizon, method and MAE).
 
-**Por qué.** El desempeño depende de la serie, la estacionalidad y el horizonte; un número
-de meses no es una garantía. Con pocos datos, una MLP no es defendible como modelo
-empresarial.
+**Why.** Performance depends on the series, the seasonality and the horizon; a number of months is not a guarantee. With little data, an MLP is not defensible as a business model.
 
-**Estado.** Documentado; el experimento MLP sigue siendo académico y **no** valida uso
-empresarial.
+**Status.** Documented. The course project replaced the per-company experiment with a global model trained on 425 companies and evaluated once on test and holdout data (`docs/04_evaluation_report.md`); a company artifact still takes priority when it exists.
 
-## D11. Git y commit basal
+## D11. Git and baseline commit
 
-**Decisión.** No se hace commit, push ni despliegue sin autorización explícita. La ausencia
-de commit no es una vulnerabilidad del ERP: es un estado de preparación.
+**Decision.** No commit, push or deployment without explicit approval. The lack of a commit is not an ERP vulnerability: it is a preparation state.
 
-**Estado.** Pendiente de autorización. Ver `docs/baseline-commit.md`.
+**Status.** Superseded: the ERP was ported into the AlertaFiscal repository on the `erp-port` branch. See `docs/erp/baseline-commit.md`.
 
-## D12. PostgreSQL como base de validación
+## D12. PostgreSQL as the validation database
 
-**Decisión.** Las pruebas de integración se ejecutan contra PostgreSQL. SQLite se usa solo
-para pruebas rápidas y demo, nunca para afirmar que la integración está validada.
+**Decision.** Integration tests run against PostgreSQL. SQLite is used only for quick tests and demos, never to claim that the integration is validated.
 
-**Estado.** Implementado: 40 pruebas en PostgreSQL, 30 en SQLite (10 omitidas por diseño).
+**Status.** Implemented: CI runs the whole suite against PostgreSQL 16; locally, without `TEST_DATABASE_URL`, the PostgreSQL tests are skipped by design.
 
-## D13. Detección robusta de filas de total en la hoja seccional
+## D13. Robust detection of total rows in the regional sheet
 
-**Contexto.** Durante la verificación visual, la tarjeta “Seccionales 2026” mostró
-483.023.511.857.290 COP, exactamente el doble del total nacional 2026. La causa era una fila
-`TOTA  AÑO 2026` (sin la L y con doble espacio) que el filtro `startswith("TOTAL")` no
-detectaba y que se sumaba como si fuera una seccional. La hoja también usa `TOTAL_AÑO_2010`.
+**Context.** During visual checks, the "Regional offices 2026" card showed 483,023,511,857,290 COP, exactly twice the 2026 national total. The cause was a row `TOTA  AÑO 2026` (without the L and with a double space) that the filter `startswith("TOTAL")` did not catch and that was added as if it were a regional office. The sheet also uses `TOTAL_AÑO_2010`.
 
-**Decisión.** Normalizar acentos, separadores y espacios antes de comparar, y validar los
-procesados con `python -m ml.sources.validate`. La validación comprueba que ninguna fila de
-total quede como seccional y que la suma seccional coincida con el total nacional en los
-años comparables.
+**Decision.** Normalize accents, separators and spaces before comparing, and validate the processed files with `python -m ml.company_trainer.sources.validate`. The validation checks that no total row is kept as a regional office and that the regional sum matches the national total in the comparable years.
 
-**Por qué.** Un filtro por prefijo literal es frágil frente a erratas y variantes de la
-fuente. La comprobación visual por sí sola no habría detectado el problema sin mirar la
-cifra; la validación automática lo habría hecho.
+**Why.** A literal prefix filter is fragile against typos and source variants. A visual check alone would not have found the problem without looking at the figure; the automatic validation would have.
 
-**Estado.** Implementado. El CSV pasó de 28.088 a 28.064 filas y la conciliación 2026 quedó
-en 0,01 COP. La comparación seccional-nacional solo se exige desde 2013, porque antes la
-hoja no cubre todo el recaudo nacional.
-
+**Status.** Implemented. The CSV went from 28,088 to 28,064 rows and the 2026 reconciliation ended at 0.01 COP. The regional-national comparison is required only from 2013, because before that the sheet does not cover all national collection.

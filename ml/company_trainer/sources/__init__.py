@@ -1,6 +1,6 @@
-"""Adquisición y procesamiento reproducible de fuentes externas.
+"""Reproducible acquisition and processing of external sources.
 
-Estos scripts no forman parte del arranque de Flask ni del entrenamiento.
-Los datos crudos viven en ``ml/data/raw`` (fuera de git) y los manifiestos
-versionados en ``ml/company_trainer/sources/manifests``.
+These scripts are not part of the Flask startup or of the training.
+Raw data lives in ``ml/data/raw`` (outside git) and the versioned manifests
+live in ``ml/company_trainer/sources/manifests``.
 """

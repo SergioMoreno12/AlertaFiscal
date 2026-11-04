@@ -1,13 +1,13 @@
-"""Entrenamiento y evaluación offline de proyecciones mensuales.
+"""Offline training and evaluation of monthly forecasts for one company.
 
-Este script NO forma parte del servidor web: se ejecuta a mano o en un job de
-ciencia de datos. Lee la base de AlertaFiscal, agrega ingresos/gastos por mes,
-entrena modelos simples, reporta métricas con una partición temporal y guarda
-un artefacto JSON interpretable en ``ml/artifacts/``.
+This script is NOT part of the web server: it runs by hand or in a data
+science job. It reads the AlertaFiscal database, groups income and expenses by month,
+trains simple models, reports metrics with a time-based split and saves
+an interpretable JSON artifact in ``ml/artifacts/``.
 
-El artefacto es el único contrato entre el entrenamiento y Flask. No contiene
-objetos de scikit-learn: guarda coeficientes, el lag estacional y los árboles
-serializados para que el backend pueda predecir sin instalar scikit-learn.
+The artifact is the only contract between training and Flask. It holds no
+scikit-learn objects: it stores coefficients, the seasonal lag and the serialized
+trees, so the backend can predict without installing scikit-learn.
 
 Uso:
     python ml/company_trainer/train.py
@@ -15,7 +15,7 @@ Uso:
     python ml/company_trainer/train.py --data-kind real
     python ml/company_trainer/train.py --database-url postgresql+psycopg://...
 
-Las proyecciones son orientativas. No son liquidaciones oficiales de impuestos.
+The forecasts are for guidance only. They are not official tax assessments.
 """
 from __future__ import annotations
 
@@ -68,15 +68,15 @@ def resolve_database_url(explicit: str | None) -> str:
     if env_url:
         if env_url.startswith("sqlite:") and db_mode != "sqlite":
             raise SystemExit(
-                "DATABASE_URL apunta a SQLite. Define DB_MODE=sqlite de forma explícita "
-                "o usa una URL de PostgreSQL."
+                "DATABASE_URL points to SQLite. Set DB_MODE=sqlite explicitly "
+                "or use a PostgreSQL URL."
             )
         return normalize_url(env_url)
     if db_mode == "sqlite" and DEFAULT_SQLITE.exists():
         return f"sqlite:///{DEFAULT_SQLITE.as_posix()}"
     raise SystemExit(
-        "No hay DATABASE_URL. Configura PostgreSQL (por ejemplo en backend/.env) o, "
-        "para una demo explícita con SQLite, define DB_MODE=sqlite y ejecuta antes: "
+        "There is no DATABASE_URL. Configure PostgreSQL (for example in backend/.env) or, "
+        "for an explicit SQLite demo, set DB_MODE=sqlite and first run: "
         "flask db upgrade && flask seed-demo --yes"
     )
 
@@ -90,7 +90,7 @@ def safe_url(url: str) -> str:
 
 
 def load_monthly_series(engine) -> tuple[dict[int, pd.DataFrame], dict[int, str]]:
-    """Devuelve {company_id: DataFrame mensual} y nombres de empresa."""
+    """Return {company_id: monthly DataFrame} and the company names."""
     companies = pd.read_sql(text("SELECT id, name FROM companies"), engine)
     names = {int(row.id): str(row.name) for row in companies.itertuples()}
 
@@ -132,7 +132,7 @@ def load_monthly_series(engine) -> tuple[dict[int, pd.DataFrame], dict[int, str]
 
 
 def build_features(frame: pd.DataFrame, target: str) -> pd.DataFrame:
-    """y, tendencia, lags y estacionalidad (seno/coseno del mes)."""
+    """y, trend, lags and seasonality (sine/cosine of the month)."""
     values = frame[target].astype(float).reset_index(drop=True)
     features = pd.DataFrame({"y": values})
     features["t"] = np.arange(len(features))
@@ -141,8 +141,8 @@ def build_features(frame: pd.DataFrame, target: str) -> pd.DataFrame:
     features["month_cos"] = np.cos(2 * np.pi * months / 12)
     for lag in range(1, LAGS + 1):
         features[f"lag{lag}"] = features["y"].shift(lag)
-    # Posición original en la serie; permite evaluar el lag-12 real sin
-    # rellenar meses ni inventar observaciones.
+    # Original position in the series; lets the real lag-12 be evaluated without
+    # filling months or making up observations.
     features["_pos"] = np.arange(len(features))
     return features.dropna().reset_index(drop=True)
 
@@ -166,7 +166,7 @@ def metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
 
 
 def seasonal_naive_baseline(frame: pd.DataFrame, target: str, positions) -> np.ndarray:
-    """Predice con el valor de hace 12 meses; si no existe, usa el mes anterior."""
+    """Predict with the value 12 months earlier; if it does not exist, use the previous month."""
     values = frame[target].astype(float).reset_index(drop=True)
     predictions = []
     for pos in positions:
@@ -176,7 +176,7 @@ def seasonal_naive_baseline(frame: pd.DataFrame, target: str, positions) -> np.n
 
 
 def export_model_params(name: str, model) -> dict:
-    """Serializa el modelo ajustado sin pickles ni dependencia de sklearn."""
+    """Serialize the fitted model without pickles or a sklearn dependency."""
     if name == "linear_regression":
         return {
             "coefficients": [float(value) for value in model.coef_],
@@ -202,13 +202,13 @@ def export_model_params(name: str, model) -> dict:
         }
     if name == "seasonal_naive":
         return {"season_length": SEASON_LENGTH}
-    raise ValueError(f"Modelo no soportado: {name}")
+    raise ValueError(f"Unsupported model: {name}")
 
 
 def evaluate(frame: pd.DataFrame, target: str, test_size: int) -> tuple[dict, dict, str]:
     features = build_features(frame, target)
     if len(features) <= test_size:
-        raise ValueError("Historial insuficiente para la partición de prueba.")
+        raise ValueError("Not enough history for the test split.")
 
     train = features.iloc[:-test_size]
     test = features.iloc[-test_size:]
@@ -237,7 +237,7 @@ def evaluate(frame: pd.DataFrame, target: str, test_size: int) -> tuple[dict, di
 
 
 def predict_from_params(name: str, params: dict, row: dict, history: list[float]) -> float:
-    """Predicción de una fila usando solo el JSON del artefacto."""
+    """Prediction of one row using only the artifact JSON."""
     if name == "seasonal_naive":
         season = int(params.get("season_length", SEASON_LENGTH))
         if len(history) >= season:
@@ -263,7 +263,7 @@ def predict_from_params(name: str, params: dict, row: dict, history: list[float]
                     node = tree["children_right"][node]
             predictions.append(tree["value"][node])
         return float(sum(predictions) / len(predictions)) if predictions else 0.0
-    raise ValueError(f"Modelo no soportado: {name}")
+    raise ValueError(f"Unsupported model: {name}")
 
 
 def recursive_forecast(
@@ -308,7 +308,7 @@ def train_company(
     data_kind: str,
 ) -> dict | None:
     if len(frame) < min_months:
-        print(f"  Empresa {company_id}: {len(frame)} meses (< {min_months}); se omite.")
+        print(f"  Company {company_id}: {len(frame)} months (< {min_months}); skipped.")
         return None
 
     test_size = max(3, min(6, len(frame) // 4))
@@ -333,7 +333,7 @@ def train_company(
         try:
             report, fitted, best = evaluate(frame, target, test_size)
         except ValueError as exc:
-            print(f"  Empresa {company_id} / {target}: {exc}")
+            print(f"  Company {company_id} / {target}: {exc}")
             continue
 
         models = {
@@ -361,7 +361,7 @@ def train_company(
         }
 
     if not result["targets"]:
-        print(f"  Empresa {company_id}: ningún target pudo entrenarse.")
+        print(f"  Company {company_id}: no target could be trained.")
         return None
 
     artifact = {
@@ -396,15 +396,15 @@ def train_company(
             "kind": data_kind,
             "is_demo": data_kind == "demo",
             "warning": (
-                "Datos sintéticos de demostración. Las métricas y proyecciones no "
-                "validan el comportamiento de una empresa real."
+                "Synthetic demo data. The metrics and forecasts do not "
+                "validate the behavior of a real company."
                 if data_kind == "demo"
-                else "Datos cargados por el operador. Verificar origen y calidad antes de usar."
+                else "Data loaded by the operator. Check its origin and quality before use."
             ),
         },
         "disclaimer": (
-            "Proyecciones orientativas de planificación. No son liquidaciones "
-            "oficiales de impuestos ni sustituyen la revisión de un contador."
+            "Planning forecasts for guidance only. They are not official "
+            "tax assessments and do not replace an accountant's review."
         ),
     }
 
@@ -416,17 +416,17 @@ def train_company(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Entrena proyecciones mensuales de AlertaFiscal.")
-    parser.add_argument("--database-url", help="URL de SQLAlchemy (por defecto DATABASE_URL o SQLite local).")
-    parser.add_argument("--company-id", type=int, action="append", help="Limita a una empresa (repetible).")
-    parser.add_argument("--horizon", type=int, default=3, help="Meses a proyectar (1-12).")
-    parser.add_argument("--min-months", type=int, default=12, help="Meses mínimos para entrenar.")
-    parser.add_argument("--out", default=str(ROOT / "ml" / "artifacts"), help="Directorio de artefactos.")
+    parser = argparse.ArgumentParser(description="Train AlertaFiscal monthly forecasts for one company.")
+    parser.add_argument("--database-url", help="SQLAlchemy URL (default DATABASE_URL or local SQLite).")
+    parser.add_argument("--company-id", type=int, action="append", help="Limit to one company (repeatable).")
+    parser.add_argument("--horizon", type=int, default=3, help="Months to forecast (1-12).")
+    parser.add_argument("--min-months", type=int, default=12, help="Minimum months to train.")
+    parser.add_argument("--out", default=str(ROOT / "ml" / "artifacts"), help="Artifact directory.")
     parser.add_argument(
         "--data-kind",
         choices=("demo", "real"),
         default="demo",
-        help="Origen declarado del dataset. 'demo' marca el artefacto como sintético.",
+        help="Declared origin of the dataset. 'demo' marks the artifact as synthetic.",
     )
     return parser.parse_args()
 
@@ -439,22 +439,22 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     url = resolve_database_url(args.database_url)
-    print(f"Base de datos: {safe_url(url)}")
+    print(f"Database: {safe_url(url)}")
     engine = create_engine(url)
 
     series, names = load_monthly_series(engine)
     if not series:
-        raise SystemExit("No hay movimientos para entrenar.")
+        raise SystemExit("There are no movements to train on.")
 
     selected = args.company_id or sorted(series)
     results = []
     for company_id in selected:
         if company_id not in series:
-            print(f"Empresa {company_id}: sin datos.")
+            print(f"Company {company_id}: no data.")
             continue
         frame = series[company_id]
-        company_name = names.get(company_id, "Sin nombre")
-        print(f"\nEmpresa {company_id} · {company_name} ({len(frame)} meses)")
+        company_name = names.get(company_id, "No name")
+        print(f"\nCompany {company_id} · {company_name} ({len(frame)} months)")
         result = train_company(
             company_id,
             frame,
@@ -475,7 +475,7 @@ def main() -> None:
             print(f"  {target}: mejor={payload['best_model']} | {metric_line}")
 
     if not results:
-        raise SystemExit("Ninguna empresa cumplió el mínimo de meses.")
+        raise SystemExit("No company reached the minimum number of months.")
 
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -487,13 +487,13 @@ def main() -> None:
         },
         "companies": results,
         "disclaimer": (
-            "Proyecciones orientativas de planificación. No son liquidaciones "
-            "oficiales de impuestos ni sustituyen la revisión de un contador."
+            "Planning forecasts for guidance only. They are not official "
+            "tax assessments and do not replace an accountant's review."
         ),
     }
     summary_path = out_dir / "metrics.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nMétricas y artefactos guardados en {out_dir}")
+    print(f"\nMetrics and artifacts saved in {out_dir}")
 
 
 if __name__ == "__main__":
