@@ -233,6 +233,8 @@ export type ForecastRun = {
   trained_at?: string | null
   stale_inputs?: boolean
   is_demo?: boolean
+  scope?: string | null
+  artifact_sha256?: string | null
   data_provenance?: { kind?: string; is_demo?: boolean; warning?: string }
 }
 
@@ -271,6 +273,8 @@ export type ForecastResult = {
   trained_at?: string | null
   stale_inputs?: boolean
   is_demo?: boolean
+  scope?: string | null
+  artifact_sha256?: string | null
   data_provenance?: { kind?: string; is_demo?: boolean; warning?: string }
 }
 

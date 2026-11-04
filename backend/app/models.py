@@ -38,7 +38,7 @@ class TimestampMixin:
     )
 
 
-# ─────────────────────────── Identidad ───────────────────────────
+# ─────────────────────────── Identity ───────────────────────────
 
 
 class User(TimestampMixin, db.Model):
@@ -59,7 +59,7 @@ class Company(TimestampMixin, db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     nit: Mapped[str] = mapped_column(String(40), nullable=False)
-    sector: Mapped[str] = mapped_column(String(80), nullable=False, default="Otro")
+    sector: Mapped[str] = mapped_column(String(80), nullable=False, default="Other")
     size: Mapped[str] = mapped_column(String(40), nullable=False, default="Small")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
@@ -102,7 +102,7 @@ class Session(TimestampMixin, db.Model):
     user = relationship("User")
 
 
-# ─────────────────────────── Terceros ───────────────────────────
+# ─────────────────────────── Counterparties ───────────────────────────
 
 
 class Counterparty(TimestampMixin, db.Model):
@@ -120,7 +120,7 @@ class Counterparty(TimestampMixin, db.Model):
     )
 
 
-# ─────────────────────────── Ingresos ───────────────────────────
+# ─────────────────────────── Income ───────────────────────────
 
 
 class IncomeDocument(TimestampMixin, db.Model):
@@ -164,7 +164,7 @@ class IncomeReceipt(TimestampMixin, db.Model):
     )
 
 
-# ─────────────────────────── Gastos ───────────────────────────
+# ─────────────────────────── Expenses ───────────────────────────
 
 
 class ExpenseDocument(TimestampMixin, db.Model):
@@ -175,7 +175,7 @@ class ExpenseDocument(TimestampMixin, db.Model):
     counterparty_id: Mapped[int | None] = mapped_column(ForeignKey("counterparties.id", ondelete="SET NULL"))
     doc_number: Mapped[str] = mapped_column(String(60), nullable=False)
     issue_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    category: Mapped[str] = mapped_column(String(80), nullable=False, default="Otros")
+    category: Mapped[str] = mapped_column(String(80), nullable=False, default="Other")
     description: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     subtotal: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False, default=0)
     tax_amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False, default=0)
@@ -210,7 +210,7 @@ class ExpensePayment(TimestampMixin, db.Model):
     )
 
 
-# ─────────────────────────── Obligaciones ───────────────────────────
+# ─────────────────────────── Obligations ───────────────────────────
 
 
 class TaxObligation(TimestampMixin, db.Model):
@@ -339,7 +339,7 @@ class ForecastRun(TimestampMixin, db.Model):
     )
 
 
-# ─────────────────────────── Alertas ───────────────────────────
+# ─────────────────────────── Alerts ───────────────────────────
 
 
 class Alert(TimestampMixin, db.Model):
@@ -397,7 +397,7 @@ class AuditEvent(db.Model):
     __table_args__ = (Index("ix_audit_company_date", "company_id", "created_at"),)
 
 
-# ─────────────────────────── Contexto externo ───────────────────────────
+# ─────────────────────────── External context ───────────────────────────
 #
 # External sources are aggregated context, not ERP data. They are never joined
 # to companies by NIT and never feed the forecast or the alerts.

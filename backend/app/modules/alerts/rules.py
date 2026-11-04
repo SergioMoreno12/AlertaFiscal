@@ -360,6 +360,45 @@ def _rule_forecast_vs_plan(company_id: int) -> list[tuple[str, Alert]]:
     ]
 
 
+# Rule A1 of docs/03_alert_rules.md (Phase 1): projected loss month.
+LOSS_MONTH_TITLE = "Projected loss months in the latest forecast"
+
+
+def _rule_loss_month(company_id: int) -> list[tuple[str, Alert]]:
+    """A1: for any forecast month m, projected expenses > projected income.
+
+    It reads the stored monthly values of the latest model run, so it uses exactly what the
+    user saw. Every month that fires is listed in calendar order. The rule does not say the
+    company is at risk: it points at months worth reviewing.
+    """
+    run = _latest_model_run(company_id)
+    if run is None:
+        return []
+    monthly = (run.assumptions or {}).get("monthly") or []
+    lines = []
+    for point in monthly:
+        income = max(Decimal(str(point.get("projected_income") or 0)), Decimal("0"))
+        expenses = max(Decimal(str(point.get("projected_expenses") or 0)), Decimal("0"))
+        if expenses > income:
+            lines.append(
+                f"Month {point.get('month')}: projected expenses exceed projected income by "
+                f"{_amount(expenses - income)}. Review the cash reserved for taxes."
+            )
+    if not lines:
+        return []
+    description = (
+        f"What happened: the latest model forecast shows {len(lines)} month(s) with a projected loss.\n"
+        "Origin: B) ML forecast (rule A1 of the plan alert rules).\n"
+        "Figures: " + " ".join(lines) + "\n"
+        f"Model version {run.model_version or 'no version'}; the typical model error is about 10-12 % of a "
+        "month's income, so a small projected gap may not be a real loss.\n"
+        "What to check: confirm the expected expenses and income for those months and the tax reserve. "
+        "This alert is a planning notice, not a prediction of penalties.\n"
+        "Screen: Forecasts."
+    )
+    return [_upsert(company_id, LOSS_MONTH_TITLE, "proyeccion", "media", description)]
+
+
 def evaluate_alerts(company_id: int) -> dict:
     """Run the rules and deduplicate by title + origin + open status."""
     outcomes: list[tuple[str, Alert]] = []
@@ -368,6 +407,7 @@ def evaluate_alerts(company_id: int) -> dict:
     outcomes.extend(_rule_expenses(company_id))
     outcomes.extend(_rule_stale_forecast(company_id))
     outcomes.extend(_rule_forecast_vs_plan(company_id))
+    outcomes.extend(_rule_loss_month(company_id))
     db.session.flush()
     record_audit(
         company_id,

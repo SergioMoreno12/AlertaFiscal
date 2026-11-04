@@ -93,7 +93,7 @@ def list_sources():
 def source_detail(code: str):
     source = db.session.query(ExternalSource).filter_by(code=code).first()
     if source is None:
-        return error("not_found", "Fuente no encontrada", 404)
+        return error("not_found", "Source not found", 404)
     versions = (
         db.session.query(ExternalDatasetVersion)
         .filter_by(source_id=source.id)
@@ -216,7 +216,7 @@ def list_tax_collections():
     source_code = request.args.get("source", "dian_recaudo")
     source, version = _current(source_code)
     if source is None:
-        return error("not_found", "Fuente no encontrada", 404)
+        return error("not_found", "Source not found", 404)
     if version is None:
         return jsonify(
             {
@@ -287,7 +287,7 @@ def list_sector_benchmarks():
     source_code = request.args.get("source", "supersociedades_top10000")
     source, version = _current(source_code)
     if source is None:
-        return error("not_found", "Fuente no encontrada", 404)
+        return error("not_found", "Source not found", 404)
     if version is None:
         return jsonify(
             {

@@ -58,7 +58,7 @@ def create_alert(company_id: int):
     data = get_json()
     title = str(data.get("title", "")).strip()
     if not title:
-        return error("invalid_payload", "title es obligatorio", 422)
+        return error("invalid_payload", "title is required", 422)
     priority = str(data.get("priority", "media"))
     if priority not in ("alta", "media", "baja"):
         return error("invalid_payload", "Invalid priority", 422)
@@ -124,7 +124,7 @@ def add_comment(company_id: int, alert_id: int):
     data = get_json()
     body = str(data.get("body", "")).strip()
     if not body:
-        return error("invalid_payload", "body es obligatorio", 422)
+        return error("invalid_payload", "body is required", 422)
     comment = AlertComment(company_id=company_id, alert_id=alert_id, user_id=g.current_user.id, body=body[:2000])
     db.session.add(comment)
     db.session.flush()

@@ -204,7 +204,7 @@ const HISTORICO = [
   { mes: "May", ingresos: 42000000, gastos: 28000000 },
   { mes: "Jun", ingresos: 51000000, gastos: 34000000 },
   { mes: "Jul", ingresos: 48500000, gastos: 32000000 },
-  { mes: "Ago", ingresos: 62300000, gastos: 41000000 },
+  { mes: "Aug", ingresos: 62300000, gastos: 41000000 },
   { mes: "Sep", ingresos: 57800000, gastos: 38500000 },
   { mes: "Oct*", ingresos: 35000000, gastos: 23000000, proyIngreso: 55000000, proyGasto: 37000000 },
 ];
@@ -413,7 +413,7 @@ const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demo
         style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${backend.online ? "#A5D6A7" : "#FFE082"}`, backgroundColor: backend.online ? "#E8F5E9" : "#FFF8E1", color: backend.online ? "#1B5E3F" : "#B26A00", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
       >
         <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#43A047" : "#FBC02D", display: "inline-block" }} />
-        {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API no disponible") : "Verificando API"}
+        {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API unavailable") : "Checking API"}
       </span>
       {demoMode && <DemoBanner />}
       <button onClick={onLogout} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#78909C", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
@@ -1347,7 +1347,7 @@ const GastosScreen = ({
         date: fmtDate(row.issue_date),
         party: counterparties.find((party) => party.id === row.counterparty_id)?.name ?? "No counterparty",
         doc: row.doc_number,
-        category: row.category || "Otros",
+        category: row.category || "Other",
         description: row.description || "—",
         subtotal: num(row.subtotal),
         tax: num(row.tax_amount),
@@ -1404,7 +1404,7 @@ const GastosScreen = ({
           date: fmtDate(form.issue_date),
           party: form.party || "Demo supplier",
           doc: form.doc_number,
-          category: form.category || "Otros",
+          category: form.category || "Other",
           description: form.description || "Compra registrada",
           subtotal: Number(subtotal),
           tax: Number(tax),
@@ -1950,12 +1950,14 @@ const ProyeccionesScreen = ({
               {[
                 { label: "Method (income)", value: models.income?.label ?? result.method_label ?? "—" },
                 { label: "Method (expenses)", value: models.expenses?.label ?? "—" },
+                { label: "Model", value: result.scope === "global" ? "Global model (425 companies, evaluated in Phase 4)" : result.scope === "company" ? "This company's own model" : "—" },
                 { label: "Model version", value: result.model_version ?? "no version" },
+                { label: "Artifact SHA-256", value: result.artifact_sha256 ? `${result.artifact_sha256.slice(0, 12)}…` : "—" },
                 { label: "Trained", value: fmtDate(result.trained_at) },
                 { label: "History cutoff", value: fmtDate(result.cutoff_date) },
                 { label: "Months of history", value: String(result.history_months ?? "—") },
                 { label: "Horizon", value: `${months} months` },
-                { label: "Evaluation", value: result.assumptions?.evaluation?.method === "temporal_holdout" ? `Time-based validation for selection (${result.assumptions.evaluation.test_months ?? "—"} months); one-month error with real lags. The full recursive horizon is not evaluated` : "Not declared" },
+                { label: "Evaluation", value: result.scope === "global" ? "Evaluated once on test and holdout companies: accepted (docs/04_evaluation_report.md)" : result.assumptions?.evaluation?.method === "temporal_holdout" ? `Time-based validation for selection (${result.assumptions.evaluation.test_months ?? "—"} months); one-month error with real lags. The full recursive horizon is not evaluated` : "Not declared" },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                   <span style={{ fontSize: 12, color: "#78909C" }}>{item.label}</span>
@@ -1969,11 +1971,19 @@ const ProyeccionesScreen = ({
           </div>
 
           <Card style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>Model metrics (time-based validation)</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>{result.scope === "global" ? "Model evaluation" : "Model metrics (time-based validation)"}</div>
             <div style={{ fontSize: 12, color: "#78909C", marginBottom: 16 }}>
-              One-month error on the months used for selection (real lags). The full recursive horizon is not evaluated. Lower MAE is better. These are not probabilities or promises of savings.
+              {result.scope === "global" ? "Six-month recursive forecasts, as the app makes them." : "One-month error on the months used for selection (real lags). The full recursive horizon is not evaluated. Lower MAE is better."} These are not probabilities or promises of savings.
             </div>
-            {Object.entries(models).map(([target, info]) => (
+            {result.scope === "global" && (
+              <div style={{ fontSize: 12, color: "#37474F", lineHeight: 1.7, marginBottom: 8 }}>
+                The global model was evaluated once on data nobody used to train or choose it (Phase 4, verdict: accepted).
+                Typical error, as a share of a company's monthly income: income 10.2 % and expenses 10.7 % on the temporal test,
+                income 12.3 % and expenses 11.8 % on companies never seen in training. The seasonal naive baseline scored 15–17 %.
+                The figures come from a semi-synthetic dataset, so they describe the method, not this company.
+              </div>
+            )}
+            {result.scope !== "global" && Object.entries(models).map(([target, info]) => (
               <div key={target} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#37474F" }}>
                   {target === "income" ? "Income" : "Expenses"} · selected model: {info.label}
@@ -1990,7 +2000,7 @@ const ProyeccionesScreen = ({
                 </div>
               </div>
             ))}
-            {Object.keys(models).length === 0 && (
+            {result.scope !== "global" && Object.keys(models).length === 0 && (
               <div style={{ fontSize: 12, color: "#78909C" }}>The run declares no metrics.</div>
             )}
           </Card>
@@ -2809,7 +2819,7 @@ const ObligacionesScreen = ({
     <div style={{ padding: "28px 32px" }}>
       <SectionHeader
         title="Obligations and calendar"
-        subtitle={`Fechas registradas manualmente · ${companyName}`}
+        subtitle={`Manually recorded dates · ${companyName}`}
         actions={canManage && <Btn variant="primary" icon={<Plus size={13} />} small onClick={openForm}>Record obligation</Btn>}
       />
 

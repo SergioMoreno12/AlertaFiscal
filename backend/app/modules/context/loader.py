@@ -100,7 +100,7 @@ def _iter_tax_rows(path: Path):
             department = (raw.get("department_name") or "").strip() or None
             series_code = (raw.get("series_code") or "").strip()
             if not scope or not frequency or not series_code:
-                raise ManifestError("Fila de recaudo incompleta")
+                raise ManifestError("Incomplete collection row")
             yield {
                 "row_key": _row_key(scope, frequency, year, month, department, series_code),
                 "scope": scope,
@@ -197,7 +197,7 @@ def _load_facts(version: ExternalDatasetVersion, manifest: dict) -> dict:
     ):
         if expected is not None and int(expected) != counts[table]:
             raise ManifestError(
-                f"Conteo inesperado en {table}: {counts[table]} cargados, {expected} declarados"
+                f"Unexpected count in {table}: {counts[table]} loaded, {expected} declared"
             )
     return counts
 
