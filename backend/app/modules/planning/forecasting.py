@@ -486,6 +486,9 @@ def run_model_forecast(company_id: int, horizon: int) -> dict:
     )
     db.session.add(run)
     db.session.flush()
+    from ..monitoring.service import record_predictions  # local import: monitoring reads this module
+
+    record_predictions(run, history)
     record_audit(
         company_id,
         "forecast.model_run",

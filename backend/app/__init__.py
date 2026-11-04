@@ -54,6 +54,7 @@ def create_app(config_class: type = Config) -> Flask:
     from .modules.companies.routes import companies_bp
     from .modules.context.routes import context_bp
     from .modules.dashboard.routes import dashboard_bp
+    from .modules.monitoring.routes import monitoring_bp
     from .modules.movements.routes import movements_bp
     from .modules.planning.routes import planning_bp
     from .modules.tracking.routes import tracking_bp
@@ -68,6 +69,7 @@ def create_app(config_class: type = Config) -> Flask:
         tracking_bp,
         alerts_bp,
         context_bp,
+        monitoring_bp,
     ):
         app.register_blueprint(bp)
 
@@ -242,6 +244,17 @@ def _register_cli(app: Flask) -> None:
         except ValueError as exc:
             raise click.ClickException(str(exc)) from exc
         click.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+    @app.cli.command("monitoring-purge")
+    @click.option("--dry-run", is_flag=True, help="Only count the rows that would be deleted.")
+    def monitoring_purge_command(dry_run: bool):
+        """Delete monitoring data older than the retention period (24 months, events 90 days)."""
+        from .modules.monitoring.service import purge_expired
+
+        result = purge_expired(dry_run=dry_run)
+        if not dry_run:
+            db.session.commit()
+        click.echo(json.dumps(result, indent=2))
 
     @app.cli.command("context-load")
     @click.argument("manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path))

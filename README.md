@@ -4,6 +4,21 @@ AlertaFiscal is an ERP for Colombian small businesses with a machine learning fo
 
 Project for the Machine Learning course, Universidad de Cundinamarca. The data behind the model is **semi-synthetic** (built from public DIAN and Supersociedades aggregates); no real company is represented.
 
+**Final report:** [`docs/07_final_report.md`](docs/07_final_report.md). **Handover and open points:** [`docs/handover.md`](docs/handover.md).
+
+## Results
+
+Official evaluation, run once and tagged `eval-final-run`. Verdict: **accepted**, all 12 checks pass ([`docs/04_evaluation_report.md`](docs/04_evaluation_report.md)). MAE in millions of COP per month; the baseline is seasonal naive.
+
+| Scenario | Target | Model MAE | Baseline MAE | Median normalized MAE |
+|---|---|---|---|---|
+| Temporal test (425 companies) | Income | 21.462 | 38.170 | 10.22 % |
+| Temporal test | Expenses | 22.619 | 37.352 | 10.69 % |
+| Holdout (75 unseen companies) | Income | 23.709 | 39.675 | 12.34 % |
+| Holdout | Expenses | 23.838 | 40.611 | 11.75 % |
+
+Deployed model: `model_global.json`, version `global-20261103-84df89b5`, SHA-256 `18e6872588ec387e853d11665f354c37312a8188893c93f204a6bbc9aeb0663e`.
+
 ## Repository layout
 
 | Path | What it holds |
@@ -13,7 +28,7 @@ Project for the Machine Learning course, Universidad de Cundinamarca. The data b
 | `ml/src/` | Dataset, training, evaluation and artifact export scripts (phases 2 to 4) |
 | `ml/company_trainer/` | Script that trains a model for one company from its own history |
 | `ml/data/` | Processed dataset. `ml/data/raw/` is never committed (see `ml/README.md`) |
-| `docs/` | Phase documents (`01_` to `04_`), phase instructions and `docs/erp/` (ERP documentation) |
+| `docs/` | Phase documents (`01_` to `07_`), phase instructions and `docs/erp/` (ERP documentation) |
 | `legacy_flask_site/` | The original course website, kept for reference |
 | `render.yaml`, `compose.yaml`, `docker/`, `.github/` | Deployment, local PostgreSQL and CI |
 
@@ -79,12 +94,13 @@ By default the PostgreSQL integration tests are skipped. To run them, set `TEST_
 5. **Minimum history.** With fewer than 6 months, or a non-positive scale, the API answers `insufficient_history` and the ERP keeps the manual planning mode available. A model error never breaks the ERP screens.
 6. **Provenance.** Each forecast is stored in `forecast_runs` with its method, model version, monthly values and history signature. Its `assumptions` record `scope`, `artifact_sha256` and `is_demo`.
 7. **Proof that the deployed model is the evaluated one.** The SHA-256 of `backend/model_artifacts/model_global.json` is checked by a test against the value recorded by the evaluation phase, and `parity_cases.json` checks that the backend reproduces the scikit-learn forecasts. Do not retrain, re-export or edit the artifact: any change alters the hash and invalidates the evaluation.
+8. **Monitoring.** Each model forecast is stored month by month in `forecast_monitoring`. When a month closes and its real documents exist, the error normalized by the company's mean income is compared with the Phase 4 reference (normal ≤ 1.0×, watch ≤ 1.5×, degraded above). The status, model version and operations (outcome and latency of each call) are shown in History → Monitoring and at `GET /api/v1/companies/{id}/monitoring`. See `docs/06_monitoring.md`.
 
 ## Deploy (Render + Supabase)
 
 `render.yaml` defines the backend (a Gunicorn web service rooted in `backend/`) and the frontend (a static site rooted in `frontend/`). The database is an external Supabase PostgreSQL project; Render creates none.
 
-1. In Render, set the secrets in the dashboard (they are marked `sync: false` and must never be committed): `DATABASE_URL` (Supabase pooled connection string) and `FRONTEND_ORIGIN` (the static site URL); on the frontend set `VITE_API_BASE_URL` (the backend URL).
+1. In Render, set the secrets in the dashboard (they are marked `sync: false` and must never be committed): `DATABASE_URL` (Supabase pooled connection string), `DB_SCHEMA` (the app's schema, if not `public`) and `FRONTEND_ORIGIN` (the static site URL); on the frontend set `VITE_API_BASE_URL` (the backend URL).
 2. Deploy both services from `render.yaml`. Cookies are `Secure` with `SameSite=None` because the two services live on different domains.
 3. Run the migrations once against the database (`flask db upgrade`) and, if wanted, `flask demo-load`. Neither runs on startup.
 4. Check `/health/ready`, then test login, a company with a forecast, the company with 4 months (manual mode), alerts, and that the model version and date are shown.
@@ -97,4 +113,6 @@ The free Render plan sleeps after inactivity; the first request can take about a
 
 - `docs/erp/` — architecture, API, security, deployment, decisions and the traceability matrix (`traceability_base_vs_ported.md`).
 - `docs/01_` to `docs/04_` — business and data, dataset, alert rules, model selection and evaluation protocol.
+- `docs/06_monitoring.md`, `docs/06_test_cases.md`, `docs/06_retraining_and_rollback.md`, `docs/06_privacy_and_retention.md` — monitoring, test cases with results, retraining and rollback, privacy and retention.
+- `docs/07_final_report.md` — final report. `docs/handover.md` — merge and deployment status.
 - `docs/phases/` — instructions for each phase.

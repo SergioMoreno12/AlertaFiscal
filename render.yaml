@@ -22,6 +22,10 @@ services:
       # No database is created on Render.
       - key: DATABASE_URL
         sync: false
+      # Schema of the app inside the Supabase database (for example
+      # alertafiscal_scratch). Leave it empty to use public.
+      - key: DB_SCHEMA
+        sync: false
       - key: COOKIE_SECURE
         value: "true"
       # Frontend and API are on different domains (*.onrender.com):

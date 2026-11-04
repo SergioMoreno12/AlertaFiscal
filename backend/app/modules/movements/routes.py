@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from flask import Blueprint, g, jsonify, request
+from flask import current_app, Blueprint, g, jsonify, request
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -21,6 +21,17 @@ from ...extensions import db
 from ...models import Counterparty, ExpenseDocument, ExpensePayment, IncomeDocument, IncomeReceipt
 
 movements_bp = Blueprint("movements", __name__, url_prefix="/api/v1/companies/<int:company_id>")
+
+
+def _refresh_monitoring(company_id: int) -> None:
+    """Resolve forecast months whose actual value just arrived (Phase 6). Never breaks the ERP."""
+    from ..monitoring.service import refresh_company
+
+    try:
+        with db.session.begin_nested():
+            refresh_company(company_id)
+    except Exception:  # monitoring is best effort; the document is already saved
+        current_app.logger.exception("forecast monitoring refresh failed")
 
 
 def _income_dict(row: IncomeDocument) -> dict:
@@ -128,6 +139,7 @@ def create_income(company_id: int):
         return error("duplicate_document", "An income document with that number already exists", 409)
 
     record_audit(company_id, "income.create", f"income:{row.id}", {"total": money(total)})
+    _refresh_monitoring(company_id)
     return jsonify(_income_dict(row)), 201
 
 
@@ -213,6 +225,7 @@ def create_expense(company_id: int):
         return error("duplicate_document", "An expense document with that number already exists", 409)
 
     record_audit(company_id, "expense.create", f"expense:{row.id}", {"total": money(total)})
+    _refresh_monitoring(company_id)
     return jsonify(_expense_dict(row)), 201
 
 

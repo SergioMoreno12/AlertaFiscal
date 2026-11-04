@@ -320,13 +320,13 @@ It defines no database and no `fromDatabase`.
 1. Push the repository to GitHub.
 2. Create the Supabase project and prepare its connection (section 8).
 3. In Render, **New → Blueprint** and apply `render.yaml`.
-4. Set the backend secret `DATABASE_URL` to the Supabase string.
+4. Set the backend secret `DATABASE_URL` to the Supabase string and, if the app uses its own schema, `DB_SCHEMA`.
 5. Choose a migration mechanism:
    - **Pre-Deploy Command** if the plan offers it: `flask db upgrade`.
    - Otherwise run `flask db upgrade` from a local, controlled environment connected to Supabase, before deploying the backend.
    - As a controlled alternative, temporarily change the start command to `flask db upgrade && gunicorn wsgi:app -c gunicorn.conf.py`, deploy once, check `/health/ready` and **restore** the normal start command.
    Never leave a permanent automatic migration in the start command.
-6. Load demo data only in a demo environment, never on server start.
+6. Load demo data only in a demo environment, never on server start. From a local environment connected to Supabase (same `DATABASE_URL` and `DB_SCHEMA`): `flask demo-load --email <demo user>` with `DEMO_PASSWORD` set, or let it ask for the password. It loads the labeled holdout companies of the Phase 2 dataset (`backend/app/demo_data.py`).
 7. Copy the backend URL and set it in the Static Site: `VITE_API_BASE_URL=https://<backend>.onrender.com`. Redeploy without cache, because Vite variables are embedded in the build.
 8. Copy the frontend URL and set it in the backend: `FRONTEND_ORIGIN=https://<frontend>.onrender.com` (no trailing slash).
 9. Check `https://<backend>/health/ready` → `{"status":"ready","database":"postgresql","demo":false}`.
