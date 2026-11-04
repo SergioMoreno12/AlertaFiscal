@@ -339,6 +339,57 @@ class ForecastRun(TimestampMixin, db.Model):
     )
 
 
+# ─────────────────────────── Forecast monitoring (Phase 6) ───────────────────────────
+
+
+class ForecastMonitoring(TimestampMixin, db.Model):
+    """One row per model run, target and forecast month: prediction, actual value and error.
+
+    The actual value stays empty (status ``pending``) until the month is closed and the
+    company's ERP history covers it. Errors are normalized by the company's mean monthly
+    income over the history the run used, like the Phase 4 evaluation.
+    """
+
+    __tablename__ = "forecast_monitoring"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    forecast_run_id: Mapped[int] = mapped_column(ForeignKey("forecast_runs.id", ondelete="CASCADE"), nullable=False)
+    target: Mapped[str] = mapped_column(String(10), nullable=False)
+    forecast_month: Mapped[str] = mapped_column(String(7), nullable=False)
+    horizon_step: Mapped[int] = mapped_column(Integer, nullable=False)
+    predicted_value: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    scale_value: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    actual_value: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    absolute_error: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    normalized_error_pct: Mapped[float | None] = mapped_column(Numeric(9, 4))
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="pending")
+    model_version: Mapped[str | None] = mapped_column(String(40))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("forecast_run_id", "target", "forecast_month", name="uq_monitoring_run_target_month"),
+        CheckConstraint("target in ('income','expenses')", name="ck_monitoring_target"),
+        CheckConstraint("status in ('pending','normal','watch','degraded')", name="ck_monitoring_status"),
+        Index("ix_monitoring_company_target_month", "company_id", "target", "forecast_month"),
+    )
+
+
+class ForecastServiceEvent(db.Model):
+    """Operational record of each call to the model forecast endpoint (outcome and latency)."""
+
+    __tablename__ = "forecast_service_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
+    outcome: Mapped[str] = mapped_column(String(40), nullable=False)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_version: Mapped[str | None] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_service_events_company_date", "company_id", "created_at"),)
+
+
 # ─────────────────────────── Alerts ───────────────────────────
 
 

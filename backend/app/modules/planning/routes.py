@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -375,9 +376,13 @@ def create_model_forecast(company_id: int):
         return error("invalid_payload", "horizon_months must be an integer", 422)
     horizon = max(1, min(horizon, 12))
 
+    from ..monitoring.service import record_service_event
+
+    started = time.perf_counter()
     try:
         result = run_model_forecast(company_id, horizon)
     except ForecastUnavailable as exc:
+        record_service_event(company_id, exc.code, int((time.perf_counter() - started) * 1000), None)
         return (
             jsonify(
                 {
@@ -390,6 +395,7 @@ def create_model_forecast(company_id: int):
             ),
             200,
         )
+    record_service_event(company_id, "success", int((time.perf_counter() - started) * 1000), result.get("model_version"))
     return jsonify(result), 201
 
 

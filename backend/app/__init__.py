@@ -54,6 +54,7 @@ def create_app(config_class: type = Config) -> Flask:
     from .modules.companies.routes import companies_bp
     from .modules.context.routes import context_bp
     from .modules.dashboard.routes import dashboard_bp
+    from .modules.monitoring.routes import monitoring_bp
     from .modules.movements.routes import movements_bp
     from .modules.planning.routes import planning_bp
     from .modules.tracking.routes import tracking_bp
@@ -68,6 +69,7 @@ def create_app(config_class: type = Config) -> Flask:
         tracking_bp,
         alerts_bp,
         context_bp,
+        monitoring_bp,
     ):
         app.register_blueprint(bp)
 
