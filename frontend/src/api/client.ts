@@ -1,9 +1,9 @@
 /**
  * Cliente HTTP centralizado.
  *
- * - La URL base sale de VITE_API_BASE_URL (vacía = mismo origen + proxy de Vite).
- * - Las cookies de sesión viajan con `credentials: "include"`.
- * - El token CSRF se mantiene en memoria (nunca en localStorage).
+ * - The base URL comes from VITE_API_BASE_URL (empty = same origin + Vite proxy).
+ * - Session cookies travel with `credentials: "include"`.
+ * - The CSRF token is kept in memory (never in localStorage).
  */
 
 const RAW_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
@@ -94,8 +94,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       0,
       aborted ? 'timeout' : 'network_error',
       aborted
-        ? 'La solicitud tardó demasiado. Verifica tu conexión.'
-        : 'No se pudo conectar con el servidor.',
+        ? 'The request took too long. Check your connection.'
+        : 'Could not connect to the server.',
     )
   } finally {
     clearTimeout(timeout)
@@ -107,7 +107,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (response.status === 204 || response.headers.get('content-length') === '0') {
     if (!response.ok) {
-      throw new ApiError(response.status, 'http_error', 'La operación no se pudo completar.')
+      throw new ApiError(response.status, 'http_error', 'The operation could not be completed.')
     }
     return undefined as T
   }

@@ -1,11 +1,11 @@
 import { api } from './client'
 
 /**
- * Contexto externo de solo lectura.
+ * Read-only external context.
  *
- * Estas cifras son agregados públicos (DIAN, Supersociedades). No son
- * obligaciones de la empresa, no se unen por NIT y no alimentan el pronóstico
- * ni las alertas.
+ * These figures are public aggregates (DIAN, Supersociedades). They are not
+ * obligations of the company, they are not joined by NIT and they do not feed the forecast
+ * or the alerts.
  */
 
 export type ContextLicense = {

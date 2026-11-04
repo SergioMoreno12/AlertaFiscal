@@ -1,8 +1,8 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// En desarrollo el frontend llama a /api y /health en el mismo origen y Vite
-// redirige al backend (evita CORS). En producción se usa VITE_API_BASE_URL.
+// In development the frontend calls /api and /health on the same origin and Vite
+// forwards them to the backend (avoids CORS). In production VITE_API_BASE_URL is used.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '')
   const proxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:5000'
