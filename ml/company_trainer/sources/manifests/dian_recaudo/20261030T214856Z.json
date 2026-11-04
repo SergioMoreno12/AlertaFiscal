@@ -1,0 +1,101 @@
+{
+  "manifest_version": 1,
+  "generated_at": "2026-10-30T22:10:39Z",
+  "source": {
+    "code": "dian_recaudo",
+    "name": "Estadísticas de recaudo de la DIAN",
+    "publisher": "Dirección de Impuestos y Aduanas Nacionales (DIAN)",
+    "dataset_id": null,
+    "source_url": "https://www.dian.gov.co/dian/cifras/Paginas/EstadisticasRecaudo.aspx",
+    "metadata_url": null,
+    "attribution": "DIAN — Subdirección de Estudios Económicos",
+    "attribution_url": "https://www.dian.gov.co/dian/cifras/Paginas/EstadisticasRecaudo.aspx",
+    "license": {
+      "name": "No verificada en la fuente",
+      "license_id": null,
+      "terms_url": null,
+      "status": "uncertain",
+      "evidence_path": "docs/evidence/dian-license-uncertainty.md"
+    },
+    "cadence": "Mensual/irregular: la DIAN publica cifras con corte mensual; las seccionales pueden aparecer días después que las nacionales.",
+    "description": "Recaudo bruto por tipo de impuesto y por dirección seccional. No representa la obligación tributaria de una empresa individual."
+  },
+  "version": {
+    "version_label": "20261030T214856Z",
+    "identity_sha256": "e965c640a0aa2b3bc5167c6fe71e41535fb2df86e78ab222a128b53351e0f614",
+    "acquired_at": "2026-10-30T21:48:56Z",
+    "cutoff_date": "2026-10-23",
+    "period_start": "1970-01-01",
+    "period_end": "2026-09-30",
+    "is_partial": true,
+    "is_preliminary": true,
+    "status": "succeeded",
+    "source_updated_at": "2026-10-30",
+    "row_count": 1522,
+    "column_count": null,
+    "files": [
+      {
+        "path": "ml/data/raw/dian/Recaudo-anual-por-tipo-de-impuesto-1970-2026.xlsx",
+        "file_name": "Recaudo-anual-por-tipo-de-impuesto-1970-2026.xlsx",
+        "bytes": 45441,
+        "sha256": "d47b15934af8cdef96a9c70e54d76544a3e463319c6b18e9d6211bd9384a7524",
+        "kind": "annual",
+        "source_url": "https://www.dian.gov.co/dian/cifras/EstadisticasRecaudo/Recaudo-anual-por-tipo-de-impuesto-1970-2026.xlsx",
+        "sheet": "Recaudo anual a septiembre 2026",
+        "rows": 69,
+        "columns_with_values": 30
+      },
+      {
+        "path": "ml/data/raw/dian/Recaudo-mensual-por-tipo-de-impuesto-2000-2026.xlsx",
+        "file_name": "Recaudo-mensual-por-tipo-de-impuesto-2000-2026.xlsx",
+        "bytes": 147708,
+        "sha256": "68d5c296ba43554f7bb1f49fbebaddc6a1136c50c00cc6e65108de298804f0bd",
+        "kind": "monthly",
+        "source_url": "https://www.dian.gov.co/dian/cifras/EstadisticasRecaudo/Recaudo-mensual-por-tipo-de-impuesto-2000-2026.xlsx",
+        "sheet": "Rec mensual a septiembre 2026",
+        "rows": 358,
+        "columns_with_values": 32
+      },
+      {
+        "path": "ml/data/raw/dian/Recaudo-bruto-por-seccionales-y-tipo-de-impuesto-2005-2026.xlsx",
+        "file_name": "Recaudo-bruto-por-seccionales-y-tipo-de-impuesto-2005-2026.xlsx",
+        "bytes": 217105,
+        "sha256": "d625f23dac232acd32fc4ea237d3f23842f8108d06a48a9fb4f1f8966b6dc58b",
+        "kind": "department",
+        "source_url": "https://www.dian.gov.co/dian/cifras/EstadisticasRecaudo/Recaudo-bruto-por-seccionales-y-tipo-de-impuesto-2005-2026.xlsx",
+        "sheet": "septiembre_2026",
+        "rows": 1095,
+        "columns_with_values": 26
+      }
+    ],
+    "integrity": {
+      "method": "sha256 de originales + estructura de hojas",
+      "files_present": 3,
+      "all_hashes_recorded": true
+    },
+    "processed": [
+      {
+        "table": "tax_collections",
+        "path": "ml/data/processed/dian_recaudo/20261030T214856Z/tax_collection.csv",
+        "file_name": "tax_collection.csv",
+        "bytes": 2241737,
+        "sha256": "ca327290c99f2277f49e3405f731623815ffac0229e3087a0af940508a21f77a",
+        "rows": 28064
+      },
+      {
+        "table": "quality",
+        "path": "ml/data/processed/dian_recaudo/20261030T214856Z/quality.json",
+        "file_name": "quality.json",
+        "bytes": 5348,
+        "sha256": "a6cb844ac9593cecf0e69a3464678c5756fbd729e9b5a235e02a7a4fb1f6bbd4"
+      }
+    ],
+    "notes": [
+      "Unidades: millones de pesos corrientes.",
+      "2026 es parcial (a septiembre) y preliminar.",
+      "No se une por NIT ni se usa para etiquetar incumplimiento.",
+      "No se redistribuyen los crudos mientras la licencia siga sin verificar."
+    ],
+    "processed_at": "2026-10-30T23:34:58Z"
+  }
+}
