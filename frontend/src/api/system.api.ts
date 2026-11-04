@@ -1,11 +1,12 @@
-import { api } from './client'
+import { api, request } from './client'
 
 export type HealthLive = { status: string; service: string }
 export type HealthReady = { status: string; database: string; demo?: boolean }
 
-export async function checkLive(): Promise<HealthLive | null> {
+export async function checkLive(timeoutMs = 75000): Promise<HealthLive | null> {
   try {
-    return await api.get<HealthLive>('/health/live')
+    // Long timeout: on the free hosting plan the first request also starts the server.
+    return await request<HealthLive>('/health/live', { timeoutMs })
   } catch {
     return null
   }

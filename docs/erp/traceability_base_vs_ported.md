@@ -5,7 +5,7 @@
 - **Version:** replaces the first version (`e612c39`), which used `baseline-commit.md` as the base and left rows to verify. This one diffs the port commits directly, so no row is left to verify.
 - **How it was built:** `git diff --name-status 870569c HEAD`, plus the list of routes, tables, migrations and tests read from both commits.
 - **Status values:** kept (same behavior), changed (behavior or text changed), added, removed.
-- **Evidence:** the test that covers the item (in `backend/tests/`), or the file where it can be checked. The full suite gives 84 passed, 10 skipped (PostgreSQL tests, run in CI).
+- **Evidence:** the test that covers the item (in `backend/tests/`), or the file where it can be checked. The full suite gives 98 passed, 10 skipped (PostgreSQL tests, run in CI).
 
 Text changes: every user-facing message, label, log line, comment and document was translated from Spanish to English (commits `45a6ad8`, `50ba747`, `1dad405`, `66edad1`, `4074938`, `648b93b`). Stored codes kept their values so existing data stays valid: priorities `alta`/`media`/`baja`, alert origins `erp`/`plan`/`configuracion`/`proyeccion`, roles `admin`/`contador`/`auxiliar`, screen ids and error codes. Items that only changed text are marked **kept**.
 
