@@ -1,0 +1,1314 @@
+{
+  "mode": "official",
+  "official": true,
+  "generated_at_utc": "2026-11-04T02:06:59Z",
+  "protocol": "docs/04_evaluation_protocol.md (tag eval-protocol-v1)",
+  "artifact": "ml\\artifacts\\model_global.json",
+  "artifact_sha256": "18e6872588ec387e853d11665f354c37312a8188893c93f204a6bbc9aeb0663e",
+  "model_version": "global-20261103-84df89b5",
+  "model_types": {
+    "income": "random_forest",
+    "expenses": "random_forest"
+  },
+  "parity": {
+    "cases": 50,
+    "max_relative_difference": 0.0,
+    "tolerance": 1e-06,
+    "passed": true
+  },
+  "parity_sha256": "ed68bcff1cd0fa77e529ed5756610e09a1dbadc05415122f0deeb59088134167",
+  "data_sha256": {
+    "monthly_series.csv": "a5b0265ee4727e1b67bf66e3d04a2ceb3b03d623a4013b7904cae25aa859f159",
+    "split_manifest.csv": "d1c6195c03f513a663c23a80979ff7f65b88b27b6dfae053be9415ab2a26a4e4"
+  },
+  "history_months": [
+    1,
+    30
+  ],
+  "scored_months": [
+    31,
+    36
+  ],
+  "results": {
+    "temporal_test": {
+      "model/income": {
+        "overall": {
+          "n_points": 2550,
+          "n_companies": 425,
+          "mae": 21.4615,
+          "rmse": 40.5588,
+          "median_normalized_mae_pct": 10.2187,
+          "p90_normalized_mae_pct": 20.7181,
+          "mape_pct": 9.512,
+          "mape_excluded_zero_months": 0,
+          "bias": -3.561
+        },
+        "by_horizon_mae": [
+          17.1803,
+          21.8094,
+          17.1406,
+          17.8339,
+          25.8758,
+          28.9289
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 102,
+            "n_companies": 17,
+            "mae": 21.7734,
+            "rmse": 36.9795,
+            "median_normalized_mae_pct": 13.5045,
+            "p90_normalized_mae_pct": 19.2307,
+            "mape_pct": 10.6706,
+            "mape_excluded_zero_months": 0,
+            "bias": 3.0148
+          },
+          "construction": {
+            "n_points": 186,
+            "n_companies": 31,
+            "mae": 18.6268,
+            "rmse": 37.792,
+            "median_normalized_mae_pct": 12.5232,
+            "p90_normalized_mae_pct": 24.1414,
+            "mape_pct": 12.8679,
+            "mape_excluded_zero_months": 0,
+            "bias": -7.676
+          },
+          "manufacturing": {
+            "n_points": 516,
+            "n_companies": 86,
+            "mae": 16.3951,
+            "rmse": 28.766,
+            "median_normalized_mae_pct": 9.3565,
+            "p90_normalized_mae_pct": 17.5493,
+            "mape_pct": 9.1026,
+            "mape_excluded_zero_months": 0,
+            "bias": 0.8944
+          },
+          "mining": {
+            "n_points": 42,
+            "n_companies": 7,
+            "mae": 46.5965,
+            "rmse": 97.1512,
+            "median_normalized_mae_pct": 12.871,
+            "p90_normalized_mae_pct": 26.4373,
+            "mape_pct": 16.6825,
+            "mape_excluded_zero_months": 0,
+            "bias": -23.0998
+          },
+          "retail": {
+            "n_points": 954,
+            "n_companies": 159,
+            "mae": 26.949,
+            "rmse": 50.0025,
+            "median_normalized_mae_pct": 10.9391,
+            "p90_normalized_mae_pct": 23.0073,
+            "mape_pct": 9.6249,
+            "mape_excluded_zero_months": 0,
+            "bias": -6.9825
+          },
+          "services": {
+            "n_points": 750,
+            "n_companies": 125,
+            "mae": 17.2201,
+            "rmse": 27.8332,
+            "median_normalized_mae_pct": 9.6676,
+            "p90_normalized_mae_pct": 16.8644,
+            "mape_pct": 8.2586,
+            "mape_excluded_zero_months": 0,
+            "bias": -1.0536
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 4.4596,
+            "rmse": 5.9983,
+            "median_normalized_mae_pct": 9.4645,
+            "p90_normalized_mae_pct": 16.0376,
+            "mape_pct": 9.6951,
+            "mape_excluded_zero_months": 0,
+            "bias": 0.9555
+          },
+          "medium": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 15.2909,
+            "rmse": 22.6802,
+            "median_normalized_mae_pct": 10.4329,
+            "p90_normalized_mae_pct": 21.6253,
+            "mape_pct": 9.1924,
+            "mape_excluded_zero_months": 0,
+            "bias": -3.1412
+          },
+          "large": {
+            "n_points": 846,
+            "n_companies": 141,
+            "mae": 44.7983,
+            "rmse": 66.3634,
+            "median_normalized_mae_pct": 10.7513,
+            "p90_normalized_mae_pct": 22.6249,
+            "mape_pct": 9.6493,
+            "mape_excluded_zero_months": 0,
+            "bias": -8.5322
+          }
+        }
+      },
+      "model/expenses": {
+        "overall": {
+          "n_points": 2550,
+          "n_companies": 425,
+          "mae": 22.6189,
+          "rmse": 42.4307,
+          "median_normalized_mae_pct": 10.6875,
+          "p90_normalized_mae_pct": 20.7016,
+          "mape_pct": 10.2032,
+          "mape_excluded_zero_months": 0,
+          "bias": -4.1037
+        },
+        "by_horizon_mae": [
+          18.3305,
+          23.5735,
+          17.5335,
+          18.5601,
+          26.8592,
+          30.8564
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 102,
+            "n_companies": 17,
+            "mae": 20.3477,
+            "rmse": 32.6237,
+            "median_normalized_mae_pct": 12.5592,
+            "p90_normalized_mae_pct": 18.2316,
+            "mape_pct": 10.9344,
+            "mape_excluded_zero_months": 0,
+            "bias": 1.3613
+          },
+          "construction": {
+            "n_points": 186,
+            "n_companies": 31,
+            "mae": 18.2838,
+            "rmse": 37.9278,
+            "median_normalized_mae_pct": 12.0212,
+            "p90_normalized_mae_pct": 28.4926,
+            "mape_pct": 13.6439,
+            "mape_excluded_zero_months": 0,
+            "bias": -7.9047
+          },
+          "manufacturing": {
+            "n_points": 516,
+            "n_companies": 86,
+            "mae": 17.3246,
+            "rmse": 31.3126,
+            "median_normalized_mae_pct": 9.3503,
+            "p90_normalized_mae_pct": 19.2013,
+            "mape_pct": 9.5673,
+            "mape_excluded_zero_months": 0,
+            "bias": -0.5108
+          },
+          "mining": {
+            "n_points": 42,
+            "n_companies": 7,
+            "mae": 35.446,
+            "rmse": 74.9749,
+            "median_normalized_mae_pct": 14.8312,
+            "p90_normalized_mae_pct": 19.8383,
+            "mape_pct": 16.2338,
+            "mape_excluded_zero_months": 0,
+            "bias": -16.0329
+          },
+          "retail": {
+            "n_points": 954,
+            "n_companies": 159,
+            "mae": 29.5097,
+            "rmse": 54.288,
+            "median_normalized_mae_pct": 11.8661,
+            "p90_normalized_mae_pct": 23.3707,
+            "mape_pct": 10.5216,
+            "mape_excluded_zero_months": 0,
+            "bias": -6.6792
+          },
+          "services": {
+            "n_points": 750,
+            "n_companies": 125,
+            "mae": 18.1619,
+            "rmse": 29.6912,
+            "median_normalized_mae_pct": 9.6814,
+            "p90_normalized_mae_pct": 16.7824,
+            "mape_pct": 8.9453,
+            "mape_excluded_zero_months": 0,
+            "bias": -2.4321
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 4.6947,
+            "rmse": 6.2997,
+            "median_normalized_mae_pct": 10.0898,
+            "p90_normalized_mae_pct": 17.48,
+            "mape_pct": 10.4105,
+            "mape_excluded_zero_months": 0,
+            "bias": 0.8726
+          },
+          "medium": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 15.2356,
+            "rmse": 22.5019,
+            "median_normalized_mae_pct": 10.6767,
+            "p90_normalized_mae_pct": 22.0204,
+            "mape_pct": 9.6686,
+            "mape_excluded_zero_months": 0,
+            "bias": -3.2437
+          },
+          "large": {
+            "n_points": 846,
+            "n_companies": 141,
+            "mae": 48.1057,
+            "rmse": 69.8336,
+            "median_normalized_mae_pct": 11.5186,
+            "p90_normalized_mae_pct": 23.3765,
+            "mape_pct": 10.5328,
+            "mape_excluded_zero_months": 0,
+            "bias": -9.9813
+          }
+        }
+      },
+      "baseline/income": {
+        "overall": {
+          "n_points": 2550,
+          "n_companies": 425,
+          "mae": 38.1699,
+          "rmse": 69.6773,
+          "median_normalized_mae_pct": 16.7016,
+          "p90_normalized_mae_pct": 37.2459,
+          "mape_pct": 15.5992,
+          "mape_excluded_zero_months": 0,
+          "bias": -26.303
+        },
+        "by_horizon_mae": [
+          36.7388,
+          37.9007,
+          33.566,
+          36.0942,
+          41.4485,
+          43.2713
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 102,
+            "n_companies": 17,
+            "mae": 22.5643,
+            "rmse": 40.8455,
+            "median_normalized_mae_pct": 13.4085,
+            "p90_normalized_mae_pct": 24.8292,
+            "mape_pct": 11.2643,
+            "mape_excluded_zero_months": 0,
+            "bias": -18.7327
+          },
+          "construction": {
+            "n_points": 186,
+            "n_companies": 31,
+            "mae": 33.5063,
+            "rmse": 61.5427,
+            "median_normalized_mae_pct": 21.8944,
+            "p90_normalized_mae_pct": 50.8293,
+            "mape_pct": 20.6242,
+            "mape_excluded_zero_months": 0,
+            "bias": -20.0444
+          },
+          "manufacturing": {
+            "n_points": 516,
+            "n_companies": 86,
+            "mae": 30.9535,
+            "rmse": 60.8786,
+            "median_normalized_mae_pct": 12.9197,
+            "p90_normalized_mae_pct": 32.3296,
+            "mape_pct": 13.5058,
+            "mape_excluded_zero_months": 0,
+            "bias": -21.0366
+          },
+          "mining": {
+            "n_points": 42,
+            "n_companies": 7,
+            "mae": 85.1693,
+            "rmse": 166.5416,
+            "median_normalized_mae_pct": 24.0358,
+            "p90_normalized_mae_pct": 52.7801,
+            "mape_pct": 35.0212,
+            "mape_excluded_zero_months": 0,
+            "bias": -49.8055
+          },
+          "retail": {
+            "n_points": 954,
+            "n_companies": 159,
+            "mae": 49.7199,
+            "rmse": 84.1215,
+            "median_normalized_mae_pct": 19.9796,
+            "p90_normalized_mae_pct": 41.2536,
+            "mape_pct": 16.526,
+            "mape_excluded_zero_months": 0,
+            "bias": -39.752
+          },
+          "services": {
+            "n_points": 750,
+            "n_companies": 125,
+            "mae": 29.0903,
+            "rmse": 47.2889,
+            "median_normalized_mae_pct": 15.2188,
+            "p90_normalized_mae_pct": 29.485,
+            "mape_pct": 14.1163,
+            "mape_excluded_zero_months": 0,
+            "bias": -14.0846
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 6.9642,
+            "rmse": 9.2127,
+            "median_normalized_mae_pct": 14.4806,
+            "p90_normalized_mae_pct": 27.0641,
+            "mape_pct": 14.9079,
+            "mape_excluded_zero_months": 0,
+            "bias": -1.7923
+          },
+          "medium": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 27.1078,
+            "rmse": 39.9334,
+            "median_normalized_mae_pct": 17.551,
+            "p90_normalized_mae_pct": 40.3896,
+            "mape_pct": 15.4565,
+            "mape_excluded_zero_months": 0,
+            "bias": -17.8331
+          },
+          "large": {
+            "n_points": 846,
+            "n_companies": 141,
+            "mae": 80.7375,
+            "rmse": 113.7637,
+            "median_normalized_mae_pct": 18.3849,
+            "p90_normalized_mae_pct": 46.065,
+            "mape_pct": 16.4391,
+            "mape_excluded_zero_months": 0,
+            "bias": -59.5174
+          }
+        }
+      },
+      "baseline/expenses": {
+        "overall": {
+          "n_points": 2550,
+          "n_companies": 425,
+          "mae": 37.3521,
+          "rmse": 67.8368,
+          "median_normalized_mae_pct": 16.6486,
+          "p90_normalized_mae_pct": 36.4705,
+          "mape_pct": 15.9166,
+          "mape_excluded_zero_months": 0,
+          "bias": -25.4432
+        },
+        "by_horizon_mae": [
+          35.2194,
+          37.4849,
+          33.2086,
+          34.4563,
+          40.5574,
+          43.186
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 102,
+            "n_companies": 17,
+            "mae": 22.6294,
+            "rmse": 40.9438,
+            "median_normalized_mae_pct": 13.8752,
+            "p90_normalized_mae_pct": 23.9045,
+            "mape_pct": 12.0244,
+            "mape_excluded_zero_months": 0,
+            "bias": -18.3855
+          },
+          "construction": {
+            "n_points": 186,
+            "n_companies": 31,
+            "mae": 29.6026,
+            "rmse": 54.8261,
+            "median_normalized_mae_pct": 19.1898,
+            "p90_normalized_mae_pct": 40.3104,
+            "mape_pct": 20.8311,
+            "mape_excluded_zero_months": 0,
+            "bias": -16.7997
+          },
+          "manufacturing": {
+            "n_points": 516,
+            "n_companies": 86,
+            "mae": 30.6555,
+            "rmse": 59.9738,
+            "median_normalized_mae_pct": 12.6843,
+            "p90_normalized_mae_pct": 34.4807,
+            "mape_pct": 13.9529,
+            "mape_excluded_zero_months": 0,
+            "bias": -20.0525
+          },
+          "mining": {
+            "n_points": 42,
+            "n_companies": 7,
+            "mae": 70.8664,
+            "rmse": 135.9707,
+            "median_normalized_mae_pct": 23.5031,
+            "p90_normalized_mae_pct": 42.4668,
+            "mape_pct": 35.5862,
+            "mape_excluded_zero_months": 0,
+            "bias": -38.525
+          },
+          "retail": {
+            "n_points": 954,
+            "n_companies": 159,
+            "mae": 49.511,
+            "rmse": 83.6623,
+            "median_normalized_mae_pct": 19.6086,
+            "p90_normalized_mae_pct": 42.841,
+            "mape_pct": 16.8592,
+            "mape_excluded_zero_months": 0,
+            "bias": -39.1918
+          },
+          "services": {
+            "n_points": 750,
+            "n_companies": 125,
+            "mae": 28.5406,
+            "rmse": 47.535,
+            "median_normalized_mae_pct": 15.8875,
+            "p90_normalized_mae_pct": 27.8287,
+            "mape_pct": 14.2776,
+            "mape_excluded_zero_months": 0,
+            "bias": -14.0348
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 6.8602,
+            "rmse": 9.1265,
+            "median_normalized_mae_pct": 13.6796,
+            "p90_normalized_mae_pct": 26.9842,
+            "mape_pct": 15.2507,
+            "mape_excluded_zero_months": 0,
+            "bias": -1.7134
+          },
+          "medium": {
+            "n_points": 852,
+            "n_companies": 142,
+            "mae": 26.2734,
+            "rmse": 38.7827,
+            "median_normalized_mae_pct": 16.6808,
+            "p90_normalized_mae_pct": 39.6204,
+            "mape_pct": 15.7558,
+            "mape_excluded_zero_months": 0,
+            "bias": -17.1998
+          },
+          "large": {
+            "n_points": 846,
+            "n_companies": 141,
+            "mae": 79.2175,
+            "rmse": 110.7795,
+            "median_normalized_mae_pct": 18.5876,
+            "p90_normalized_mae_pct": 45.5243,
+            "mape_pct": 16.749,
+            "mape_excluded_zero_months": 0,
+            "bias": -57.6433
+          }
+        }
+      },
+      "largest_errors": [
+        {
+          "company_id": "C0295",
+          "sector": "retail",
+          "month": "2025-11",
+          "target": "income",
+          "forecast": 953.36,
+          "real": 1444.58,
+          "abs_error": 491.22
+        },
+        {
+          "company_id": "C0295",
+          "sector": "retail",
+          "month": "2025-11",
+          "target": "expenses",
+          "forecast": 876.97,
+          "real": 1366.66,
+          "abs_error": 489.69
+        },
+        {
+          "company_id": "C0310",
+          "sector": "mining",
+          "month": "2025-08",
+          "target": "income",
+          "forecast": 1128.55,
+          "real": 1502.04,
+          "abs_error": 373.49
+        },
+        {
+          "company_id": "C0396",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "expenses",
+          "forecast": 1063.07,
+          "real": 1412.15,
+          "abs_error": 349.08
+        },
+        {
+          "company_id": "C0310",
+          "sector": "mining",
+          "month": "2025-12",
+          "target": "expenses",
+          "forecast": 957.41,
+          "real": 1302.42,
+          "abs_error": 345.01
+        },
+        {
+          "company_id": "C0295",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "expenses",
+          "forecast": 892.85,
+          "real": 1237.34,
+          "abs_error": 344.49
+        },
+        {
+          "company_id": "C0310",
+          "sector": "mining",
+          "month": "2025-12",
+          "target": "income",
+          "forecast": 1214.31,
+          "real": 1552.16,
+          "abs_error": 337.85
+        },
+        {
+          "company_id": "C0295",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "income",
+          "forecast": 948.49,
+          "real": 1281.04,
+          "abs_error": 332.55
+        },
+        {
+          "company_id": "C0396",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "income",
+          "forecast": 1094.86,
+          "real": 1382.44,
+          "abs_error": 287.58
+        },
+        {
+          "company_id": "C0500",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "expenses",
+          "forecast": 668.46,
+          "real": 952.99,
+          "abs_error": 284.53
+        }
+      ]
+    },
+    "holdout_test": {
+      "model/income": {
+        "overall": {
+          "n_points": 450,
+          "n_companies": 75,
+          "mae": 23.7089,
+          "rmse": 39.2485,
+          "median_normalized_mae_pct": 12.3446,
+          "p90_normalized_mae_pct": 21.2507,
+          "mape_pct": 10.231,
+          "mape_excluded_zero_months": 0,
+          "bias": 0.0721
+        },
+        "by_horizon_mae": [
+          21.2292,
+          19.1917,
+          18.2869,
+          20.1304,
+          31.0899,
+          32.3253
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 24,
+            "n_companies": 4,
+            "mae": 21.2568,
+            "rmse": 28.5704,
+            "median_normalized_mae_pct": 14.3078,
+            "p90_normalized_mae_pct": 17.5167,
+            "mape_pct": 11.4163,
+            "mape_excluded_zero_months": 0,
+            "bias": -0.4359
+          },
+          "construction": {
+            "n_points": 36,
+            "n_companies": 6,
+            "mae": 24.3234,
+            "rmse": 39.5655,
+            "median_normalized_mae_pct": 12.9178,
+            "p90_normalized_mae_pct": 18.3272,
+            "mape_pct": 9.4322,
+            "mape_excluded_zero_months": 0,
+            "bias": -7.566
+          },
+          "manufacturing": {
+            "n_points": 90,
+            "n_companies": 15,
+            "mae": 18.7959,
+            "rmse": 29.477,
+            "median_normalized_mae_pct": 14.081,
+            "p90_normalized_mae_pct": 18.7095,
+            "mape_pct": 10.8741,
+            "mape_excluded_zero_months": 0,
+            "bias": -4.8822
+          },
+          "mining": {
+            "n_points": 12,
+            "n_companies": 2,
+            "mae": 26.8205,
+            "rmse": 43.9388,
+            "median_normalized_mae_pct": 12.5684,
+            "p90_normalized_mae_pct": 13.9832,
+            "mape_pct": 13.371,
+            "mape_excluded_zero_months": 0,
+            "bias": -12.3119
+          },
+          "retail": {
+            "n_points": 162,
+            "n_companies": 27,
+            "mae": 29.1008,
+            "rmse": 50.1437,
+            "median_normalized_mae_pct": 12.414,
+            "p90_normalized_mae_pct": 21.8838,
+            "mape_pct": 10.7286,
+            "mape_excluded_zero_months": 0,
+            "bias": -1.1025
+          },
+          "services": {
+            "n_points": 126,
+            "n_companies": 21,
+            "mae": 20.2809,
+            "rmse": 29.3521,
+            "median_normalized_mae_pct": 10.964,
+            "p90_normalized_mae_pct": 22.4735,
+            "mape_pct": 8.8353,
+            "mape_excluded_zero_months": 0,
+            "bias": 8.5794
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 6.4123,
+            "rmse": 8.4147,
+            "median_normalized_mae_pct": 11.4969,
+            "p90_normalized_mae_pct": 23.5547,
+            "mape_pct": 11.6127,
+            "mape_excluded_zero_months": 0,
+            "bias": 1.2604
+          },
+          "medium": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 18.7278,
+            "rmse": 24.5662,
+            "median_normalized_mae_pct": 14.304,
+            "p90_normalized_mae_pct": 20.7043,
+            "mape_pct": 10.1571,
+            "mape_excluded_zero_months": 0,
+            "bias": -0.6749
+          },
+          "large": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 45.9866,
+            "rmse": 62.8254,
+            "median_normalized_mae_pct": 12.3446,
+            "p90_normalized_mae_pct": 19.155,
+            "mape_pct": 8.9233,
+            "mape_excluded_zero_months": 0,
+            "bias": -0.3693
+          }
+        }
+      },
+      "model/expenses": {
+        "overall": {
+          "n_points": 450,
+          "n_companies": 75,
+          "mae": 23.8378,
+          "rmse": 42.7981,
+          "median_normalized_mae_pct": 11.7536,
+          "p90_normalized_mae_pct": 19.8463,
+          "mape_pct": 10.3343,
+          "mape_excluded_zero_months": 0,
+          "bias": -3.138
+        },
+        "by_horizon_mae": [
+          20.7556,
+          22.0336,
+          19.8075,
+          20.4275,
+          27.5399,
+          32.4626
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 24,
+            "n_companies": 4,
+            "mae": 19.7391,
+            "rmse": 25.0732,
+            "median_normalized_mae_pct": 12.5383,
+            "p90_normalized_mae_pct": 17.6201,
+            "mape_pct": 11.6338,
+            "mape_excluded_zero_months": 0,
+            "bias": 3.8622
+          },
+          "construction": {
+            "n_points": 36,
+            "n_companies": 6,
+            "mae": 23.65,
+            "rmse": 38.8506,
+            "median_normalized_mae_pct": 11.8024,
+            "p90_normalized_mae_pct": 18.3111,
+            "mape_pct": 10.2523,
+            "mape_excluded_zero_months": 0,
+            "bias": -5.2369
+          },
+          "manufacturing": {
+            "n_points": 90,
+            "n_companies": 15,
+            "mae": 19.3736,
+            "rmse": 33.1293,
+            "median_normalized_mae_pct": 12.9812,
+            "p90_normalized_mae_pct": 19.8463,
+            "mape_pct": 11.1916,
+            "mape_excluded_zero_months": 0,
+            "bias": -5.5732
+          },
+          "mining": {
+            "n_points": 12,
+            "n_companies": 2,
+            "mae": 25.3185,
+            "rmse": 40.6772,
+            "median_normalized_mae_pct": 11.3224,
+            "p90_normalized_mae_pct": 12.185,
+            "mape_pct": 12.4072,
+            "mape_excluded_zero_months": 0,
+            "bias": -0.9233
+          },
+          "retail": {
+            "n_points": 162,
+            "n_companies": 27,
+            "mae": 32.1331,
+            "rmse": 58.7328,
+            "median_normalized_mae_pct": 14.6076,
+            "p90_normalized_mae_pct": 21.4385,
+            "mape_pct": 10.943,
+            "mape_excluded_zero_months": 0,
+            "bias": -7.4064
+          },
+          "services": {
+            "n_points": 126,
+            "n_companies": 21,
+            "mae": 17.0543,
+            "rmse": 24.7799,
+            "median_normalized_mae_pct": 8.2227,
+            "p90_normalized_mae_pct": 17.9691,
+            "mape_pct": 8.5177,
+            "mape_excluded_zero_months": 0,
+            "bias": 3.1448
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 6.1055,
+            "rmse": 8.1321,
+            "median_normalized_mae_pct": 11.2876,
+            "p90_normalized_mae_pct": 21.2054,
+            "mape_pct": 11.7268,
+            "mape_excluded_zero_months": 0,
+            "bias": 1.2322
+          },
+          "medium": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 17.1825,
+            "rmse": 23.114,
+            "median_normalized_mae_pct": 12.9812,
+            "p90_normalized_mae_pct": 19.3898,
+            "mape_pct": 9.6817,
+            "mape_excluded_zero_months": 0,
+            "bias": -0.7212
+          },
+          "large": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 48.2253,
+            "rmse": 69.9617,
+            "median_normalized_mae_pct": 11.375,
+            "p90_normalized_mae_pct": 17.9056,
+            "mape_pct": 9.5943,
+            "mape_excluded_zero_months": 0,
+            "bias": -9.9251
+          }
+        }
+      },
+      "baseline/income": {
+        "overall": {
+          "n_points": 450,
+          "n_companies": 75,
+          "mae": 39.6751,
+          "rmse": 74.7624,
+          "median_normalized_mae_pct": 15.0913,
+          "p90_normalized_mae_pct": 41.0779,
+          "mape_pct": 14.2426,
+          "mape_excluded_zero_months": 0,
+          "bias": -32.4338
+        },
+        "by_horizon_mae": [
+          33.7155,
+          39.3291,
+          28.8519,
+          38.6317,
+          47.9284,
+          49.594
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 24,
+            "n_companies": 4,
+            "mae": 16.8825,
+            "rmse": 25.2278,
+            "median_normalized_mae_pct": 8.4199,
+            "p90_normalized_mae_pct": 15.1855,
+            "mape_pct": 8.2022,
+            "mape_excluded_zero_months": 0,
+            "bias": -4.6908
+          },
+          "construction": {
+            "n_points": 36,
+            "n_companies": 6,
+            "mae": 41.7294,
+            "rmse": 59.668,
+            "median_normalized_mae_pct": 21.0876,
+            "p90_normalized_mae_pct": 46.6844,
+            "mape_pct": 18.3952,
+            "mape_excluded_zero_months": 0,
+            "bias": -35.6506
+          },
+          "manufacturing": {
+            "n_points": 90,
+            "n_companies": 15,
+            "mae": 26.5526,
+            "rmse": 59.3649,
+            "median_normalized_mae_pct": 8.5732,
+            "p90_normalized_mae_pct": 29.6886,
+            "mape_pct": 10.1081,
+            "mape_excluded_zero_months": 0,
+            "bias": -21.9243
+          },
+          "mining": {
+            "n_points": 12,
+            "n_companies": 2,
+            "mae": 73.7475,
+            "rmse": 109.1402,
+            "median_normalized_mae_pct": 24.9498,
+            "p90_normalized_mae_pct": 29.4425,
+            "mape_pct": 22.8395,
+            "mape_excluded_zero_months": 0,
+            "bias": -60.3942
+          },
+          "retail": {
+            "n_points": 162,
+            "n_companies": 27,
+            "mae": 52.9779,
+            "rmse": 101.3088,
+            "median_normalized_mae_pct": 19.8605,
+            "p90_normalized_mae_pct": 41.7969,
+            "mape_pct": 15.7721,
+            "mape_excluded_zero_months": 0,
+            "bias": -44.0281
+          },
+          "services": {
+            "n_points": 126,
+            "n_companies": 21,
+            "mae": 32.4542,
+            "rmse": 44.4537,
+            "median_normalized_mae_pct": 13.1116,
+            "p90_normalized_mae_pct": 49.01,
+            "mape_pct": 14.3748,
+            "mape_excluded_zero_months": 0,
+            "bias": -26.7358
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 8.5653,
+            "rmse": 12.1338,
+            "median_normalized_mae_pct": 14.0501,
+            "p90_normalized_mae_pct": 38.2807,
+            "mape_pct": 15.0399,
+            "mape_excluded_zero_months": 0,
+            "bias": -3.3272
+          },
+          "medium": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 27.1202,
+            "rmse": 36.4059,
+            "median_normalized_mae_pct": 13.8253,
+            "p90_normalized_mae_pct": 45.5728,
+            "mape_pct": 13.6786,
+            "mape_excluded_zero_months": 0,
+            "bias": -20.7042
+          },
+          "large": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 83.3397,
+            "rmse": 123.6755,
+            "median_normalized_mae_pct": 16.9565,
+            "p90_normalized_mae_pct": 36.7268,
+            "mape_pct": 14.0094,
+            "mape_excluded_zero_months": 0,
+            "bias": -73.2699
+          }
+        }
+      },
+      "baseline/expenses": {
+        "overall": {
+          "n_points": 450,
+          "n_companies": 75,
+          "mae": 40.6115,
+          "rmse": 78.3507,
+          "median_normalized_mae_pct": 15.3426,
+          "p90_normalized_mae_pct": 41.4329,
+          "mape_pct": 15.181,
+          "mape_excluded_zero_months": 0,
+          "bias": -32.4522
+        },
+        "by_horizon_mae": [
+          34.6379,
+          41.0887,
+          29.1393,
+          39.8795,
+          47.4216,
+          51.5023
+        ],
+        "by_sector": {
+          "agriculture": {
+            "n_points": 24,
+            "n_companies": 4,
+            "mae": 17.565,
+            "rmse": 25.295,
+            "median_normalized_mae_pct": 11.0564,
+            "p90_normalized_mae_pct": 15.0898,
+            "mape_pct": 9.8244,
+            "mape_excluded_zero_months": 0,
+            "bias": -4.2467
+          },
+          "construction": {
+            "n_points": 36,
+            "n_companies": 6,
+            "mae": 42.5822,
+            "rmse": 58.07,
+            "median_normalized_mae_pct": 21.6706,
+            "p90_normalized_mae_pct": 45.2,
+            "mape_pct": 19.0206,
+            "mape_excluded_zero_months": 0,
+            "bias": -32.8656
+          },
+          "manufacturing": {
+            "n_points": 90,
+            "n_companies": 15,
+            "mae": 27.4431,
+            "rmse": 58.5095,
+            "median_normalized_mae_pct": 9.8664,
+            "p90_normalized_mae_pct": 27.9823,
+            "mape_pct": 11.7309,
+            "mape_excluded_zero_months": 0,
+            "bias": -20.5653
+          },
+          "mining": {
+            "n_points": 12,
+            "n_companies": 2,
+            "mae": 78.9467,
+            "rmse": 118.7277,
+            "median_normalized_mae_pct": 24.8884,
+            "p90_normalized_mae_pct": 31.2859,
+            "mape_pct": 21.9448,
+            "mape_excluded_zero_months": 0,
+            "bias": -67.4183
+          },
+          "retail": {
+            "n_points": 162,
+            "n_companies": 27,
+            "mae": 55.2191,
+            "rmse": 108.4706,
+            "median_normalized_mae_pct": 19.8507,
+            "p90_normalized_mae_pct": 44.6169,
+            "mape_pct": 16.1878,
+            "mape_excluded_zero_months": 0,
+            "bias": -46.3615
+          },
+          "services": {
+            "n_points": 126,
+            "n_companies": 21,
+            "mae": 31.4121,
+            "rmse": 43.8607,
+            "median_normalized_mae_pct": 13.6074,
+            "p90_normalized_mae_pct": 47.5256,
+            "mape_pct": 15.63,
+            "mape_excluded_zero_months": 0,
+            "bias": -24.9837
+          }
+        },
+        "by_size_tercile": {
+          "small": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 8.9236,
+            "rmse": 12.7837,
+            "median_normalized_mae_pct": 13.665,
+            "p90_normalized_mae_pct": 41.0202,
+            "mape_pct": 15.8019,
+            "mape_excluded_zero_months": 0,
+            "bias": -3.2948
+          },
+          "medium": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 27.1944,
+            "rmse": 34.9621,
+            "median_normalized_mae_pct": 15.3426,
+            "p90_normalized_mae_pct": 45.5133,
+            "mape_pct": 14.8251,
+            "mape_excluded_zero_months": 0,
+            "bias": -18.6763
+          },
+          "large": {
+            "n_points": 150,
+            "n_companies": 25,
+            "mae": 85.7166,
+            "rmse": 130.5019,
+            "median_normalized_mae_pct": 19.1004,
+            "p90_normalized_mae_pct": 34.4673,
+            "mape_pct": 14.916,
+            "mape_excluded_zero_months": 0,
+            "bias": -75.3855
+          }
+        }
+      },
+      "largest_errors": [
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "expenses",
+          "forecast": 1247.79,
+          "real": 1613.16,
+          "abs_error": 365.37
+        },
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-11",
+          "target": "income",
+          "forecast": 1296.0,
+          "real": 1608.4,
+          "abs_error": 312.4
+        },
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-11",
+          "target": "expenses",
+          "forecast": 1232.48,
+          "real": 1525.52,
+          "abs_error": 293.04
+        },
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-12",
+          "target": "income",
+          "forecast": 1289.46,
+          "real": 1557.56,
+          "abs_error": 268.1
+        },
+        {
+          "company_id": "C0214",
+          "sector": "retail",
+          "month": "2025-10",
+          "target": "expenses",
+          "forecast": 495.68,
+          "real": 698.59,
+          "abs_error": 202.91
+        },
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-08",
+          "target": "expenses",
+          "forecast": 1133.89,
+          "real": 1335.94,
+          "abs_error": 202.05
+        },
+        {
+          "company_id": "C0214",
+          "sector": "retail",
+          "month": "2025-10",
+          "target": "income",
+          "forecast": 546.97,
+          "real": 738.04,
+          "abs_error": 191.07
+        },
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-07",
+          "target": "expenses",
+          "forecast": 1102.7,
+          "real": 1263.19,
+          "abs_error": 160.49
+        },
+        {
+          "company_id": "C0238",
+          "sector": "retail",
+          "month": "2025-09",
+          "target": "expenses",
+          "forecast": 961.3,
+          "real": 1117.91,
+          "abs_error": 156.61
+        },
+        {
+          "company_id": "C0337",
+          "sector": "construction",
+          "month": "2025-12",
+          "target": "income",
+          "forecast": 491.19,
+          "real": 646.36,
+          "abs_error": 155.17
+        }
+      ]
+    }
+  },
+  "acceptance_checks": [
+    {
+      "id": "C1",
+      "scenario": "temporal_test",
+      "target": "income",
+      "rule": "MAE <= 0.9 x baseline MAE",
+      "value": 0.5623,
+      "passed": true
+    },
+    {
+      "id": "C2",
+      "scenario": "temporal_test",
+      "target": "income",
+      "rule": "median normalized MAE <= 15 %",
+      "value": 10.2187,
+      "passed": true
+    },
+    {
+      "id": "C3",
+      "scenario": "temporal_test",
+      "target": "income",
+      "rule": "p90 normalized MAE <= 30 %",
+      "value": 20.7181,
+      "passed": true
+    },
+    {
+      "id": "C1",
+      "scenario": "temporal_test",
+      "target": "expenses",
+      "rule": "MAE <= 0.9 x baseline MAE",
+      "value": 0.6056,
+      "passed": true
+    },
+    {
+      "id": "C2",
+      "scenario": "temporal_test",
+      "target": "expenses",
+      "rule": "median normalized MAE <= 15 %",
+      "value": 10.6875,
+      "passed": true
+    },
+    {
+      "id": "C3",
+      "scenario": "temporal_test",
+      "target": "expenses",
+      "rule": "p90 normalized MAE <= 30 %",
+      "value": 20.7016,
+      "passed": true
+    },
+    {
+      "id": "C1",
+      "scenario": "holdout_test",
+      "target": "income",
+      "rule": "MAE <= 0.9 x baseline MAE",
+      "value": 0.5976,
+      "passed": true
+    },
+    {
+      "id": "C2",
+      "scenario": "holdout_test",
+      "target": "income",
+      "rule": "median normalized MAE <= 15 %",
+      "value": 12.3446,
+      "passed": true
+    },
+    {
+      "id": "C3",
+      "scenario": "holdout_test",
+      "target": "income",
+      "rule": "p90 normalized MAE <= 30 %",
+      "value": 21.2507,
+      "passed": true
+    },
+    {
+      "id": "C1",
+      "scenario": "holdout_test",
+      "target": "expenses",
+      "rule": "MAE <= 0.9 x baseline MAE",
+      "value": 0.587,
+      "passed": true
+    },
+    {
+      "id": "C2",
+      "scenario": "holdout_test",
+      "target": "expenses",
+      "rule": "median normalized MAE <= 15 %",
+      "value": 11.7536,
+      "passed": true
+    },
+    {
+      "id": "C3",
+      "scenario": "holdout_test",
+      "target": "expenses",
+      "rule": "p90 normalized MAE <= 30 %",
+      "value": 19.8463,
+      "passed": true
+    }
+  ],
+  "verdict": "accepted",
+  "python": "3.14.7"
+}
