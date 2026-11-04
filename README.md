@@ -1,6 +1,6 @@
 # AlertaFiscal
 
-Machine Learning module for the preventive management of tax compliance risk in Colombian SMEs.
+Machine Learning module that helps Colombian small businesses plan their tax burden by forecasting their monthly income and expenses for the next 6 months.
 Project for the Machine Learning course, Universidad de Cundinamarca.
 
 ## Run locally
@@ -18,3 +18,4 @@ Open http://127.0.0.1:5000
 
 - Build command: `pip install -r requirements.txt`
 - Start command: `gunicorn app:app`
+- Live site: https://alertafiscal.onrender.com
