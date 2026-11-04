@@ -144,7 +144,7 @@ def _register_hooks(app: Flask) -> None:
 def _register_errors(app: Flask) -> None:
     @app.errorhandler(404)
     def _404(_e):
-        return jsonify({"error": {"code": "not_found", "message": "Recurso no encontrado"}}), 404
+        return jsonify({"error": {"code": "not_found", "message": "Resource not found"}}), 404
 
     @app.errorhandler(405)
     def _405(_e):
@@ -162,7 +162,7 @@ def _register_errors(app: Flask) -> None:
     def _unhandled(e):
         db.session.rollback()
         app.logger.exception("unhandled_error", extra={"request_id": getattr(g, "request_id", None)})
-        return jsonify({"error": {"code": "server_error", "message": "Error interno"}}), 500
+        return jsonify({"error": {"code": "server_error", "message": "Internal server error"}}), 500
 
 
 def _register_cli(app: Flask) -> None:
