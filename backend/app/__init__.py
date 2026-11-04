@@ -215,7 +215,33 @@ def _register_cli(app: Flask) -> None:
         if not db.session.query(CompanyMembership).filter_by(user_id=user.id, company_id=company.id).first():
             db.session.add(CompanyMembership(user_id=user.id, company_id=company.id, role="admin"))
         db.session.commit()
-        print("Usuario administrador listo")
+        print("Administrator user ready")
+
+    @app.cli.command("demo-load")
+    @click.option("--email", default="demo@alertafiscal.app", show_default=True, help="Demo user (created if missing).")
+    @click.option("--through", default=34, show_default=True, type=int,
+                  help="Last month index of the dataset to load (1-36). 35-36 can be added later.")
+    @click.option("--year-shift", default=1, show_default=True, type=int, help="Whole years added to the dataset dates.")
+    @click.option("--series", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+                  default=lambda: str(Path(__file__).resolve().parents[2] / "ml" / "data" / "processed" / "monthly_series.csv"))
+    @click.option("--manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+                  default=lambda: str(Path(__file__).resolve().parents[2] / "ml" / "data" / "processed" / "split_manifest.csv"))
+    def demo_load_command(email: str, through: int, year_shift: int, series: Path, manifest: Path):
+        """Load the semi-synthetic demo companies (holdout companies of the Phase 2 dataset)."""
+        import getpass
+
+        from .demo_data import load_demo
+
+        password = os.environ.get("DEMO_PASSWORD")
+        from .models import User
+
+        if password is None and db.session.query(User).filter_by(email=email).first() is None:
+            password = getpass.getpass("Password for the new demo user (min. 10): ")
+        try:
+            result = load_demo(series, manifest, email, password, through=through, year_shift=year_shift)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+        click.echo(json.dumps(result, ensure_ascii=False, indent=2))
 
     @app.cli.command("context-load")
     @click.argument("manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path))
