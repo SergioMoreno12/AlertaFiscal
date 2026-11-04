@@ -245,6 +245,17 @@ def _register_cli(app: Flask) -> None:
             raise click.ClickException(str(exc)) from exc
         click.echo(json.dumps(result, ensure_ascii=False, indent=2))
 
+    @app.cli.command("monitoring-purge")
+    @click.option("--dry-run", is_flag=True, help="Only count the rows that would be deleted.")
+    def monitoring_purge_command(dry_run: bool):
+        """Delete monitoring data older than the retention period (24 months, events 90 days)."""
+        from .modules.monitoring.service import purge_expired
+
+        result = purge_expired(dry_run=dry_run)
+        if not dry_run:
+            db.session.commit()
+        click.echo(json.dumps(result, indent=2))
+
     @app.cli.command("context-load")
     @click.argument("manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path))
     @click.option("--dry-run", is_flag=True, help="Validate the manifest without writing to the database.")

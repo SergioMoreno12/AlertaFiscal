@@ -237,3 +237,39 @@ def operations_summary(company_id: int) -> dict:
         "last_model_version": next((e.model_version for e in events if e.model_version), None),
         "last_request_at": events[0].created_at.isoformat() if events else None,
     }
+
+
+# ---------- Retention (docs/06_privacy_and_retention.md) ----------
+
+MONITORING_RETENTION_MONTHS = 24
+SERVICE_EVENT_RETENTION_DAYS = 90
+
+
+def _months_before(value: date, months: int) -> str:
+    index = value.year * 12 + (value.month - 1) - months
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
+
+
+def purge_expired(today: date | None = None, dry_run: bool = False) -> dict:
+    """Delete monitoring rows older than the retention period. Returns the counts."""
+    from datetime import timedelta
+
+    today = today or datetime.now(timezone.utc).date()
+    month_cutoff = _months_before(today, MONITORING_RETENTION_MONTHS)
+    event_cutoff = datetime(today.year, today.month, today.day, tzinfo=timezone.utc) - timedelta(
+        days=SERVICE_EVENT_RETENTION_DAYS
+    )
+    rows = db.session.query(ForecastMonitoring).filter(ForecastMonitoring.forecast_month < month_cutoff)
+    events = db.session.query(ForecastServiceEvent).filter(ForecastServiceEvent.created_at < event_cutoff)
+    result = {
+        "monitoring_rows": rows.count(),
+        "service_events": events.count(),
+        "months_before": month_cutoff,
+        "events_before": event_cutoff.date().isoformat(),
+        "dry_run": dry_run,
+    }
+    if not dry_run:
+        rows.delete(synchronize_session=False)
+        events.delete(synchronize_session=False)
+        db.session.flush()
+    return result

@@ -225,3 +225,27 @@ def test_inputs_changed_flag_is_reported(app, auth, global_dir, company_with_his
 def test_monitoring_of_another_company_is_forbidden(auth):
     response = auth["client"].get("/api/v1/companies/2/monitoring")
     assert response.status_code == 403
+
+
+def test_purge_removes_only_data_older_than_the_retention(app, auth, global_dir, company_with_history):
+    from datetime import datetime, timedelta, timezone
+
+    from app.extensions import db
+    from app.models import ForecastServiceEvent
+    from app.modules.monitoring.service import purge_expired
+
+    company_id, _, _, _ = company_with_history("purge", 12)
+    _run(auth, company_id)  # forecast months 2026-01..2026-06, one service event now
+    with app.app_context():
+        db.session.add(ForecastServiceEvent(company_id=company_id, outcome="success", latency_ms=5,
+                                            model_version="old",
+                                            created_at=datetime.now(timezone.utc) - timedelta(days=200)))
+        db.session.commit()
+        preview = purge_expired(today=date(2028, 4, 15), dry_run=True)
+        assert preview["months_before"] == "2026-04"
+        assert preview["monitoring_rows"] == 6  # 2026-01..2026-03, two targets
+        assert preview["service_events"] >= 1
+        assert len(_rows(app, company_id)) == 12  # dry run deletes nothing
+        purge_expired(today=date(2028, 4, 15))
+        db.session.commit()
+    assert sorted({row.forecast_month for row in _rows(app, company_id)}) == ["2026-04", "2026-05", "2026-06"]

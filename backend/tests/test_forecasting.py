@@ -446,7 +446,7 @@ def test_alerts_evaluate_deduplicates_and_dashboard_reads_them(auth, app, ml_com
 
 
 def test_stale_forecast_alert_after_inputs_change(auth, app, ml_company):
-    company_id, months, _, _ = ml_company("desactualizada")
+    company_id, months, _, _ = ml_company("stale")
     client, token = auth["client"], auth["csrf"]
 
     forecast = _post(client, token, f"/api/v1/companies/{company_id}/forecasts/model", {"horizon_months": 2})
@@ -458,7 +458,7 @@ def test_stale_forecast_alert_after_inputs_change(auth, app, ml_company):
     with app.app_context():
         document = (
             db.session.query(IncomeDocument)
-            .filter(IncomeDocument.company_id == company_id, IncomeDocument.doc_number == f"I-desactualizada-{len(months) - 1}")
+            .filter(IncomeDocument.company_id == company_id, IncomeDocument.doc_number == f"I-stale-{len(months) - 1}")
             .one()
         )
         document.total = 4_321_000
