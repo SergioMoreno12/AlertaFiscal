@@ -126,7 +126,8 @@ Manual planning works without any model. `POST /forecasts` computes a simple ave
   - timeout, `AbortController` and typed errors (`ApiError`).
 - The main screens read real data from the API when there is a session, and use sample data only in the explicit "visual demo" mode.
 - The API and database status is shown on the login screen, the top bar and the side menu (`/health/live` and `/health/ready`).
-- The interface is in English (locale `en-US`, currency COP). Stored codes such as priorities (`alta`, `media`, `baja`) and origins keep their original values and are translated only for display.
+- The interface is available in English and Spanish, switched with the `ES | EN` button on the login screen and in the top bar. The choice is stored in `localStorage` (`af_lang`); on the first visit it follows the browser language. Stored codes such as priorities (`alta`, `media`, `baja`) and origins keep their original values and are translated only for display.
+- Translation (`src/i18n/`): the screens and the API write English. `es.ts` maps each English text to Spanish, with numbered slots (`{0}`) for the variable parts of a sentence. `translate.ts` resolves exact texts, then templates, then the `·`-separated segments or the sentences of a longer text. `dom.ts` applies it with a `MutationObserver` to the text nodes and the `placeholder`, `title` and `aria-label` attributes, and keeps the English original so the switch back is exact. Because of this, the backend messages (alert titles and descriptions, errors, forecast reasons) are also shown in Spanish without changing the API. Numbers, currency and dates use `es-CO` or `en-US` (`uiLocale()`). Unknown text, such as names or notes typed by users, is shown as it is. Mark an element with `data-i18n-skip` to keep it untranslated.
 
 ## ML (offline)
 
