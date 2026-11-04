@@ -2,6 +2,7 @@
 
 - **Base:** the ERP working copy as it entered this repository, commit `870569c` (the four port commits `665b0f0`, `a4149d2`, `391101b`, `870569c` on `erp-port`). The original `AlertaFiscalBeta-main.zip` is not in the repository; the port commits are a file-for-file copy of the tested working copy (`docs/erp/baseline-commit.md`), so they are used as the base.
 - **Ported:** branch `phase6/monitoring`, which contains `erp-port`, `phase5/flask-api` and `phase6/monitoring`.
+- **Version:** replaces the first version (`e612c39`), which used `baseline-commit.md` as the base and left rows to verify. This one diffs the port commits directly, so no row is left to verify.
 - **How it was built:** `git diff --name-status 870569c HEAD`, plus the list of routes, tables, migrations and tests read from both commits.
 - **Status values:** kept (same behavior), changed (behavior or text changed), added, removed.
 - **Evidence:** the test that covers the item (in `backend/tests/`), or the file where it can be checked. The full suite gives 84 passed, 10 skipped (PostgreSQL tests, run in CI).

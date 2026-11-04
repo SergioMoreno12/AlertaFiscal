@@ -416,7 +416,7 @@ const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demo
         style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${backend.online ? "#A5D6A7" : "#FFE082"}`, backgroundColor: backend.online ? "#E8F5E9" : "#FFF8E1", color: backend.online ? "#1B5E3F" : "#B26A00", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
       >
         <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#43A047" : "#FBC02D", display: "inline-block" }} />
-        {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API no disponible") : "Verificando API"}
+        {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API unavailable") : "Checking API"}
       </span>
       {demoMode && <DemoBanner />}
       <button onClick={onLogout} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#78909C", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
@@ -2822,7 +2822,7 @@ const ObligacionesScreen = ({
     <div style={{ padding: "28px 32px" }}>
       <SectionHeader
         title="Obligations and calendar"
-        subtitle={`Fechas registradas manualmente · ${companyName}`}
+        subtitle={`Manually recorded dates · ${companyName}`}
         actions={canManage && <Btn variant="primary" icon={<Plus size={13} />} small onClick={openForm}>Record obligation</Btn>}
       />
 
