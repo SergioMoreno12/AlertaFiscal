@@ -25,6 +25,7 @@ ml/artifacts/*
 !ml/artifacts/model_global.json
 !ml/artifacts/parity_cases.json
 !ml/artifacts/test_report.json
+!ml/artifacts/level_shift_analysis.json
 
 # Raw datasets (share outside Git)
 ml/data/raw/*
