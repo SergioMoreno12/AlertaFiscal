@@ -171,6 +171,8 @@ class Config:
     MAX_PAGE_SIZE = 100
     DEFAULT_PAGE_SIZE = 20
     LOGIN_MAX_ATTEMPTS = _env_int("LOGIN_MAX_ATTEMPTS", 10, minimum=1)
+    # New accounts per IP in the same window (public sign-up).
+    REGISTER_MAX_ATTEMPTS = _env_int("REGISTER_MAX_ATTEMPTS", 20, minimum=1)
     LOGIN_WINDOW_MINUTES = _env_int("LOGIN_WINDOW_MINUTES", 15, minimum=1)
 
     # ── ML forecast ──────────────────────────────────────────────────

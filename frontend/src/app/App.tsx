@@ -13,6 +13,13 @@ import {
 } from "lucide-react";
 import { login as apiLogin, logout as apiLogout, me as apiMe, type SessionUser } from "../api/auth.api";
 import { backendStatus } from "../api/system.api";
+import PublicSite from "./PublicSite";
+import { MonthlyDataScreen, NewCompanyCard, RoleBadge, TeamScreen } from "./Workspace";
+import { MlBadge, MlNote } from "./ui";
+import {
+  Badge, Btn, Card, Field, InlineError, SectionHeader, currentPeriod, errorMessage, fmt, fmtDate, fmtM,
+  inputStyle, num, roleLabel, shortMonth, todayISO,
+} from "./ui";
 import { ApiError, onUnauthorized } from "../api/client";
 import { getLang, setLang, tr, uiLocale, type Lang } from "../i18n";
 import {
@@ -75,7 +82,7 @@ import {
 type Screen =
   | "login" | "empresas" | "resumen" | "ingresos" | "gastos"
   | "proyecciones" | "planificacion" | "escenarios" | "obligaciones"
-  | "alertas" | "alerta-detalle" | "historial" | "contexto";
+  | "alertas" | "alerta-detalle" | "historial" | "contexto" | "datos" | "equipo";
 
 type AlertPriority = "alta" | "media" | "baja";
 type AlertStatus = "pendiente" | "en-revision" | "revisada";
@@ -92,42 +99,6 @@ type PlanDraft = {
 type BackendState = { online: boolean; database: string | null; checked: boolean };
 
 // ─── Constants & Demo Data ────────────────────────────────────────────────────
-const fmt = (n: number) =>
-  new Intl.NumberFormat(uiLocale(), { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
-
-const fmtM = (n: number) => {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toLocaleString(uiLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M COP`;
-  if (n >= 1_000) return `$${(n / 1_000).toLocaleString(uiLocale(), { maximumFractionDigits: 0 })} K COP`;
-  return fmt(n);
-};
-
-const roleLabel = (role: string) =>
-  ({ admin: "Company administrator", contador: "Accountant", auxiliar: "Accounting assistant" } as Record<string, string>)[role] ?? role;
-
-const num = (value: string | number | null | undefined) => {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const fmtDate = (value: string | null | undefined) => {
-  if (!value) return "—";
-  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  const date = dateOnly
-    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
-    : new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(uiLocale(), { day: "2-digit", month: "short", year: "numeric" });
-};
-
-const shortMonth = (period: string) => {
-  const [year, month] = period.split("-").map(Number);
-  if (!year || !month) return period;
-  return new Date(year, month - 1, 1).toLocaleDateString(uiLocale(), { month: "short" });
-};
-
-const errorMessage = (error: unknown) =>
-  error instanceof ApiError ? error.message : "The operation could not be completed.";
-
 const downloadCsv = (filename: string, headers: string[], rows: Array<Array<string | number>>) => {
   const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
   const content = [headers.map(tr), ...rows].map((row) => row.map(escape).join(";")).join("\r\n");
@@ -146,50 +117,10 @@ const alertStatusUi = (status: string): AlertStatus =>
 const obligationStatusLabel = (status: string) =>
   ({ pending: "Pending", filed: "Filed", paid: "Paid", void: "Void" } as Record<string, string>)[status] ?? status;
 
-const todayISO = () => {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-};
-const currentPeriod = () => todayISO().slice(0, 7);
-
 const toMoneyString = (raw: string) => {
   const parsed = Number(String(raw).replace(/\s/g, "").replace(",", "."));
   return Number.isFinite(parsed) && parsed > 0 ? parsed.toFixed(2) : "0.00";
 };
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1.5px solid #CFD8DC",
-  fontSize: 13,
-  fontFamily: "inherit",
-  boxSizing: "border-box",
-  outline: "none",
-  backgroundColor: "#fff",
-  color: "#37474F",
-};
-
-const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
-  <div style={{ marginBottom: 14 }}>
-    <label style={{ fontSize: 12, fontWeight: 600, color: "#37474F", display: "block", marginBottom: 5 }}>{label}</label>
-    {children}
-    {hint && <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 4 }}>{hint}</div>}
-  </div>
-);
-
-const InlineError = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-  <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#FFEBEE", border: "1px solid #FFCDD2", color: "#C62828", fontSize: 12 }}>
-    {message}
-    {onRetry && (
-      <>
-        {" · "}
-        <button onClick={onRetry} style={{ border: "none", background: "none", color: "#C62828", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>retry</button>
-      </>
-    )}
-  </div>
-);
 
 const EMPRESAS = [
   { id: 1, nombre: "Andean Trading S.A.S.", nit: "900.456.123-1", sector: "Retail", tamaño: "Small", periodo: "Oct 2026", estado: "plan-actualizado" },
@@ -199,10 +130,10 @@ const EMPRESAS = [
 ];
 
 const ESTADO_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  "plan-actualizado": { label: "Plan updated", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" },
-  "por-revisar": { label: "To review", color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" },
-  "parametros-pendientes": { label: "Parameters pending", color: "#FBC02D", bg: "#FFF8E1", border: "#FFE082" },
-  "sin-registros": { label: "No records", color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" },
+  "plan-actualizado": { label: "Plan updated", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" },
+  "por-revisar": { label: "To review", color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" },
+  "parametros-pendientes": { label: "Parameters pending", color: "#C9A227", bg: "#FBF4E2", border: "#E9D49C" },
+  "sin-registros": { label: "No records", color: "#66786F", bg: "#EEF2F0", border: "#D3DDD8" },
 };
 
 const HISTORICO = [
@@ -262,40 +193,14 @@ const HISTORIAL_DATA = [
 ];
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
-const Card = ({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-  <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: "24px 28px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.05)", ...style }}>
-    {children}
-  </div>
-);
-
-const Badge = ({ label, color, bg, border }: { label: string; color: string; bg: string; border: string }) => (
-  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, backgroundColor: bg, color, border: `1px solid ${border}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.2px", whiteSpace: "nowrap" }}>
-    {label}
-  </span>
-);
-
 const PriorityBadge = ({ p }: { p: AlertPriority }) => {
-  const cfg = { alta: { label: "High", color: "#E53935", bg: "#FFEBEE", border: "#FFCDD2" }, media: { label: "Medium", color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" }, baja: { label: "Low", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" } }[p];
+  const cfg = { alta: { label: "High", color: "#B3261E", bg: "#FBECEA", border: "#F2C9C4" }, media: { label: "Medium", color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" }, baja: { label: "Low", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" } }[p];
   return <Badge {...cfg} />;
 };
 
 const StatusBadge = ({ s }: { s: AlertStatus }) => {
-  const cfg = { pendiente: { label: "Pending", color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" }, "en-revision": { label: "In review", color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" }, revisada: { label: "Resolved", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" } }[s];
+  const cfg = { pendiente: { label: "Pending", color: "#66786F", bg: "#EEF2F0", border: "#D3DDD8" }, "en-revision": { label: "In review", color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" }, revisada: { label: "Resolved", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" } }[s];
   return <Badge {...cfg} />;
-};
-
-const Btn = ({ children, variant = "primary", onClick, icon, small, fullWidth, disabled }: { children: React.ReactNode; variant?: "primary" | "secondary" | "ghost" | "danger"; onClick?: () => void; icon?: React.ReactNode; small?: boolean; fullWidth?: boolean; disabled?: boolean }) => {
-  const styles: Record<string, React.CSSProperties> = {
-    primary: { backgroundColor: "#1B5E3F", color: "#fff", border: "none" },
-    secondary: { backgroundColor: "transparent", color: "#1B5E3F", border: "1.5px solid #1B5E3F" },
-    ghost: { backgroundColor: "transparent", color: "#78909C", border: "1px solid rgba(0,0,0,0.1)" },
-    danger: { backgroundColor: "#FFEBEE", color: "#E53935", border: "1px solid #FFCDD2" },
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} style={{ ...styles[variant], borderRadius: 9, padding: small ? "7px 14px" : "10px 18px", fontSize: small ? 12 : 13, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity 0.15s", width: fullWidth ? "100%" : undefined, justifyContent: fullWidth ? "center" : undefined }}>
-      {icon}{children}
-    </button>
-  );
 };
 
 const LanguageToggle = ({ lang, onChange, onDark }: { lang: Lang; onChange: (lang: Lang) => void; onDark?: boolean }) => {
@@ -309,7 +214,7 @@ const LanguageToggle = ({ lang, onChange, onDark }: { lang: Lang; onChange: (lan
       style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: 3, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", border: onDark ? "1px solid rgba(255,255,255,0.25)" : "1px solid rgba(0,0,0,0.1)", backgroundColor: onDark ? "rgba(255,255,255,0.08)" : "#fff" }}
     >
       {(["es", "en"] as const).map((option) => (
-        <span key={option} style={{ padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.3px", backgroundColor: option === lang ? "#1B5E3F" : "transparent", color: option === lang ? "#fff" : onDark ? "rgba(255,255,255,0.7)" : "#78909C" }}>
+        <span key={option} style={{ padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.3px", backgroundColor: option === lang ? "#1B5E3F" : "transparent", color: option === lang ? "#fff" : onDark ? "rgba(255,255,255,0.7)" : "#66786F" }}>
           {option.toUpperCase()}
         </span>
       ))}
@@ -318,18 +223,8 @@ const LanguageToggle = ({ lang, onChange, onDark }: { lang: Lang; onChange: (lan
 };
 
 const DemoBanner = () => (
-  <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 8, padding: "7px 14px", fontSize: 11, color: "#E65100", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+  <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "7px 14px", fontSize: 11, color: "#8A6400", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
     <Info size={13} /> Demo environment · Simulated data
-  </div>
-);
-
-const SectionHeader = ({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: React.ReactNode }) => (
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16, flexWrap: "wrap" }}>
-    <div>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1B5E3F", margin: 0, letterSpacing: "-0.3px" }}>{title}</h1>
-      {subtitle && <p style={{ fontSize: 13, color: "#78909C", margin: "4px 0 0" }}>{subtitle}</p>}
-    </div>
-    {actions && <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{actions}</div>}
   </div>
 );
 
@@ -338,7 +233,7 @@ const Pager = ({ info, onPage, noun }: { info: Pagination | null; onPage: (page:
   const first = (info.page - 1) * info.page_size + 1;
   const last = Math.min(info.page * info.page_size, info.total);
   return (
-    <div style={{ padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", borderTop: "1px solid rgba(0,0,0,0.06)", fontSize: 12, color: "#78909C" }}>
+    <div style={{ padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", borderTop: "1px solid rgba(0,0,0,0.06)", fontSize: 12, color: "#66786F" }}>
       <span>{first}–{last} of {info.total} {noun}</span>
       {info.pages > 1 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -357,6 +252,7 @@ const NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType; badge?: n
   { id: "empresas", label: "Companies", icon: Building2 },
   { id: "ingresos", label: "Income and sales", icon: TrendingUp },
   { id: "gastos", label: "Expenses and purchases", icon: ShoppingCart },
+  { id: "datos", label: "Monthly data", icon: Layers },
   { id: "proyecciones", label: "Forecasts", icon: BarChart2 },
   { id: "planificacion", label: "Tax planning", icon: Calculator },
   { id: "obligaciones", label: "Obligations and calendar", icon: Calendar },
@@ -367,6 +263,7 @@ const NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType; badge?: n
 // Secondary section: public reference information, separate from the
 // operational flow. It creates no alerts or tasks.
 const SECONDARY_NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType }[] = [
+  { id: "equipo", label: "Team", icon: User },
   { id: "contexto", label: "Context and sources", icon: Database },
 ];
 
@@ -389,7 +286,7 @@ const useIsNarrow = () => {
 const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, apiOnline }: { open: boolean; overlay: boolean; onClose: () => void; screen: Screen; onNav: (s: Screen) => void; userName: string; userRole: string; apiOnline: boolean }) => (
   <>
     {open && overlay && <div onClick={onClose} aria-hidden="true" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.35)", zIndex: 9 }} />}
-    <aside aria-label="Main navigation" style={{ width: 240, minWidth: 240, backgroundColor: "#1B5E3F", display: "flex", flexDirection: "column", height: "100vh", position: "fixed", top: 0, left: 0, zIndex: 10, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", boxShadow: open ? "4px 0 20px rgba(0,0,0,0.12)" : "none" }}>
+    <aside aria-label="Main navigation" style={{ width: 240, minWidth: 240, background: "linear-gradient(180deg, #154D33 0%, #0F3B27 100%)", display: "flex", flexDirection: "column", height: "100vh", position: "fixed", top: 0, left: 0, zIndex: 10, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", boxShadow: open ? "4px 0 20px rgba(0,0,0,0.12)" : "none" }}>
       <div style={{ padding: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -414,7 +311,7 @@ const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, ap
               <Icon size={16} />
               <span style={{ flex: 1 }}>{item.label}</span>
               {item.badge !== undefined && (
-                <span style={{ backgroundColor: "#FBC02D", color: "#1B5E3F", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700, lineHeight: "18px" }}>{item.badge}</span>
+                <span style={{ backgroundColor: "#C9A227", color: "#1B5E3F", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700, lineHeight: "18px" }}>{item.badge}</span>
               )}
             </button>
           );
@@ -445,7 +342,7 @@ const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, ap
         </div>
       </div>
       <div style={{ padding: "10px 18px 14px", display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.55)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: apiOnline ? "#66BB6A" : "#FBC02D", display: "inline-block" }} />
+        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: apiOnline ? "#5BAA80" : "#C9A227", display: "inline-block" }} />
         {apiOnline ? "API connected" : "No connection to the API"}
       </div>
     </aside>
@@ -456,25 +353,25 @@ const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, ap
 const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demoMode, onLogout, compact, lang, onLang }: { sidebarOpen: boolean; onToggle: () => void; empresa: string; companySubtitle: string; backend: BackendState; demoMode: boolean; onLogout: () => void; compact: boolean; lang: Lang; onLang: (lang: Lang) => void }) => (
   <header style={{ backgroundColor: "#fff", borderBottom: "1px solid rgba(0,0,0,0.07)", padding: compact ? "10px 14px" : "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, position: "sticky", top: 0, zIndex: 5 }}>
     <div style={{ display: "flex", alignItems: "center", gap: compact ? 10 : 14, minWidth: 0 }}>
-      <button onClick={onToggle} aria-label={sidebarOpen ? "Close menu" : "Open menu"} style={{ flexShrink: 0, background: sidebarOpen ? "#E8F5E9" : "#1B5E3F", border: "none", borderRadius: 9, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: sidebarOpen ? "#1B5E3F" : "#fff" }}>
+      <button onClick={onToggle} aria-label={sidebarOpen ? "Close menu" : "Open menu"} style={{ flexShrink: 0, background: sidebarOpen ? "#E3F1E8" : "#1B5E3F", border: "none", borderRadius: 9, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: sidebarOpen ? "#1B5E3F" : "#fff" }}>
         {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
       </button>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: "#1B5E3F", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{empresa}</div>
-        {!compact && <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>{companySubtitle}</div>}
+        {!compact && <div style={{ fontSize: 11, color: "#66786F", marginTop: 2 }}>{companySubtitle}</div>}
       </div>
     </div>
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
       {!compact && <span
         title={backend.online ? "Backend and database respond" : "Backend not available"}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${backend.online ? "#A5D6A7" : "#FFE082"}`, backgroundColor: backend.online ? "#E8F5E9" : "#FFF8E1", color: backend.online ? "#1B5E3F" : "#B26A00", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${backend.online ? "#9CCDB1" : "#E9D49C"}`, backgroundColor: backend.online ? "#E3F1E8" : "#FBF4E2", color: backend.online ? "#1B5E3F" : "#8A6400", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
       >
-        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#43A047" : "#FBC02D", display: "inline-block" }} />
+        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#2E8A5C" : "#C9A227", display: "inline-block" }} />
         {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API unavailable") : "Checking API"}
       </span>}
       {demoMode && !compact && <DemoBanner />}
       <LanguageToggle lang={lang} onChange={onLang} />
-      <button onClick={onLogout} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#78909C", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
+      <button onClick={onLogout} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#66786F", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
         <LogOut size={12} /> {compact ? "" : "Sign out"}
       </button>
     </div>
@@ -483,147 +380,51 @@ const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demo
 
 // ─── SCREENS ──────────────────────────────────────────────────────────────────
 
-// LOGIN
-const LoginScreen = ({
-  onLogin,
-  onDemo,
-  backend,
-  lang,
-  onLang,
-}: {
-  onLogin: (user: SessionUser) => void;
-  onDemo: () => void;
-  backend: BackendState;
-  lang: Lang;
-  onLang: (lang: Lang) => void;
-}) => {
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  // The seed credentials exist only in the local SQLite demo database (flask seed-demo).
-  const localDemo = backend.online && backend.database === "sqlite-dev";
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 9, border: "1.5px solid #CFD8DC", fontSize: 14, fontFamily: "inherit", color: "#37474F", backgroundColor: "#FAFAFA", boxSizing: "border-box", outline: "none" };
-  const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: "#37474F", marginBottom: 6, display: "block" };
-
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (loading) return;
-    setErrorMsg(null);
-    setLoading(true);
-    try {
-      const user = await apiLogin(email.trim(), pass);
-      onLogin(user);
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMsg(
-          error.code === "network_error" || error.code === "timeout"
-            ? "Could not connect to the server. It may still be starting: wait a moment and try again, or explore the visual demo."
-            : error.message,
-        );
-      } else {
-        setErrorMsg("Could not sign in.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#F5F7F6", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
-      <div style={{ position: "absolute", top: 16, right: 16 }}>
-        <LanguageToggle lang={lang} onChange={onLang} />
-      </div>
-      <div style={{ backgroundColor: "#fff", borderRadius: 20, padding: "48px 44px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", width: "100%", maxWidth: 420 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ width: 52, height: 52, backgroundColor: "#E8F5E9", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-            <Calculator size={26} color="#1B5E3F" />
-          </div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1B5E3F", margin: "0 0 6px", letterSpacing: "-0.5px" }}>AlertaFiscal</h1>
-          <p style={{ fontSize: 13, color: "#78909C", margin: 0 }}>Tax planning for small businesses</p>
-        </div>
-
-        <form onSubmit={submit}>
-          <div style={{ marginBottom: 18 }}>
-            <label style={labelStyle} htmlFor="email">Email</label>
-            <input id="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} type="email" autoComplete="username" required />
-          </div>
-          <div style={{ marginBottom: 22 }}>
-            <label style={labelStyle} htmlFor="password">Password</label>
-            <input id="password" value={pass} onChange={(e) => setPass(e.target.value)} style={inputStyle} type="password" autoComplete="current-password" required />
-          </div>
-
-          {errorMsg && (
-            <div role="alert" style={{ marginBottom: 18, padding: "10px 12px", borderRadius: 9, backgroundColor: "#FFEBEE", border: "1px solid #FFCDD2", color: "#C62828", fontSize: 12, fontWeight: 600 }}>
-              {errorMsg}
-            </div>
-          )}
-
-          <button type="submit" disabled={loading} style={{ width: "100%", backgroundColor: "#1B5E3F", color: "#fff", border: "none", borderRadius: 11, padding: "14px", fontSize: 15, fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.75 : 1 }}>
-            <LogIn size={16} /> {loading ? (backend.online ? "Signing in…" : "Waking up the server…") : "Sign in"}
-          </button>
-        </form>
-
-        <button onClick={onDemo} type="button" style={{ marginTop: 12, width: "100%", backgroundColor: "transparent", color: "#1B5E3F", border: "1.5px solid #1B5E3F", borderRadius: 11, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-          Explore the visual demo (sample data)
-        </button>
-
-        {localDemo && (
-          <div style={{ marginTop: 24, padding: "14px 16px", backgroundColor: "#FFF8E1", borderRadius: 10, border: "1px solid #FFE082" }}>
-            <div style={{ fontSize: 11, color: "#E65100", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}><Info size={12} /> Local demo database</div>
-            <p style={{ fontSize: 11, color: "#78909C", margin: "0 0 8px", lineHeight: 1.6 }}>
-              The local seed user is maria.gomez@contaduria.co / demo2026. The data is fictitious.
-            </p>
-            <button type="button" onClick={() => { setEmail("maria.gomez@contaduria.co"); setPass("demo2026"); }} style={{ border: "none", background: "none", padding: 0, color: "#1B5E3F", fontWeight: 700, fontSize: 11, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>
-              Fill in the seed user
-            </button>
-          </div>
-        )}
-
-        <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11, color: backend.online ? "#1B5E3F" : "#B26A00" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#43A047" : "#FBC02D", display: "inline-block" }} />
-          {backend.checked
-            ? (backend.online ? `API connected · ${backend.database ?? "database"}` : "API not reachable yet · it may be starting (up to a minute)")
-            : "Connecting to the server… (the first visit can take up to a minute)"}
-        </div>
-
-        <p style={{ fontSize: 11, color: "#B0BEC5", textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>
-          Independent academic project. Not affiliated with the DIAN.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-
 // EMPRESAS
 const EmpresasScreen = ({
   companies,
   onSelect,
+  onCreated,
 }: {
   companies: Array<{ id: number; nombre: string; nit: string; sector: string; tamaño: string; role?: string; estado?: string }>;
   onSelect: (id: number) => void;
+  onCreated: (company: Company) => void;
 }) => {
   const [search, setSearch] = useState("");
+  const [creatingRequested, setCreating] = useState(false);
+  // Without companies the form is the only useful thing on the screen, so it stays open.
+  const creating = creatingRequested || companies.length === 0;
   const filtered = companies.filter((e) => e.nombre.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div style={{ padding: "28px 32px" }}>
-      <SectionHeader title="Companies" subtitle="Select a company to see its tax planning" />
+      <SectionHeader
+        title="Companies"
+        subtitle="Select a company to see its tax planning"
+        actions={!creating ? <Btn icon={<Plus size={14} />} onClick={() => setCreating(true)}>New company</Btn> : undefined}
+      />
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+      {creating && (
+        <NewCompanyCard
+          onCreated={(company) => {
+            setCreating(false);
+            onCreated(company);
+          }}
+          onCancel={companies.length > 0 ? () => setCreating(false) : undefined}
+        />
+      )}
+
+      {companies.length > 0 && <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
         <div style={{ flex: 1, position: "relative" }}>
-          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#78909C" }} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company..." style={{ width: "100%", padding: "10px 14px 10px 36px", borderRadius: 9, border: "1.5px solid #CFD8DC", fontSize: 13, fontFamily: "inherit", color: "#37474F", backgroundColor: "#fff", boxSizing: "border-box", outline: "none" }} />
+          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#66786F" }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company..." style={{ width: "100%", padding: "10px 14px 10px 36px", borderRadius: 9, border: "1.5px solid #D3DDD8", fontSize: 13, fontFamily: "inherit", color: "#33433B", backgroundColor: "#fff", boxSizing: "border-box", outline: "none" }} />
         </div>
-        <Btn variant="ghost" icon={<Filter size={14} />}>Filter</Btn>
-      </div>
+      </div>}
 
       {filtered.length === 0 && (
-        <Card style={{ padding: "32px 24px", textAlign: "center", color: "#78909C", fontSize: 13 }}>
+        <Card style={{ padding: "32px 24px", textAlign: "center", color: "#66786F", fontSize: 13 }}>
           {companies.length === 0
-            ? "Your user has no active companies. Ask the administrator to assign one."
+            ? "You have no companies yet. Create one above, or ask an administrator to add you to theirs."
             : "No company matches the search."}
         </Card>
       )}
@@ -632,16 +433,16 @@ const EmpresasScreen = ({
         {filtered.map((emp) => {
           const st = emp.estado
             ? ESTADO_CONFIG[emp.estado] ?? ESTADO_CONFIG["por-revisar"]
-            : { label: emp.role ? roleLabel(emp.role) : "Active", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" };
+            : { label: emp.role ? roleLabel(emp.role) : "Active", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" };
           return (
             <Card key={emp.id} style={{ padding: "20px 24px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-                <div style={{ width: 44, height: 44, backgroundColor: "#E8F5E9", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 44, height: 44, backgroundColor: "#E3F1E8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Building2 size={22} color="#1B5E3F" />
                 </div>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F" }}>{emp.nombre}</div>
-                  <div style={{ fontSize: 12, color: "#78909C", marginTop: 3 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B" }}>{emp.nombre}</div>
+                  <div style={{ fontSize: 12, color: "#66786F", marginTop: 3 }}>
                     NIT: {emp.nit} · {emp.sector} · {emp.tamaño}{emp.role ? ` · ${roleLabel(emp.role)}` : ""}
                   </div>
                 </div>
@@ -781,29 +582,49 @@ const ResumenScreen = ({
         }
       />
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading company data…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading company data…</div>}
       {error && (
-        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#FFEBEE", border: "1px solid #FFCDD2", color: "#C62828", fontSize: 12 }}>
-          {error} · <button onClick={() => setReloadKey((key) => key + 1)} style={{ border: "none", background: "none", color: "#C62828", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>retry</button>
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#FBECEA", border: "1px solid #F2C9C4", color: "#B3261E", fontSize: 12 }}>
+          {error} · <button onClick={() => setReloadKey((key) => key + 1)} style={{ border: "none", background: "none", color: "#B3261E", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>retry</button>
         </div>
+      )}
+
+      {dashboard && dashboard.monthly.length === 0 && !latestForecast && (
+        <Card style={{ marginBottom: 24, border: "1.5px solid #C8E4D3", background: "linear-gradient(135deg, #F2F8F4, #FFFFFF)" }}>
+          <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#1B5E3F", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Layers size={22} color="#fff" />
+            </div>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#1E2B25" }}>Start here: load the company history</div>
+              <div style={{ fontSize: 13, color: "#66786F", marginTop: 4, lineHeight: 1.55 }}>
+                Enter the income and expenses of at least 6 closed months. Then the model can forecast the next 6 months.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Btn icon={<Layers size={14} />} onClick={() => onNav("datos")}>Enter monthly data</Btn>
+              <Btn variant="secondary" icon={<TrendingUp size={14} />} onClick={() => onNav("ingresos")}>Record income</Btn>
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* KPI Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Recorded income", value: fmtM(income), sub: demoMode ? "Records of the current period" : "Year to date", color: "#1B5E3F", bg: "#E8F5E9", icon: <TrendingUp size={18} color="#1B5E3F" />, note: "Observed" },
-          { label: "Recorded expenses", value: fmtM(expenses), sub: demoMode ? "Records of the current period" : "Year to date", color: "#37474F", bg: "#ECEFF1", icon: <ShoppingCart size={18} color="#37474F" />, note: "Observed" },
-          { label: "Projected income", value: plan || demoMode ? fmtM(projectedIncome) : "—", sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#1565C0", bg: "#E3F2FD", icon: <BarChart2 size={18} color="#1565C0" />, note: "Estimate" },
-          { label: "Projected expenses", value: plan || demoMode ? fmtM(projectedExpenses) : "—", sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#6A1B9A", bg: "#F3E5F5", icon: <BarChart2 size={18} color="#6A1B9A" />, note: "Estimate" },
+          { label: "Recorded income", value: fmtM(income), sub: demoMode ? "Records of the current period" : "Year to date", color: "#1B5E3F", bg: "#E3F1E8", icon: <TrendingUp size={18} color="#1B5E3F" />, note: "Observed" },
+          { label: "Recorded expenses", value: fmtM(expenses), sub: demoMode ? "Records of the current period" : "Year to date", color: "#33433B", bg: "#EEF2F0", icon: <ShoppingCart size={18} color="#33433B" />, note: "Observed" },
+          { label: "Projected income", value: plan || demoMode ? fmtM(projectedIncome) : "—", sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#24714D", bg: "#EDF7F0", icon: <BarChart2 size={18} color="#24714D" />, note: "Estimate" },
+          { label: "Projected expenses", value: plan || demoMode ? fmtM(projectedExpenses) : "—", sub: plan ? `${plan.name} · v${plan.version}` : "No current plan", color: "#154D33", bg: "#E3F1E8", icon: <BarChart2 size={18} color="#154D33" />, note: "Estimate" },
         ].map((kpi) => (
           <Card key={kpi.label} style={{ padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ backgroundColor: kpi.bg, borderRadius: 10, padding: 10 }}>{kpi.icon}</div>
-              <span style={{ fontSize: 10, color: "#78909C", fontWeight: 600, backgroundColor: "#F5F7F6", padding: "2px 8px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.07)" }}>{kpi.note}</span>
+              <span style={{ fontSize: 10, color: "#66786F", fontWeight: 600, backgroundColor: "#F5F8F6", padding: "2px 8px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.07)" }}>{kpi.note}</span>
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: kpi.color, letterSpacing: "-0.5px" }}>{kpi.value}</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#37474F", marginTop: 4 }}>{kpi.label}</div>
-            <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>{kpi.sub}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#33433B", marginTop: 4 }}>{kpi.label}</div>
+            <div style={{ fontSize: 11, color: "#66786F", marginTop: 2 }}>{kpi.sub}</div>
           </Card>
         ))}
       </div>
@@ -812,8 +633,8 @@ const ResumenScreen = ({
         <Card style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F" }}>Latest model forecast</div>
-              <div style={{ fontSize: 12, color: "#78909C", marginTop: 3 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>Latest model forecast <MlBadge /></div>
+              <div style={{ fontSize: 12, color: "#66786F", marginTop: 3 }}>
                 {latestForecast.method_label} · {latestForecast.horizon_months} months from {latestForecast.cutoff_date?.slice(0, 10)} · version {latestForecast.model_version ?? "no version"}
               </div>
             </div>
@@ -821,29 +642,29 @@ const ResumenScreen = ({
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }}>
             {[
-              { label: "Projected income", value: fmtM(num(latestForecast.projected_income)), color: "#1565C0" },
-              { label: "Projected expenses", value: fmtM(num(latestForecast.projected_expenses)), color: "#6A1B9A" },
+              { label: "Projected income", value: fmtM(num(latestForecast.projected_income)), color: "#24714D" },
+              { label: "Projected expenses", value: fmtM(num(latestForecast.projected_expenses)), color: "#154D33" },
               { label: "Income − expenses", value: fmtM(num(latestForecast.projected_result)), color: "#1B5E3F" },
             ].map((item) => (
               <div key={item.label}>
-                <div style={{ fontSize: 11, color: "#78909C" }}>{item.label}</div>
+                <div style={{ fontSize: 11, color: "#66786F" }}>{item.label}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: item.color }}>{item.value}</div>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
             {latestForecast.is_demo && (
-              <span style={{ fontSize: 11, color: "#E65100", backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", borderRadius: 8, padding: "6px 10px" }}>
-                Demo data: the forecast does not validate the behavior of a real company.
+              <span style={{ fontSize: 11, color: "#8A6400", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "6px 10px" }}>
+                The model was trained and evaluated on semi-synthetic data: its accuracy for a real company is not proven yet.
               </span>
             )}
             {latestForecast.stale_inputs && (
-              <span style={{ fontSize: 11, color: "#E65100", backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", borderRadius: 8, padding: "6px 10px" }}>
+              <span style={{ fontSize: 11, color: "#8A6400", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "6px 10px" }}>
                 The inputs changed after the latest forecast. Run a new one to update it.
               </span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: "#66786F", marginTop: 10 }}>
             Planning estimate for guidance only. Income minus expenses is not a tax or a mandatory reserve.
           </div>
         </Card>
@@ -853,22 +674,22 @@ const ResumenScreen = ({
         {/* Chart */}
         <Card>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F" }}>Historical income and expenses</div>
-            <div style={{ fontSize: 12, color: "#78909C", marginTop: 3 }}>{demoMode ? "Demo view · May–October 2026" : "Last 6 months with recorded movements"}</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B" }}>Historical income and expenses</div>
+            <div style={{ fontSize: 12, color: "#66786F", marginTop: 3 }}>Last 6 months with recorded movements</div>
           </div>
           {chartData.length === 0 ? (
-            <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#78909C", backgroundColor: "#FAFAFA", borderRadius: 10 }}>
+            <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#66786F", backgroundColor: "#FAFCFB", borderRadius: 10 }}>
               No movements recorded in the last 6 months.
             </div>
           ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barCategoryGap="30%">
-              <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#78909C" }} />
-              <YAxis tickFormatter={(v) => `$${(v / 1000000).toFixed(0)}M`} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#78909C" }} width={45} />
+              <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#66786F" }} />
+              <YAxis tickFormatter={(v) => `$${(v / 1000000).toFixed(0)}M`} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#66786F" }} width={45} />
               <Tooltip formatter={(v: number) => fmt(v)} labelStyle={{ fontWeight: 700 }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="ingresos" name="Income" fill="#1B5E3F" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="gastos" name="Expenses" fill="#90CAF9" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="gastos" name="Expenses" fill="#9CCDB1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           )}
@@ -876,38 +697,38 @@ const ResumenScreen = ({
 
         {/* Reserve card */}
         <Card>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>Reserve plan</div>
-          <div style={{ fontSize: 12, color: "#78909C", marginBottom: 20 }}>{plan ? `${plan.period} · v${plan.version}` : "No current plan"}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 4 }}>Reserve plan</div>
+          <div style={{ fontSize: 12, color: "#66786F", marginBottom: 20 }}>{plan ? `${plan.period} · v${plan.version}` : "No current plan"}</div>
 
           {!plan && !demoMode ? (
-            <div style={{ fontSize: 12, color: "#78909C", backgroundColor: "#F5F7F6", borderRadius: 8, padding: "14px 16px", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: "#66786F", backgroundColor: "#F5F8F6", borderRadius: 8, padding: "14px 16px", lineHeight: 1.6 }}>
               There is no current reserve plan for this company yet. Create it in{" "}
               <button onClick={() => onNav("planificacion")} style={{ border: "none", background: "none", color: "#1B5E3F", fontWeight: 700, cursor: "pointer", padding: 0, fontFamily: "inherit", fontSize: 12 }}>Tax planning</button>.
             </div>
           ) : (
           <>
           {[
-            { label: "Reserve target (plan)", value: fmtM(reserveTarget), note: "Entered by the accountant", color: "#37474F" },
+            { label: "Reserve target (plan)", value: fmtM(reserveTarget), note: "Entered by the accountant", color: "#33433B" },
             { label: "Recorded reserve", value: fmtM(reserved), note: "Reported by the user", color: "#1B5E3F" },
-            { label: "Missing", value: fmtM(pendingReserve), note: "To cover", color: "#E53935" },
+            { label: "Missing", value: fmtM(pendingReserve), note: "To cover", color: "#B3261E" },
           ].map((r) => (
             <div key={r.label} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              <div style={{ fontSize: 12, color: "#78909C" }}>{r.label}</div>
+              <div style={{ fontSize: 12, color: "#66786F" }}>{r.label}</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: r.color }}>{r.value}</div>
-              <div style={{ fontSize: 11, color: "#B0BEC5" }}>{r.note}</div>
+              <div style={{ fontSize: 11, color: "#9AABA2" }}>{r.note}</div>
             </div>
           ))}
 
           <div style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#78909C", marginBottom: 6 }}>
-              <span>Reserve coverage</span><span style={{ fontWeight: 700, color: coverage >= 80 ? "#1B5E3F" : "#FBC02D" }}>{coverage.toFixed(1)}%</span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#66786F", marginBottom: 6 }}>
+              <span>Reserve coverage</span><span style={{ fontWeight: 700, color: coverage >= 80 ? "#1B5E3F" : "#C9A227" }}>{coverage.toFixed(1)}%</span>
             </div>
-            <div style={{ height: 8, backgroundColor: "#ECEFF1", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{ width: `${Math.min(coverage, 100)}%`, height: "100%", backgroundColor: coverage >= 80 ? "#4CAF50" : "#FBC02D", borderRadius: 4, transition: "width 0.6s" }} />
+            <div style={{ height: 8, backgroundColor: "#EEF2F0", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ width: `${Math.min(coverage, 100)}%`, height: "100%", backgroundColor: coverage >= 80 ? "#2E8A5C" : "#C9A227", borderRadius: 4, transition: "width 0.6s" }} />
             </div>
           </div>
 
-          <div style={{ fontSize: 11, color: "#78909C", backgroundColor: "#F5F7F6", borderRadius: 8, padding: "10px 12px", marginTop: 14, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: "#66786F", backgroundColor: "#F5F8F6", borderRadius: 8, padding: "10px 12px", marginTop: 14, lineHeight: 1.5 }}>
             <Info size={12} style={{ display: "inline", marginRight: 4 }} />
             The reserve target is a planning value. It is not an assessed tax.
           </div>
@@ -921,19 +742,19 @@ const ResumenScreen = ({
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F" }}>What to check now</div>
-              <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>Open alerts ordered by priority</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B" }}>What to check now</div>
+              <div style={{ fontSize: 11, color: "#66786F", marginTop: 2 }}>Open alerts ordered by priority</div>
             </div>
             <Btn variant="ghost" small onClick={() => onNav("alertas")}>View all <ChevronRight size={12} /></Btn>
           </div>
           {reviewItems.map((a) => {
-            const pCfg = { alta: { icon: "#E53935", bg: "#FFEBEE", border: "#FFCDD2" }, media: { icon: "#FBC02D", bg: "#FFF8E1", border: "#FFE082" }, baja: { icon: "#4CAF50", bg: "#E8F5E9", border: "#A5D6A7" } }[a.priority as AlertPriority] || { icon: "#FBC02D", bg: "#FFF8E1", border: "#FFE082" };
+            const pCfg = { alta: { icon: "#B3261E", bg: "#FBECEA", border: "#F2C9C4" }, media: { icon: "#C9A227", bg: "#FBF4E2", border: "#E9D49C" }, baja: { icon: "#2E8A5C", bg: "#E3F1E8", border: "#9CCDB1" } }[a.priority as AlertPriority] || { icon: "#C9A227", bg: "#FBF4E2", border: "#E9D49C" };
             return (
               <div key={a.id} style={{ backgroundColor: pCfg.bg, border: `1px solid ${pCfg.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
                 <AlertTriangle size={15} color={pCfg.icon} style={{ flexShrink: 0, marginTop: 2 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#37474F", lineHeight: 1.3 }}>{a.title}</div>
-                  <div style={{ fontSize: 11, color: "#78909C", marginTop: 3 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#33433B", lineHeight: 1.3 }}>{a.title}</div>
+                  <div style={{ fontSize: 11, color: "#66786F", marginTop: 3 }}>
                     {a.originLabel} · <StatusBadge s={a.status} />
                   </div>
                 </div>
@@ -941,26 +762,26 @@ const ResumenScreen = ({
               </div>
             );
           })}
-          {reviewItems.length === 0 && <div style={{ fontSize: 12, color: "#78909C" }}>No open alerts pending review.</div>}
+          {reviewItems.length === 0 && <div style={{ fontSize: 12, color: "#66786F" }}>No open alerts pending review.</div>}
         </Card>
 
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F" }}>Upcoming obligations</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B" }}>Upcoming obligations</div>
             <Btn variant="ghost" small onClick={() => onNav("obligaciones")}>View calendar <ChevronRight size={12} /></Btn>
           </div>
           {obligationItems.map((o) => (
             <div key={o.id} style={{ padding: "12px 14px", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: "#37474F", lineHeight: 1.3, flex: 1 }}>{o.obligacion}</div>
-                <span style={{ fontSize: 11, color: "#E53935", fontWeight: 700, backgroundColor: "#FFEBEE", padding: "2px 8px", borderRadius: 6, border: "1px solid #FFCDD2", whiteSpace: "nowrap", marginLeft: 8 }}>{o.vencimiento}</span>
+                <div style={{ fontWeight: 600, fontSize: 13, color: "#33433B", lineHeight: 1.3, flex: 1 }}>{o.obligacion}</div>
+                <span style={{ fontSize: 11, color: "#B3261E", fontWeight: 700, backgroundColor: "#FBECEA", padding: "2px 8px", borderRadius: 6, border: "1px solid #F2C9C4", whiteSpace: "nowrap", marginLeft: 8 }}>{o.vencimiento}</span>
               </div>
-              <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>Estimated amount: {o.estimado}</div>
-              <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 2 }}>{o.fuente}</div>
+              <div style={{ fontSize: 11, color: "#66786F", marginTop: 4 }}>Estimated amount: {o.estimado}</div>
+              <div style={{ fontSize: 10, color: "#9AABA2", marginTop: 2 }}>{o.fuente}</div>
             </div>
           ))}
-          {obligationItems.length === 0 && <div style={{ fontSize: 12, color: "#78909C" }}>No pending obligations.</div>}
-          <div style={{ fontSize: 11, color: "#78909C", backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 8, padding: "8px 12px" }}>
+          {obligationItems.length === 0 && <div style={{ fontSize: 12, color: "#66786F" }}>No pending obligations.</div>}
+          <div style={{ fontSize: 11, color: "#66786F", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "8px 12px" }}>
             Dates recorded manually. Check the applicable calendar with the accountant.
           </div>
         </Card>
@@ -1074,10 +895,10 @@ const IngresosScreen = ({
 
   const statusStyle = (status: string) =>
     status === "Collected"
-      ? { color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" }
+      ? { color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" }
       : status === "Void"
-        ? { color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" }
-        : { color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" };
+        ? { color: "#66786F", bg: "#EEF2F0", border: "#D3DDD8" }
+        : { color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" };
 
   const openForm = () => {
     setForm({
@@ -1178,7 +999,7 @@ const IngresosScreen = ({
         }
       />
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading income…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading income…</div>}
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
@@ -1188,27 +1009,27 @@ const IngresosScreen = ({
           { label: "Recorded sales", value: `${demoMode ? displayRows.length : pageInfo?.total ?? displayRows.length} sales`, note: demoMode ? "Sample data" : "All the records of the company" },
         ].map((item) => (
           <Card key={item.label} style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: "#66786F", marginBottom: 4 }}>{item.label}</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: "#1B5E3F" }}>{item.value}</div>
-            <div style={{ fontSize: 11, color: "#B0BEC5" }}>{item.note}</div>
+            <div style={{ fontSize: 11, color: "#9AABA2" }}>{item.note}</div>
           </Card>
         ))}
       </div>
 
-      <div style={{ backgroundColor: "#E8F5E9", border: "1px solid #A5D6A7", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 12, color: "#1B5E3F", display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ backgroundColor: "#E3F1E8", border: "1px solid #9CCDB1", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 12, color: "#1B5E3F", display: "flex", gap: 8, alignItems: "center" }}>
         <Info size={14} /> VAT generated {fmt(taxTotal)}. This is a summary of records, not an official VAT assessment.
       </div>
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: 12, alignItems: "center" }}>
-          <div style={{ flex: 1, fontWeight: 700, fontSize: 15, color: "#37474F" }}>Sales records</div>
+          <div style={{ flex: 1, fontWeight: 700, fontSize: 15, color: "#33433B" }}>Sales records</div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#F5F7F6" }}>
+              <tr style={{ backgroundColor: "#F5F8F6" }}>
                 {["Date", "Client", "Document", "Description", "VAT base", "VAT", "Total", "Collection status"].map((header) => (
-                  <th key={header} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", whiteSpace: "nowrap", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>{header}</th>
+                  <th key={header} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", whiteSpace: "nowrap", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>{header}</th>
                 ))}
               </tr>
             </thead>
@@ -1216,13 +1037,13 @@ const IngresosScreen = ({
               {displayRows.map((row, index) => {
                 const style = statusStyle(row.status);
                 return (
-                  <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                    <td style={{ padding: "13px 16px", color: "#78909C", whiteSpace: "nowrap" }}>{row.date}</td>
-                    <td style={{ padding: "13px 16px", fontWeight: 600, color: "#37474F" }}>{row.party}</td>
-                    <td style={{ padding: "13px 16px", color: "#78909C", fontFamily: "monospace", fontSize: 12 }}>{row.doc}</td>
-                    <td style={{ padding: "13px 16px", color: "#37474F" }}>{row.description}</td>
-                    <td style={{ padding: "13px 16px", textAlign: "right", color: "#37474F" }}>{fmt(row.subtotal)}</td>
-                    <td style={{ padding: "13px 16px", textAlign: "right", color: "#78909C" }}>{fmt(row.tax)}</td>
+                  <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                    <td style={{ padding: "13px 16px", color: "#66786F", whiteSpace: "nowrap" }}>{row.date}</td>
+                    <td style={{ padding: "13px 16px", fontWeight: 600, color: "#33433B" }}>{row.party}</td>
+                    <td style={{ padding: "13px 16px", color: "#66786F", fontFamily: "monospace", fontSize: 12 }}>{row.doc}</td>
+                    <td style={{ padding: "13px 16px", color: "#33433B" }}>{row.description}</td>
+                    <td style={{ padding: "13px 16px", textAlign: "right", color: "#33433B" }}>{fmt(row.subtotal)}</td>
+                    <td style={{ padding: "13px 16px", textAlign: "right", color: "#66786F" }}>{fmt(row.tax)}</td>
                     <td style={{ padding: "13px 16px", textAlign: "right", fontWeight: 700, color: "#1B5E3F" }}>{fmt(row.total)}</td>
                     <td style={{ padding: "13px 16px" }}><Badge label={row.status} color={style.color} bg={style.bg} border={style.border} /></td>
                   </tr>
@@ -1230,7 +1051,7 @@ const IngresosScreen = ({
               })}
               {displayRows.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>
+                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No income recorded for this company.
                   </td>
                 </tr>
@@ -1239,7 +1060,7 @@ const IngresosScreen = ({
           </table>
         </div>
         {!demoMode && <Pager info={pageInfo} onPage={setPage} noun="sales" />}
-        <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+        <div style={{ padding: "12px 24px", fontSize: 11, color: "#66786F", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
           Recorded sales do not mean the money was collected. The collection status is reported by the user.
         </div>
       </Card>
@@ -1249,9 +1070,9 @@ const IngresosScreen = ({
           <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: "32px 36px", width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
             {confirmed ? (
               <div style={{ textAlign: "center" }}>
-                <CheckCircle size={48} color="#4CAF50" style={{ margin: "0 auto 16px" }} />
-                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: "0 0 8px" }}>Record confirmed</h3>
-                <p style={{ fontSize: 13, color: "#78909C" }}>
+                <CheckCircle size={48} color="#2E8A5C" style={{ margin: "0 auto 16px" }} />
+                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Record confirmed</h3>
+                <p style={{ fontSize: 13, color: "#66786F" }}>
                   {demoMode ? "The income was recorded only in this demo view." : "The income was recorded in the database."}
                 </p>
                 {demoMode && <DemoBanner />}
@@ -1260,8 +1081,8 @@ const IngresosScreen = ({
             ) : (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: 0 }}>Record income or sale</h3>
-                  <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#78909C" }}><X size={18} /></button>
+                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>Record income or sale</h3>
+                  <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
                 </div>
 
                 {formError && <InlineError message={formError} />}
@@ -1309,11 +1130,11 @@ const IngresosScreen = ({
                     </select>
                   </Field>
                   <Field label="Computed total">
-                    <div style={{ ...inputStyle, backgroundColor: "#F5F7F6", fontWeight: 700, color: "#1B5E3F" }}>{fmt(totalPreview)}</div>
+                    <div style={{ ...inputStyle, backgroundColor: "#F5F8F6", fontWeight: 700, color: "#1B5E3F" }}>{fmt(totalPreview)}</div>
                   </Field>
                 </div>
 
-                <div style={{ backgroundColor: "#FFF8E1", borderRadius: 8, padding: "10px 12px", marginBottom: 20, fontSize: 11, color: "#E65100" }}>
+                <div style={{ backgroundColor: "#FBF4E2", borderRadius: 8, padding: "10px 12px", marginBottom: 20, fontSize: 11, color: "#8A6400" }}>
                   This record does not create official tax documents. It is not certified electronic invoicing.
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
@@ -1565,53 +1386,53 @@ const GastosScreen = ({
         }
       />
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading expenses…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading expenses…</div>}
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Recorded total (base)", value: fmt(baseTotal), note: demoMode ? "Sum of the listed records" : "Sum of the records on this page", color: "#37474F" },
-          { label: "Recorded deductible VAT", value: fmt(taxTotal), note: "Record summary", color: "#37474F" },
-          { label: "Expenses to review", value: `${demoMode ? pendingReview : unreviewedTotal ?? pendingReview} records`, note: "Pending accounting review (all pages)", color: "#E65100" },
+          { label: "Recorded total (base)", value: fmt(baseTotal), note: demoMode ? "Sum of the listed records" : "Sum of the records on this page", color: "#33433B" },
+          { label: "Recorded deductible VAT", value: fmt(taxTotal), note: "Record summary", color: "#33433B" },
+          { label: "Expenses to review", value: `${demoMode ? pendingReview : unreviewedTotal ?? pendingReview} records`, note: "Pending accounting review (all pages)", color: "#8A6400" },
         ].map((item) => (
           <Card key={item.label} style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: "#66786F", marginBottom: 4 }}>{item.label}</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value}</div>
-            <div style={{ fontSize: 11, color: "#B0BEC5" }}>{item.note}</div>
+            <div style={{ fontSize: 11, color: "#9AABA2" }}>{item.note}</div>
           </Card>
         ))}
       </div>
 
-      <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 12, color: "#E65100", display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 12, color: "#8A6400", display: "flex", gap: 8, alignItems: "center" }}>
         <Info size={14} /> Recording an expense does not make it deductible. The accountant must review the classification.
       </div>
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F" }}>Expense records</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B" }}>Expense records</div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#F5F7F6" }}>
+              <tr style={{ backgroundColor: "#F5F8F6" }}>
                 {["Date", "Supplier", "Document", "Category", "Description", "VAT base", "VAT", "Total", "Payment", "Review", ""].map((header) => (
-                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", whiteSpace: "nowrap", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>{header}</th>
+                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", whiteSpace: "nowrap", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>{header}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {displayRows.map((row, index) => (
-                <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                  <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{row.date}</td>
-                  <td style={{ padding: "12px 14px", fontWeight: 600, color: "#37474F" }}>{row.party}</td>
-                  <td style={{ padding: "12px 14px", color: "#78909C", fontFamily: "monospace", fontSize: 12 }}>{row.doc}</td>
-                  <td style={{ padding: "12px 14px", color: "#37474F" }}>{row.category}</td>
-                  <td style={{ padding: "12px 14px", color: "#78909C" }}>{row.description}</td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(row.subtotal)}</td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", color: "#78909C" }}>{row.tax > 0 ? fmt(row.tax) : "—"}</td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: "#37474F" }}>{fmt(row.total)}</td>
-                  <td style={{ padding: "12px 14px" }}><Badge label={row.paid ? "Paid" : "Pending"} color={row.paid ? "#1B5E3F" : "#E65100"} bg={row.paid ? "#E8F5E9" : "#FFF3E0"} border={row.paid ? "#A5D6A7" : "#FFCC80"} /></td>
-                  <td style={{ padding: "12px 14px" }}><Badge label={row.reviewed ? "Reviewed" : "To review"} color={row.reviewed ? "#1B5E3F" : "#78909C"} bg={row.reviewed ? "#E8F5E9" : "#ECEFF1"} border={row.reviewed ? "#A5D6A7" : "#CFD8DC"} /></td>
+                <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                  <td style={{ padding: "12px 14px", color: "#66786F", whiteSpace: "nowrap" }}>{row.date}</td>
+                  <td style={{ padding: "12px 14px", fontWeight: 600, color: "#33433B" }}>{row.party}</td>
+                  <td style={{ padding: "12px 14px", color: "#66786F", fontFamily: "monospace", fontSize: 12 }}>{row.doc}</td>
+                  <td style={{ padding: "12px 14px", color: "#33433B" }}>{row.category}</td>
+                  <td style={{ padding: "12px 14px", color: "#66786F" }}>{row.description}</td>
+                  <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{fmt(row.subtotal)}</td>
+                  <td style={{ padding: "12px 14px", textAlign: "right", color: "#66786F" }}>{row.tax > 0 ? fmt(row.tax) : "—"}</td>
+                  <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: "#33433B" }}>{fmt(row.total)}</td>
+                  <td style={{ padding: "12px 14px" }}><Badge label={row.paid ? "Paid" : "Pending"} color={row.paid ? "#1B5E3F" : "#8A6400"} bg={row.paid ? "#E3F1E8" : "#FBF4E2"} border={row.paid ? "#9CCDB1" : "#E9D49C"} /></td>
+                  <td style={{ padding: "12px 14px" }}><Badge label={row.reviewed ? "Reviewed" : "To review"} color={row.reviewed ? "#1B5E3F" : "#66786F"} bg={row.reviewed ? "#E3F1E8" : "#EEF2F0"} border={row.reviewed ? "#9CCDB1" : "#D3DDD8"} /></td>
                   <td style={{ padding: "12px 14px" }}>
                     <button onClick={() => toggleReviewed(row)} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#1B5E3F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", opacity: busyId === row.id ? 0.5 : 1 }}>
                       {row.reviewed ? "Reopen" : "Review"}
@@ -1621,7 +1442,7 @@ const GastosScreen = ({
               ))}
               {displayRows.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>
+                  <td colSpan={11} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No expenses recorded for this company.
                   </td>
                 </tr>
@@ -1637,9 +1458,9 @@ const GastosScreen = ({
           <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: "32px 36px", width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
             {confirmed ? (
               <div style={{ textAlign: "center" }}>
-                <CheckCircle size={48} color="#4CAF50" style={{ margin: "0 auto 16px" }} />
-                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: "0 0 8px" }}>Expense recorded</h3>
-                <p style={{ fontSize: 13, color: "#78909C", marginBottom: 16 }}>
+                <CheckCircle size={48} color="#2E8A5C" style={{ margin: "0 auto 16px" }} />
+                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Expense recorded</h3>
+                <p style={{ fontSize: 13, color: "#66786F", marginBottom: 16 }}>
                   {demoMode ? "The expense was recorded only in this demo view." : "The expense was recorded. Pending accounting review."}
                 </p>
                 {demoMode && <DemoBanner />}
@@ -1648,8 +1469,8 @@ const GastosScreen = ({
             ) : (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: 0 }}>Record expense or purchase</h3>
-                  <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#78909C" }}><X size={18} /></button>
+                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>Record expense or purchase</h3>
+                  <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
                 </div>
 
                 {formError && <InlineError message={formError} />}
@@ -1702,10 +1523,10 @@ const GastosScreen = ({
                 </div>
 
                 <Field label="Computed total">
-                  <div style={{ ...inputStyle, backgroundColor: "#F5F7F6", fontWeight: 700, color: "#37474F" }}>{fmt(totalPreview)}</div>
+                  <div style={{ ...inputStyle, backgroundColor: "#F5F8F6", fontWeight: 700, color: "#33433B" }}>{fmt(totalPreview)}</div>
                 </Field>
 
-                <div style={{ backgroundColor: "#FFF8E1", borderRadius: 8, padding: "10px 12px", marginBottom: 20, fontSize: 11, color: "#E65100" }}>
+                <div style={{ backgroundColor: "#FBF4E2", borderRadius: 8, padding: "10px 12px", marginBottom: 20, fontSize: 11, color: "#8A6400" }}>
                   A record pending review is not included in tax estimates until the accountant reviews it.
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
@@ -1742,14 +1563,14 @@ const ProyeccionesScreen = ({
   const [estado, setEstado] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [result, setResult] = useState<ForecastResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<Array<{ mes: string; ingresos: number; gastos: number }>>(demoMode ? HISTORICO : []);
-  const [horizon, setHorizon] = useState(3);
+  const [history, setHistory] = useState<Array<{ month: string; mes: string; ingresos: number; gastos: number }>>([]);
+  const [horizon, setHorizon] = useState(6);
   const [savedRuns, setSavedRuns] = useState<ForecastRun[]>([]);
   const [loadingContext, setLoadingContext] = useState(false);
 
   useEffect(() => {
     if (!companyId || demoMode) {
-      setHistory(demoMode ? HISTORICO : []);
+      setHistory([]);
       setSavedRuns([]);
       return;
     }
@@ -1760,6 +1581,7 @@ const ProyeccionesScreen = ({
         if (!alive) return;
         setHistory(
           dashboard.monthly.map((point) => ({
+            month: point.month,
             mes: shortMonth(point.month),
             ingresos: num(point.income),
             gastos: num(point.expenses),
@@ -1844,8 +1666,11 @@ const ProyeccionesScreen = ({
   const months = result?.horizon_months ?? horizon;
   const monthly = result?.monthly ?? [];
   const models = result?.models ?? {};
+  // Only closed months before the forecast start are history; a month in progress would look like a drop.
+  const firstForecast = monthly[0]?.month;
+  const pastHistory = firstForecast ? history.filter((point) => point.month < firstForecast) : history;
   const tableRows = [
-    ...history.map((point) => ({ mes: point.mes, ingresos: point.ingresos, gastos: point.gastos, tipo: "Recorded" })),
+    ...pastHistory.map((point) => ({ mes: point.mes, ingresos: point.ingresos, gastos: point.gastos, tipo: "Recorded" })),
     ...monthly.map((point) => ({
       mes: shortMonth(point.month),
       ingresos: num(point.projected_income),
@@ -1853,6 +1678,24 @@ const ProyeccionesScreen = ({
       tipo: "Forecast",
     })),
   ];
+
+  // The last recorded month also starts the dashed forecast lines, so both segments join.
+  const chartRows: Array<Record<string, string | number | null>> = pastHistory.map((point, index) => ({
+    mes: point.mes,
+    "Recorded income": point.ingresos,
+    "Recorded expenses": point.gastos,
+    "Forecast income (ML)": index === pastHistory.length - 1 && monthly.length ? point.ingresos : null,
+    "Forecast expenses (ML)": index === pastHistory.length - 1 && monthly.length ? point.gastos : null,
+  }));
+  monthly.forEach((point) => {
+    chartRows.push({
+      mes: shortMonth(point.month),
+      "Recorded income": null,
+      "Recorded expenses": null,
+      "Forecast income (ML)": num(point.projected_income),
+      "Forecast expenses (ML)": num(point.projected_expenses),
+    });
+  });
 
   return (
     <div style={{ padding: "28px 32px" }}>
@@ -1868,20 +1711,17 @@ const ProyeccionesScreen = ({
         }
       />
 
-      <div style={{ backgroundColor: "#E3F2FD", border: "1px solid #90CAF9", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#1565C0", display: "flex", gap: 8 }}>
-        <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span>
-          The forecast comes from a model already trained and saved in an artifact. Flask does not train or simulate:
-          it prepares the current inputs, runs the prediction and stores the run with its version. It is an estimate
-          for guidance, not an official tax assessment.
-        </span>
-      </div>
+      <MlNote>
+        Every value with this tag is produced by the random forest model, trained offline and applied to the closed months
+        recorded for this company (at least 6). Values without the tag are your own records. It is an estimate for planning,
+        not an official tax assessment.
+      </MlNote>
 
-      <Card style={{ marginBottom: 24, padding: "14px 18px", backgroundColor: "#F5F7F6" }}>
+      <Card style={{ marginBottom: 24, padding: "14px 18px", backgroundColor: "#F5F8F6" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#37474F", marginBottom: 6 }}>How the ML is applied</div>
-            <p style={{ fontSize: 11, color: "#546E7A", margin: 0, lineHeight: 1.65 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#33433B", marginBottom: 6 }}>How the ML is applied</div>
+            <p style={{ fontSize: 11, color: "#4E5F57", margin: 0, lineHeight: 1.65 }}>
               Training and evaluation with a time-based split run offline (<code>ml/src/</code> for the global model,{" "}
               <code>ml/company_trainer/train.py</code> for a company model). The backend reads the JSON artifact,
               validates the expected inputs and predicts without scikit-learn. Nothing is trained when the dashboard loads or on
@@ -1896,26 +1736,26 @@ const ProyeccionesScreen = ({
               style={{ ...inputStyle, width: 120 }}
               disabled={estado === "loading"}
             >
-              {[1, 2, 3, 4, 6, 12].map((value) => (
+              {[1, 2, 3, 4, 5, 6].map((value) => (
                 <option key={value} value={value}>{value}</option>
               ))}
             </select>
           </Field>
         </div>
         {savedRuns.length > 0 && (
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "#66786F", marginTop: 8 }}>
             Stored runs: {savedRuns.length}. The most recent one is shown when the screen opens.
           </div>
         )}
       </Card>
 
-      {loadingContext && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading history and latest run…</div>}
+      {loadingContext && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading history and latest run…</div>}
 
       {estado === "idle" && (
         <Card style={{ textAlign: "center", padding: "60px 40px" }}>
-          <BarChart2 size={48} color="#90CAF9" style={{ margin: "0 auto 16px" }} />
-          <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: "0 0 8px" }}>Generate forecast</h3>
-          <p style={{ fontSize: 13, color: "#78909C", maxWidth: 520, margin: "0 auto 24px", lineHeight: 1.6 }}>
+          <BarChart2 size={48} color="#9CCDB1" style={{ margin: "0 auto 16px" }} />
+          <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Generate forecast</h3>
+          <p style={{ fontSize: 13, color: "#66786F", maxWidth: 520, margin: "0 auto 24px", lineHeight: 1.6 }}>
             The income and expenses recorded in the ERP are the inputs of the trained model. If the
             artifact or the minimum history is missing, you will see an explicit error and can continue with manual planning.
           </p>
@@ -1928,18 +1768,18 @@ const ProyeccionesScreen = ({
 
       {estado === "loading" && (
         <Card style={{ textAlign: "center", padding: "60px 40px" }}>
-          <div style={{ width: 48, height: 48, borderRadius: "50%", border: "4px solid #E8F5E9", borderTopColor: "#1B5E3F", margin: "0 auto 24px", animation: "spin 1s linear infinite" }} />
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#37474F" }}>Preparing inputs and running the model…</div>
-          <p style={{ fontSize: 12, color: "#78909C", marginTop: 8 }}>The model is not retrained and no external source is queried.</p>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", border: "4px solid #E3F1E8", borderTopColor: "#1B5E3F", margin: "0 auto 24px", animation: "spin 1s linear infinite" }} />
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#33433B" }}>Preparing inputs and running the model…</div>
+          <p style={{ fontSize: 12, color: "#66786F", marginTop: 8 }}>The model is not retrained and no external source is queried.</p>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </Card>
       )}
 
       {estado === "error" && (
         <Card style={{ textAlign: "center", padding: "48px 40px" }}>
-          <AlertCircle size={48} color="#E53935" style={{ margin: "0 auto 16px" }} />
-          <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: "0 0 8px" }}>The forecast could not be generated</h3>
-          <p style={{ fontSize: 13, color: "#78909C", maxWidth: 520, margin: "0 auto 8px", lineHeight: 1.6 }}>{error}</p>
+          <AlertCircle size={48} color="#B3261E" style={{ margin: "0 auto 16px" }} />
+          <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>The forecast could not be generated</h3>
+          <p style={{ fontSize: 13, color: "#66786F", maxWidth: 520, margin: "0 auto 8px", lineHeight: 1.6 }}>{error}</p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 20, flexWrap: "wrap" }}>
             <Btn variant="secondary" onClick={runProjection}>Retry</Btn>
             <Btn variant="primary" onClick={() => onNav("planificacion")}>Use manual planning</Btn>
@@ -1949,12 +1789,12 @@ const ProyeccionesScreen = ({
 
       {estado === "done" && result && !result.available && (
         <Card style={{ textAlign: "center", padding: "48px 40px" }}>
-          <AlertCircle size={48} color="#FBC02D" style={{ margin: "0 auto 16px" }} />
-          <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: "0 0 8px" }}>Model or history not available</h3>
-          <p style={{ fontSize: 13, color: "#78909C", maxWidth: 520, margin: "0 auto 8px", lineHeight: 1.6 }}>
+          <AlertCircle size={48} color="#C9A227" style={{ margin: "0 auto 16px" }} />
+          <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Model or history not available</h3>
+          <p style={{ fontSize: 13, color: "#66786F", maxWidth: 520, margin: "0 auto 8px", lineHeight: 1.6 }}>
             {result.reason ?? "There is no trained model or not enough history for this company."}
           </p>
-          <p style={{ fontSize: 12, color: "#B0BEC5" }}>
+          <p style={{ fontSize: 12, color: "#9AABA2" }}>
             {result.code === "insufficient_history"
               ? `Months available: ${result.history_months ?? 0}.`
               : "The prediction is never replaced with fictitious data."}
@@ -1970,61 +1810,85 @@ const ProyeccionesScreen = ({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 16 }}>
             {[
               { label: `Projected income (${months} months)`, value: fmt(projectedIncome), color: "#1B5E3F" },
-              { label: `Projected expenses (${months} months)`, value: fmt(projectedExpenses), color: "#37474F" },
-              { label: "Income − expenses", value: fmt(num(result.projected_result)), color: projectedIncome - projectedExpenses >= 0 ? "#1565C0" : "#E53935" },
+              { label: `Projected expenses (${months} months)`, value: fmt(projectedExpenses), color: "#33433B" },
+              { label: "Income − expenses", value: fmt(num(result.projected_result)), color: projectedIncome - projectedExpenses >= 0 ? "#24714D" : "#B3261E" },
             ].map((item) => (
               <Card key={item.label} style={{ padding: "20px 24px" }}>
-                <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 11, color: "#66786F", marginBottom: 4 }}>{item.label}</div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: item.color }}>{item.value}</div>
-                <span style={{ display: "inline-block", marginTop: 8, fontSize: 10, fontWeight: 700, color: "#1565C0", backgroundColor: "#E3F2FD", padding: "2px 8px", borderRadius: 6, border: "1px solid #90CAF9" }}>Model estimate</span>
+                <div style={{ marginTop: 8 }}><MlBadge size="sm" /></div>
               </Card>
             ))}
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
             {result.is_demo && (
-              <span style={{ fontSize: 11, color: "#E65100", backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", borderRadius: 8, padding: "7px 11px" }}>
-                Demo data: the metrics and forecasts do not validate the behavior of a real company.
+              <span style={{ fontSize: 11, color: "#8A6400", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "7px 11px" }}>
+                The model was trained and evaluated on semi-synthetic data: its accuracy for a real company is not proven yet.
               </span>
             )}
             {result.stale_inputs && (
-              <span style={{ fontSize: 11, color: "#E65100", backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", borderRadius: 8, padding: "7px 11px" }}>
+              <span style={{ fontSize: 11, color: "#8A6400", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "7px 11px" }}>
                 The inputs changed after training. The run is stored; generate again to use the current inputs.
               </span>
             )}
-            <span style={{ fontSize: 11, color: "#546E7A", backgroundColor: "#ECEFF1", borderRadius: 8, padding: "7px 11px" }}>
+            <span style={{ fontSize: 11, color: "#4E5F57", backgroundColor: "#EEF2F0", borderRadius: 8, padding: "7px 11px" }}>
               Run #{result.id ?? "—"} · version {result.model_version ?? "no version"} · cutoff {fmtDate(result.cutoff_date)} · stored {fmtDate(result.created_at)}
             </span>
           </div>
 
+          <Card style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B" }}>Your history and the model forecast</div>
+                <div style={{ fontSize: 12, color: "#66786F", marginTop: 2 }}>Solid lines: months you recorded · dashed lines: <MlBadge size="sm" /> forecast</div>
+              </div>
+            </div>
+            <div style={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartRows} margin={{ top: 6, right: 12, left: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F0" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#66786F" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#66786F" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(Number(v) / 1_000_000)}M`} width={48} />
+                  <Tooltip formatter={(value) => (value == null ? "—" : fmt(Number(value)))} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="Recorded income" stroke="#1B5E3F" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="Recorded expenses" stroke="#9CCDB1" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="Forecast income (ML)" stroke="#1B5E3F" strokeWidth={2.5} strokeDasharray="6 5" dot={{ r: 3 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="Forecast expenses (ML)" stroke="#5BAA80" strokeWidth={2.5} strokeDasharray="6 5" dot={{ r: 3 }} connectNulls={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
           <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 24, marginBottom: 24 }}>
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>Recorded history vs forecast</div>
-              <div style={{ fontSize: 12, color: "#78909C", marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 4 }}>Recorded history vs forecast</div>
+              <div style={{ fontSize: 12, color: "#66786F", marginBottom: 16 }}>
                 {result.history_period ? `History ${result.history_period.from} to ${result.history_period.to}` : "ERP history"} · forecast {months} months
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ backgroundColor: "#F5F7F6" }}>
+                    <tr style={{ backgroundColor: "#F5F8F6" }}>
                       {["Month", "Income", "Expenses", "Type"].map((header) => (
-                        <th key={header} style={{ padding: "9px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.07)", whiteSpace: "nowrap" }}>{header}</th>
+                        <th key={header} style={{ padding: "9px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.07)", whiteSpace: "nowrap" }}>{header}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {tableRows.map((row, index) => (
-                      <tr key={`${row.tipo}-${row.mes}-${index}`} style={{ backgroundColor: row.tipo === "Forecast" ? "#E3F2FD" : index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                        <td style={{ padding: "9px 12px", fontWeight: 600, color: "#37474F" }}>{row.mes}</td>
-                        <td style={{ padding: "9px 12px", color: "#37474F" }}>{fmt(row.ingresos)}</td>
-                        <td style={{ padding: "9px 12px", color: "#37474F" }}>{fmt(row.gastos)}</td>
+                      <tr key={`${row.tipo}-${row.mes}-${index}`} style={{ backgroundColor: row.tipo === "Forecast" ? "#F2F8F4" : index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                        <td style={{ padding: "9px 12px", fontWeight: 600, color: "#33433B" }}>{row.mes}</td>
+                        <td style={{ padding: "9px 12px", color: "#33433B" }}>{fmt(row.ingresos)}</td>
+                        <td style={{ padding: "9px 12px", color: "#33433B" }}>{fmt(row.gastos)}</td>
                         <td style={{ padding: "9px 12px" }}>
-                          <Badge label={row.tipo} color={row.tipo === "Forecast" ? "#1565C0" : "#546E7A"} bg={row.tipo === "Forecast" ? "#E3F2FD" : "#ECEFF1"} border={row.tipo === "Forecast" ? "#90CAF9" : "#CFD8DC"} />
+                          {row.tipo === "Forecast" ? <MlBadge size="sm" /> : <Badge label="Your data" color="#4E5F57" bg="#EEF2F0" border="#D3DDD8" />}
                         </td>
                       </tr>
                     ))}
                     {tableRows.length === 0 && (
-                      <tr><td colSpan={4} style={{ padding: 24, textAlign: "center", color: "#78909C", fontSize: 12 }}>No history or forecast to show.</td></tr>
+                      <tr><td colSpan={4} style={{ padding: 24, textAlign: "center", color: "#66786F", fontSize: 12 }}>No history or forecast to show.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2032,7 +1896,7 @@ const ProyeccionesScreen = ({
             </Card>
 
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 16 }}>Calculation detail</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 16 }}>Calculation detail</div>
               {[
                 { label: "Method (income)", value: models.income?.label ?? result.method_label ?? "—" },
                 { label: "Method (expenses)", value: models.expenses?.label ?? "—" },
@@ -2046,23 +1910,23 @@ const ProyeccionesScreen = ({
                 { label: "Evaluation", value: result.scope === "global" ? "Evaluated once on test and holdout companies: accepted (docs/04_evaluation_report.md)" : result.assumptions?.evaluation?.method === "temporal_holdout" ? `Time-based validation for selection (${result.assumptions.evaluation.test_months ?? "—"} months); one-month error with real lags. The full recursive horizon is not evaluated` : "Not declared" },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                  <span style={{ fontSize: 12, color: "#78909C" }}>{item.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#37474F", textAlign: "right" }}>{item.value}</span>
+                  <span style={{ fontSize: 12, color: "#66786F" }}>{item.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#33433B", textAlign: "right" }}>{item.value}</span>
                 </div>
               ))}
-              <div style={{ fontSize: 11, color: "#78909C", marginTop: 12, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, color: "#66786F", marginTop: 12, lineHeight: 1.5 }}>
                 The model, the inputs and the version are stored with the run. Changing the interface does not change the model.
               </div>
             </Card>
           </div>
 
           <Card style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 4 }}>{result.scope === "global" ? "Model evaluation" : "Model metrics (time-based validation)"}</div>
-            <div style={{ fontSize: 12, color: "#78909C", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 4 }}>{result.scope === "global" ? "Model evaluation" : "Model metrics (time-based validation)"}</div>
+            <div style={{ fontSize: 12, color: "#66786F", marginBottom: 16 }}>
               {result.scope === "global" ? "Six-month recursive forecasts, as the app makes them." : "One-month error on the months used for selection (real lags). The full recursive horizon is not evaluated. Lower MAE is better."} These are not probabilities or promises of savings.
             </div>
             {result.scope === "global" && (
-              <div style={{ fontSize: 12, color: "#37474F", lineHeight: 1.7, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: "#33433B", lineHeight: 1.7, marginBottom: 8 }}>
                 The global model was evaluated once on data nobody used to train or choose it (Phase 4, verdict: accepted).
                 Typical error, as a share of a company's monthly income: income 10.2 % and expenses 10.7 % on the temporal test,
                 income 12.3 % and expenses 11.8 % on companies never seen in training. The seasonal naive baseline scored 15–17 %.
@@ -2071,15 +1935,15 @@ const ProyeccionesScreen = ({
             )}
             {result.scope !== "global" && Object.entries(models).map(([target, info]) => (
               <div key={target} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#37474F" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#33433B" }}>
                   {target === "income" ? "Income" : "Expenses"} · selected model: {info.label}
                 </div>
-                <div style={{ fontSize: 12, color: "#546E7A", marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: "#4E5F57", marginTop: 4 }}>
                   MAE {fmt(info.metrics.mae)} · RMSE {fmt(info.metrics.rmse)} · MAPE {info.metrics.mape_percent != null ? `${info.metrics.mape_percent}%` : "not computable"}
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                   {Object.entries(info.all_metrics).map(([name, metric]) => (
-                    <span key={name} style={{ fontSize: 10, color: "#546E7A", backgroundColor: "#F5F7F6", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 6, padding: "4px 8px" }}>
+                    <span key={name} style={{ fontSize: 10, color: "#4E5F57", backgroundColor: "#F5F8F6", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 6, padding: "4px 8px" }}>
                       {modelLabel(name)}: MAE {fmt(metric.mae)}
                     </span>
                   ))}
@@ -2087,7 +1951,7 @@ const ProyeccionesScreen = ({
               </div>
             ))}
             {result.scope !== "global" && Object.keys(models).length === 0 && (
-              <div style={{ fontSize: 12, color: "#78909C" }}>The run declares no metrics.</div>
+              <div style={{ fontSize: 12, color: "#66786F" }}>The run declares no metrics.</div>
             )}
           </Card>
 
@@ -2097,7 +1961,7 @@ const ProyeccionesScreen = ({
             <Btn variant="secondary" icon={<Edit3 size={13} />} onClick={() => onNav("planificacion")}>Manual planning</Btn>
           </div>
 
-          <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 10, padding: "10px 16px", fontSize: 12, color: "#E65100" }}>
+          <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 10, padding: "10px 16px", fontSize: 12, color: "#8A6400" }}>
             <Info size={13} style={{ display: "inline", marginRight: 5 }} />
             {result.disclaimer ?? "Planning estimate for guidance only. It is not an official tax assessment."} Income minus expenses is not a tax or a mandatory reserve.
           </div>
@@ -2439,7 +2303,7 @@ const PlanificacionScreen = ({
         actions={<Btn variant="ghost" icon={<Layers size={13} />} small onClick={() => onNav("escenarios")}>Compare scenarios</Btn>}
       />
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading planning information…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading planning information…</div>}
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "flex", gap: 0, marginBottom: 32, backgroundColor: "#fff", borderRadius: 12, padding: "4px", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
@@ -2448,8 +2312,8 @@ const PlanificacionScreen = ({
           const active = step === stepNumber;
           const done = step > stepNumber;
           return (
-            <button key={label} onClick={() => setStep(stepNumber)} style={{ flex: 1, padding: "11px 16px", borderRadius: 9, border: "none", cursor: "pointer", backgroundColor: active ? "#1B5E3F" : "transparent", color: active ? "#fff" : done ? "#1B5E3F" : "#78909C", fontWeight: active ? 700 : 500, fontSize: 13, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.15s" }}>
-              <span style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, backgroundColor: active ? "rgba(255,255,255,0.2)" : done ? "#E8F5E9" : "#F5F7F6", color: active ? "#fff" : done ? "#1B5E3F" : "#78909C" }}>
+            <button key={label} onClick={() => setStep(stepNumber)} style={{ flex: 1, padding: "11px 16px", borderRadius: 9, border: "none", cursor: "pointer", backgroundColor: active ? "#1B5E3F" : "transparent", color: active ? "#fff" : done ? "#1B5E3F" : "#66786F", fontWeight: active ? 700 : 500, fontSize: 13, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.15s" }}>
+              <span style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, backgroundColor: active ? "rgba(255,255,255,0.2)" : done ? "#E3F1E8" : "#F5F8F6", color: active ? "#fff" : done ? "#1B5E3F" : "#66786F" }}>
                 {done ? <CheckCircle size={13} /> : stepNumber}
               </span>
               {label}
@@ -2461,7 +2325,7 @@ const PlanificacionScreen = ({
       {step === 1 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
           <Card>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 16 }}>Recorded information</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 16 }}>Recorded information</div>
             {[
               { label: "Company", value: companyName },
               { label: "Period", value: form.period },
@@ -2471,15 +2335,15 @@ const PlanificacionScreen = ({
               { label: "Plan expenses", value: fmt(projectedExpenses), note: "Planning forecast" },
             ].map((row) => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "8px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-                <span style={{ fontSize: 13, color: "#78909C" }}>{row.label}</span>
+                <span style={{ fontSize: 13, color: "#66786F" }}>{row.label}</span>
                 <div style={{ textAlign: "right" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#37474F" }}>{row.value}</span>
-                  {row.note && <span style={{ display: "block", fontSize: 10, color: "#B0BEC5" }}>{row.note}</span>}
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#33433B" }}>{row.value}</span>
+                  {row.note && <span style={{ display: "block", fontSize: 10, color: "#9AABA2" }}>{row.note}</span>}
                 </div>
               </div>
             ))}
             {forecast && (
-              <div style={{ marginTop: 14, fontSize: 11, color: "#1565C0", backgroundColor: "#E3F2FD", border: "1px solid #90CAF9", borderRadius: 8, padding: "8px 12px" }}>
+              <div style={{ marginTop: 14, fontSize: 11, color: "#24714D", backgroundColor: "#EDF7F0", border: "1px solid #9CCDB1", borderRadius: 8, padding: "8px 12px" }}>
                 Latest stored forecast: {fmt(num(forecast.projected_income))} of income and {fmt(num(forecast.projected_expenses))} of expenses for {forecast.horizon_months} months.
               </div>
             )}
@@ -2487,15 +2351,15 @@ const PlanificacionScreen = ({
 
           <div>
             <Card style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 12 }}>Pending obligations</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 12 }}>Pending obligations</div>
               {pendingObligations.map((obligation) => (
                 <div key={obligation.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#37474F" }}>{obligation.name}</div>
-                  <div style={{ fontSize: 11, color: "#E53935", marginTop: 2 }}>Due: {fmtDate(obligation.due_date)}</div>
-                  <div style={{ fontSize: 11, color: "#78909C" }}>Estimate: {obligation.estimated_amount ? fmt(num(obligation.estimated_amount)) : "To be defined"}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#33433B" }}>{obligation.name}</div>
+                  <div style={{ fontSize: 11, color: "#B3261E", marginTop: 2 }}>Due: {fmtDate(obligation.due_date)}</div>
+                  <div style={{ fontSize: 11, color: "#66786F" }}>Estimate: {obligation.estimated_amount ? fmt(num(obligation.estimated_amount)) : "To be defined"}</div>
                 </div>
               ))}
-              {pendingObligations.length === 0 && <div style={{ fontSize: 12, color: "#78909C" }}>No pending obligations recorded.</div>}
+              {pendingObligations.length === 0 && <div style={{ fontSize: 12, color: "#66786F" }}>No pending obligations recorded.</div>}
             </Card>
             <Btn variant="primary" onClick={() => setStep(2)} fullWidth icon={<ChevronRight size={14} />}>Continue to assumptions</Btn>
           </div>
@@ -2506,11 +2370,11 @@ const PlanificacionScreen = ({
         <div>
           <Card style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F" }}>Assumptions and parameters</div>
-              <Badge label={parameters.some((item) => item.reviewed) ? "Partially reviewed" : "Review required"} color="#E65100" bg="#FFF3E0" border="#FFCC80" />
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B" }}>Assumptions and parameters</div>
+              <Badge label={parameters.some((item) => item.reviewed) ? "Partially reviewed" : "Review required"} color="#8A6400" bg="#FBF4E2" border="#E9D49C" />
             </div>
 
-            <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "#E65100", lineHeight: 1.6 }}>
+            <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "#8A6400", lineHeight: 1.6 }}>
               <Info size={13} style={{ display: "inline", marginRight: 5 }} />
               The parameters are configuration values. The accountant must review and confirm them before using this estimate.
             </div>
@@ -2518,32 +2382,32 @@ const PlanificacionScreen = ({
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr style={{ backgroundColor: "#F5F7F6" }}>
+                  <tr style={{ backgroundColor: "#F5F8F6" }}>
                     {["Parameter", "Value", "Unit", "Source / note", "Review"].map((header) => (
-                      <th key={header} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.07)", whiteSpace: "nowrap" }}>{header}</th>
+                      <th key={header} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.07)", whiteSpace: "nowrap" }}>{header}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {parameters.map((row, index) => (
-                    <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                      <td style={{ padding: "11px 14px", fontWeight: 600, color: "#37474F" }}>{row.label}</td>
-                      <td style={{ padding: "11px 14px", color: "#37474F", fontWeight: 700 }}>{parameterValue(row)}</td>
-                      <td style={{ padding: "11px 14px", color: "#78909C" }}>{unitLabel(row.unit)}</td>
-                      <td style={{ padding: "11px 14px", color: "#78909C", fontSize: 12 }}>{row.source || "No source recorded"}</td>
+                    <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                      <td style={{ padding: "11px 14px", fontWeight: 600, color: "#33433B" }}>{row.label}</td>
+                      <td style={{ padding: "11px 14px", color: "#33433B", fontWeight: 700 }}>{parameterValue(row)}</td>
+                      <td style={{ padding: "11px 14px", color: "#66786F" }}>{unitLabel(row.unit)}</td>
+                      <td style={{ padding: "11px 14px", color: "#66786F", fontSize: 12 }}>{row.source || "No source recorded"}</td>
                       <td style={{ padding: "11px 14px" }}>
-                        <Badge label={row.reviewed ? "Reviewed" : "Not reviewed"} color={row.reviewed ? "#1B5E3F" : "#78909C"} bg={row.reviewed ? "#E8F5E9" : "#ECEFF1"} border={row.reviewed ? "#A5D6A7" : "#CFD8DC"} />
+                        <Badge label={row.reviewed ? "Reviewed" : "Not reviewed"} color={row.reviewed ? "#1B5E3F" : "#66786F"} bg={row.reviewed ? "#E3F1E8" : "#EEF2F0"} border={row.reviewed ? "#9CCDB1" : "#D3DDD8"} />
                       </td>
                     </tr>
                   ))}
                   {parameters.length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>No tax parameters configured. The estimate will stay pending configuration.</td></tr>
+                    <tr><td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>No tax parameters configured. The estimate will stay pending configuration.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ backgroundColor: "#ECEFF1", borderRadius: 10, padding: "12px 16px", marginTop: 16, fontSize: 12, color: "#78909C" }}>
+            <div style={{ backgroundColor: "#EEF2F0", borderRadius: 10, padding: "12px 16px", marginTop: 16, fontSize: 12, color: "#66786F" }}>
               If configured and reviewed parameters are missing, the estimate is shown as <strong>"pending configuration"</strong>. Obligations are never inferred automatically.
             </div>
           </Card>
@@ -2558,21 +2422,18 @@ const PlanificacionScreen = ({
       {step === 3 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 24 }}>
           <Card>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 20 }}>Build plan version</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 20 }}>Build plan version</div>
 
             {draft && (
-              <div style={{ backgroundColor: "#E3F2FD", border: "1px solid #90CAF9", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 11, color: "#1565C0", lineHeight: 1.6 }}>
-                <Info size={13} style={{ display: "inline", marginRight: 5 }} />
-                Draft created from the {draft.methodLabel ?? "model"} forecast for the period {draft.period}{" "}
-                (first forecast month). You set the reserve target: income minus expenses is not a tax or
-                a mandatory reserve. Saving creates a new version; reviewed versions never change.
-              </div>
+              <MlNote>
+                {`Projected income and expenses come from the model forecast for ${draft.period} (first forecast month). You set the reserve target: income minus expenses is not a tax or a mandatory reserve. Saving creates a new version; reviewed versions never change.`}
+              </MlNote>
             )}
 
             {actionError && <InlineError message={actionError} />}
             {actionMessage && (
-              <div style={{ backgroundColor: "#E8F5E9", border: "1px solid #A5D6A7", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center" }}>
-                <CheckCircle size={18} color="#4CAF50" />
+              <div style={{ backgroundColor: "#E3F1E8", border: "1px solid #9CCDB1", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center" }}>
+                <CheckCircle size={18} color="#2E8A5C" />
                 <div style={{ fontSize: 12, color: "#1B5E3F", fontWeight: 600 }}>{actionMessage}</div>
               </div>
             )}
@@ -2603,12 +2464,12 @@ const PlanificacionScreen = ({
               <textarea rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Assumptions, pending items or notes for the accountant…" style={{ ...inputStyle, resize: "vertical" }} />
             </Field>
 
-            <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 10, padding: "10px 14px", marginTop: 4, fontSize: 11, color: "#E65100" }}>
+            <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 10, padding: "10px 14px", marginTop: 4, fontSize: 11, color: "#8A6400" }}>
               Guidance plan subject to accounting review. It is not an official tax assessment.
             </div>
 
             <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", marginTop: 22, paddingTop: 18 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#37474F", marginBottom: 10 }}>Record reserve</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#33433B", marginBottom: 10 }}>Record reserve</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <Field label="Reserve amount">
                   <input type="number" min="0" step="0.01" value={reserveForm.amount} onChange={(event) => setReserveForm({ ...reserveForm, amount: event.target.value })} placeholder="0.00" style={inputStyle} />
@@ -2626,21 +2487,21 @@ const PlanificacionScreen = ({
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F", marginBottom: 16 }}>Plan summary</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B", marginBottom: 16 }}>Plan summary</div>
               {[
                 { label: "Projected income", value: fmt(projectedIncome), note: "Value entered by the user", color: "#1B5E3F" },
-                { label: "Projected expenses", value: fmt(projectedExpenses), note: "Value entered by the user", color: "#37474F" },
-                { label: "Projected difference", value: fmt(projectedResult), note: "Reserve base; not an assessed tax", color: projectedResult >= 0 ? "#1565C0" : "#E53935" },
-                { label: "Plan reserve target", value: fmt(reserveTargetInput), note: "Set by the accountant", color: "#6A1B9A" },
-                { label: "Recorded reserves", value: fmt(reservesTotal), note: "Sum of reserve records", color: "#37474F" },
+                { label: "Projected expenses", value: fmt(projectedExpenses), note: "Value entered by the user", color: "#33433B" },
+                { label: "Projected difference", value: fmt(projectedResult), note: "Reserve base; not an assessed tax", color: projectedResult >= 0 ? "#24714D" : "#B3261E" },
+                { label: "Plan reserve target", value: fmt(reserveTargetInput), note: "Set by the accountant", color: "#154D33" },
+                { label: "Recorded reserves", value: fmt(reservesTotal), note: "Sum of reserve records", color: "#33433B" },
               ].map((row) => (
                 <div key={row.label} style={{ padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                  <div style={{ fontSize: 12, color: "#78909C" }}>{row.label}</div>
+                  <div style={{ fontSize: 12, color: "#66786F" }}>{row.label}</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: row.color }}>{row.value}</div>
-                  <div style={{ fontSize: 10, color: "#B0BEC5" }}>{row.note}</div>
+                  <div style={{ fontSize: 10, color: "#9AABA2" }}>{row.note}</div>
                 </div>
               ))}
-              <div style={{ fontSize: 11, color: "#78909C", marginTop: 10, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, color: "#66786F", marginTop: 10, lineHeight: 1.5 }}>
                 These figures are not equivalent to each other. The reserve is a planning decision, not an official assessment.
               </div>
             </Card>
@@ -2661,8 +2522,8 @@ const PlanificacionScreen = ({
 
             {(savedPlan || planDetail) && (
               <Card style={{ padding: "16px 18px" }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: "#37474F", marginBottom: 8 }}>Current version</div>
-                <div style={{ fontSize: 12, color: "#78909C", lineHeight: 1.7 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: "#33433B", marginBottom: 8 }}>Current version</div>
+                <div style={{ fontSize: 12, color: "#66786F", lineHeight: 1.7 }}>
                   Plan: {savedPlan?.name ?? planDetail?.name}<br />
                   Version: v{savedPlan?.version?.version ?? latestVersion?.version ?? planDetail?.current_version}<br />
                   Status: {savedPlan?.version?.status === "reviewed" || latestVersion?.status === "reviewed" ? "Reviewed (read-only)" : "Draft"}
@@ -2678,76 +2539,122 @@ const PlanificacionScreen = ({
 
 
 // ESCENARIOS
-const EscenariosScreen = ({ companyName }: { companyName: string }) => {
-  const [scenario, setScenario] = useState<"base" | "menor" | "mayor">("base");
+const EscenariosScreen = ({ companyId, companyName, onNav }: { companyId: number | null; companyName: string; onNav: (s: Screen) => void }) => {
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [incomeDelta, setIncomeDelta] = useState(-10);
+  const [expenseDelta, setExpenseDelta] = useState(10);
 
-  const scenarioCfg = {
-    base: { label: "Base", ingresos: 55000000, gastos: 37000000, meta: 4500000, reserva: 3000000 },
-    menor: { label: "Lower income", ingresos: 44000000, gastos: 37000000, meta: 4500000, reserva: 3000000 },
-    mayor: { label: "Higher expenses", ingresos: 55000000, gastos: 46000000, meta: 4500000, reserva: 3000000 },
-  };
+  useEffect(() => {
+    if (!companyId) return;
+    let alive = true;
+    setLoading(true);
+    getDashboard(companyId)
+      .then((data) => alive && setDashboard(data))
+      .catch((err) => alive && setError(errorMessage(err)))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [companyId]);
 
-  const sc = scenarioCfg[scenario];
-  const diferencia = sc.meta - sc.reserva;
+  const forecast = dashboard?.latest_forecast ?? null;
+  const baseIncome = forecast ? num(forecast.projected_income) : 0;
+  const baseExpenses = forecast ? num(forecast.projected_expenses) : 0;
+  const target = num(dashboard?.reserve.target);
+  const reserved = num(dashboard?.reserve.reserved);
+  const scenarios = [
+    { key: "base", label: "Base (model forecast)", income: baseIncome, expenses: baseExpenses },
+    { key: "income", label: `Income ${incomeDelta >= 0 ? "+" : ""}${incomeDelta} %`, income: baseIncome * (1 + incomeDelta / 100), expenses: baseExpenses },
+    { key: "expenses", label: `Expenses ${expenseDelta >= 0 ? "+" : ""}${expenseDelta} %`, income: baseIncome, expenses: baseExpenses * (1 + expenseDelta / 100) },
+  ];
 
   return (
     <div style={{ padding: "28px 32px" }}>
-      <SectionHeader title="Planning scenario comparison" subtitle={`Illustrative scenarios · ${companyName} · ${currentPeriod()}`} />
+      <SectionHeader
+        title="Planning scenario comparison"
+        subtitle={`${companyName} · based on the latest model forecast`}
+        actions={<Btn variant="ghost" small icon={<ArrowLeft size={13} />} onClick={() => onNav("planificacion")}>Back to planning</Btn>}
+      />
+      {error && <InlineError message={error} />}
+      {loading && <div style={{ fontSize: 12, color: "#66786F" }}>Loading…</div>}
 
-      <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 10, padding: "10px 16px", marginBottom: 24, fontSize: 12, color: "#E65100", display: "flex", gap: 8 }}>
-        <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span>The scenarios in this view are illustrative and do not use the company's records. Changes in income or expenses do not recompute taxes unless a configured and reviewed tax rule exists. A lower reserve is never called a "tax saving".</span>
-      </div>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>
-        {(["base", "menor", "mayor"] as const).map((key) => (
-          <button key={key} onClick={() => setScenario(key)} style={{ padding: "10px 20px", borderRadius: 9, border: scenario === key ? "none" : "1.5px solid #CFD8DC", backgroundColor: scenario === key ? "#1B5E3F" : "#fff", color: scenario === key ? "#fff" : "#78909C", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-            {scenarioCfg[key].label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20, marginBottom: 28 }}>
-        {[
-          { label: "Projected income", value: fmtM(sc.ingresos), note: "Simulated forecast" },
-          { label: "Projected expenses", value: fmtM(sc.gastos), note: "Simulated forecast" },
-          { label: "Income − expenses", value: fmtM(sc.ingresos - sc.gastos), note: "Not equivalent to taxable profit or to a tax payable" },
-        ].map((item) => (
-          <Card key={item.label} style={{ padding: "20px 22px" }}>
-            <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#1B5E3F" }}>{item.value}</div>
-            <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 4 }}>{item.note}</div>
-          </Card>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 16 }}>Scenario assumptions</div>
-          <div style={{ backgroundColor: "#F5F7F6", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#37474F", lineHeight: 1.8 }}>
-            <strong>Scenario:</strong> {sc.label}<br />
-            <strong>Adjusted income:</strong> {fmtM(sc.ingresos)}<br />
-            <strong>Adjusted expenses:</strong> {fmtM(sc.gastos)}<br />
-            <strong>Assumption:</strong> Illustrative demo figures<br />
-            <strong>Configured tax rules:</strong> Not applied in this scenario
-          </div>
+      {!loading && !forecast && (
+        <Card style={{ textAlign: "center", padding: "48px 24px" }}>
+          <BarChart2 size={40} color="#9CCDB1" style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#33433B", marginBottom: 6 }}>There is no forecast yet</div>
+          <p style={{ fontSize: 13, color: "#66786F", margin: "0 0 18px" }}>Scenarios start from the model forecast. Generate one first (it needs at least 6 closed months).</p>
+          <Btn onClick={() => onNav("proyecciones")}>Go to forecasts</Btn>
         </Card>
+      )}
 
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#37474F", marginBottom: 16 }}>Reserve plan in this scenario</div>
-          {[
-            { label: "Reserve target set", value: fmtM(sc.meta), color: "#1B5E3F" },
-            { label: "Available reserve (recorded)", value: fmtM(sc.reserva), color: "#37474F" },
-            { label: "Missing", value: fmtM(diferencia), color: diferencia > 0 ? "#E53935" : "#1B5E3F" },
-          ].map((row) => (
-            <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              <span style={{ fontSize: 13, color: "#78909C" }}>{row.label}</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: row.color }}>{row.value}</span>
+      {!loading && forecast && (
+        <>
+          <MlNote>
+            {`The base scenario is the latest forecast of the model (${forecast.horizon_months} months, version ${forecast.model_version ?? "—"}). The other two apply your own percentage to it; they are a sensitivity check, not a new prediction.`}
+          </MlNote>
+
+          <Card style={{ marginBottom: 20, padding: "18px 22px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+              <Field label={`Change in income: ${incomeDelta} %`}>
+                <input type="range" min={-50} max={50} step={5} value={incomeDelta} onChange={(e) => setIncomeDelta(Number(e.target.value))} style={{ width: "100%", accentColor: "#1B5E3F" }} />
+              </Field>
+              <Field label={`Change in expenses: ${expenseDelta} %`}>
+                <input type="range" min={-50} max={50} step={5} value={expenseDelta} onChange={(e) => setExpenseDelta(Number(e.target.value))} style={{ width: "100%", accentColor: "#1B5E3F" }} />
+              </Field>
             </div>
-          ))}
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 12 }}>The recorded reserve is reported by the user. It does not imply a bank integration.</div>
-        </Card>
-      </div>
+          </Card>
+
+          <Card style={{ padding: 0, overflow: "hidden", marginBottom: 20 }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#F2F8F4" }}>
+                    {["Scenario", "Projected income", "Projected expenses", "Income − expenses"].map((h) => (
+                      <th key={h} style={{ padding: "12px 16px", textAlign: h === "Scenario" ? "left" : "right", fontSize: 11, fontWeight: 700, color: "#66786F" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {scenarios.map((row) => {
+                    const result = row.income - row.expenses;
+                    return (
+                      <tr key={row.key} style={{ borderTop: "1px solid #EEF2F0" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: "#33433B" }}>
+                          {row.label} {row.key === "base" && <MlBadge size="sm" />}
+                        </td>
+                        <td style={{ padding: "12px 16px", textAlign: "right" }}>{fmt(row.income)}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right" }}>{fmt(row.expenses)}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: result < 0 ? "#B3261E" : "#1B5E3F" }}>{fmt(result)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 12 }}>Recorded reserve</div>
+            {dashboard?.reserve.has_target ? (
+              [
+                { label: "Reserve target of the current plan", value: fmt(target) },
+                { label: "Reserve recorded", value: fmt(reserved) },
+                { label: "Missing", value: fmt(Math.max(0, target - reserved)) },
+              ].map((row) => (
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                  <span style={{ fontSize: 13, color: "#66786F" }}>{row.label}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1B5E3F" }}>{row.value}</span>
+                </div>
+              ))
+            ) : (
+              <div style={{ fontSize: 13, color: "#66786F" }}>No reserve target yet. Set it in Tax planning.</div>
+            )}
+            <div style={{ fontSize: 11, color: "#66786F", marginTop: 12 }}>Income minus expenses is not a tax. The reserve target is always set by the accountant.</div>
+          </Card>
+        </>
+      )}
     </div>
   );
 };
@@ -2762,10 +2669,10 @@ const DEMO_TRACKED_OBLIGATIONS: Obligation[] = [
 ];
 
 const obligationBadgeStyle = (status: string) => {
-  if (status === "paid") return { color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" };
-  if (status === "filed") return { color: "#1565C0", bg: "#E3F2FD", border: "#90CAF9" };
-  if (status === "void") return { color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" };
-  return { color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" };
+  if (status === "paid") return { color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" };
+  if (status === "filed") return { color: "#24714D", bg: "#EDF7F0", border: "#9CCDB1" };
+  if (status === "void") return { color: "#66786F", bg: "#EEF2F0", border: "#D3DDD8" };
+  return { color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" };
 };
 
 const ObligacionesScreen = ({
@@ -2909,12 +2816,12 @@ const ObligacionesScreen = ({
         actions={canManage && <Btn variant="primary" icon={<Plus size={13} />} small onClick={openForm}>Record obligation</Btn>}
       />
 
-      <div style={{ backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 10, padding: "10px 16px", marginBottom: 24, fontSize: 12, color: "#E65100", display: "flex", gap: 8 }}>
+      <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 10, padding: "10px 16px", marginBottom: 24, fontSize: 12, color: "#8A6400", display: "flex", gap: 8 }}>
         <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>Dates and amounts are recorded by the user. Check the applicable calendar with the accountant. Nothing is sent to the DIAN and nothing is paid.</span>
       </div>
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading obligations…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading obligations…</div>}
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
@@ -2924,29 +2831,29 @@ const ObligacionesScreen = ({
           { label: "Overdue by recorded date", value: `${displayRows.filter((row) => row.status === "pending" && row.due_date < today).length}`, note: "Compared with today's date" },
         ].map((item) => (
           <Card key={item.label} style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 11, color: "#78909C", marginBottom: 4 }}>{item.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#37474F" }}>{item.value}</div>
-            <div style={{ fontSize: 11, color: "#B0BEC5" }}>{item.note}</div>
+            <div style={{ fontSize: 11, color: "#66786F", marginBottom: 4 }}>{item.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#33433B" }}>{item.value}</div>
+            <div style={{ fontSize: 11, color: "#9AABA2" }}>{item.note}</div>
           </Card>
         ))}
       </div>
 
       {!canManage && !demoMode && (
-        <div style={{ backgroundColor: "#ECEFF1", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 12, color: "#78909C" }}>
+        <div style={{ backgroundColor: "#EEF2F0", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 12, color: "#66786F" }}>
           Your role can view the calendar. Only an Administrator or Accountant can record items or change their status.
         </div>
       )}
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F" }}>Recorded calendar</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B" }}>Recorded calendar</div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#F5F7F6" }}>
+              <tr style={{ backgroundColor: "#F5F8F6" }}>
                 {["Obligation", "Period", "Due date", "Estimate", "Status", "Notes", "Actions"].map((header) => (
-                  <th key={header} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                  <th key={header} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                 ))}
               </tr>
             </thead>
@@ -2955,30 +2862,30 @@ const ObligacionesScreen = ({
                 const overdue = row.status === "pending" && row.due_date < today;
                 const style = obligationBadgeStyle(row.status);
                 return (
-                  <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                    <td style={{ padding: "12px 14px", fontWeight: 600, color: "#37474F" }}>
+                  <tr key={row.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                    <td style={{ padding: "12px 14px", fontWeight: 600, color: "#33433B" }}>
                       {row.name}
-                      {overdue && <span style={{ display: "block", fontSize: 10, color: "#E53935", fontWeight: 700 }}>Overdue by recorded date</span>}
+                      {overdue && <span style={{ display: "block", fontSize: 10, color: "#B3261E", fontWeight: 700 }}>Overdue by recorded date</span>}
                     </td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{row.period || "—"}</td>
-                    <td style={{ padding: "12px 14px", color: overdue ? "#E53935" : "#37474F", fontWeight: overdue ? 700 : 400, whiteSpace: "nowrap" }}>{fmtDate(row.due_date)}</td>
-                    <td style={{ padding: "12px 14px", color: row.estimated_amount ? "#37474F" : "#FBC02D", fontWeight: 600 }}>{row.estimated_amount ? fmt(num(row.estimated_amount)) : "To be defined"}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F" }}>{row.period || "—"}</td>
+                    <td style={{ padding: "12px 14px", color: overdue ? "#B3261E" : "#33433B", fontWeight: overdue ? 700 : 400, whiteSpace: "nowrap" }}>{fmtDate(row.due_date)}</td>
+                    <td style={{ padding: "12px 14px", color: row.estimated_amount ? "#33433B" : "#C9A227", fontWeight: 600 }}>{row.estimated_amount ? fmt(num(row.estimated_amount)) : "To be defined"}</td>
                     <td style={{ padding: "12px 14px" }}><Badge label={obligationStatusLabel(row.status)} {...style} /></td>
-                    <td style={{ padding: "12px 14px", color: "#78909C", fontSize: 12, maxWidth: 220 }}>{row.notes || "—"}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F", fontSize: 12, maxWidth: 220 }}>{row.notes || "—"}</td>
                     <td style={{ padding: "12px 14px" }}>
                       {row.status === "paid" || row.status === "void" ? (
-                        <span style={{ fontSize: 11, color: "#B0BEC5" }}>No actions</span>
+                        <span style={{ fontSize: 11, color: "#9AABA2" }}>No actions</span>
                       ) : (
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {row.status === "pending" && (
-                            <button onClick={() => changeStatus(row, "filed")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#1565C0", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
+                            <button onClick={() => changeStatus(row, "filed")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#24714D", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
                               File
                             </button>
                           )}
                           <button onClick={() => changeStatus(row, "paid")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#1B5E3F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
                             Pay
                           </button>
-                          <button onClick={() => changeStatus(row, "void")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#78909C", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
+                          <button onClick={() => changeStatus(row, "void")} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#66786F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: busyId === row.id ? 0.5 : 1 }}>
                             Void
                           </button>
                         </div>
@@ -2989,7 +2896,7 @@ const ObligacionesScreen = ({
               })}
               {displayRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>
+                  <td colSpan={7} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No obligations recorded for this company.
                   </td>
                 </tr>
@@ -2997,7 +2904,7 @@ const ObligacionesScreen = ({
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+        <div style={{ padding: "12px 24px", fontSize: 11, color: "#66786F", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
           Changing the status does not file returns or make payments. It is an internal follow-up record.
         </div>
       </Card>
@@ -3006,8 +2913,8 @@ const ObligacionesScreen = ({
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: "32px 36px", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: 0 }}>Record obligation</h3>
-              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#78909C" }}><X size={18} /></button>
+              <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>Record obligation</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
             </div>
 
             {formError && <InlineError message={formError} />}
@@ -3182,17 +3089,17 @@ const AlertasScreen = ({
         actions={canManage && <Btn variant="primary" icon={<Plus size={13} />} small onClick={openForm}>New alert</Btn>}
       />
 
-      <div style={{ backgroundColor: "#E3F2FD", border: "1px solid #90CAF9", borderRadius: 10, padding: "10px 16px", marginBottom: 24, fontSize: 12, color: "#1565C0", display: "flex", gap: 8 }}>
+      <div style={{ backgroundColor: "#EDF7F0", border: "1px solid #9CCDB1", borderRadius: 10, padding: "10px 16px", marginBottom: 24, fontSize: 12, color: "#24714D", display: "flex", gap: 8 }}>
         <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>These alerts are internal planning notices. They do not predict penalties or DIAN actions.</span>
       </div>
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading alerts…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading alerts…</div>}
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
         {(["todas", "pendiente", "en-revision", "revisada"] as const).map((option) => (
-          <button key={option} onClick={() => setFilter(option)} style={{ padding: "8px 16px", borderRadius: 20, border: filter === option ? "none" : "1px solid #CFD8DC", backgroundColor: filter === option ? "#1B5E3F" : "#fff", color: filter === option ? "#fff" : "#78909C", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+          <button key={option} onClick={() => setFilter(option)} style={{ padding: "8px 16px", borderRadius: 20, border: filter === option ? "none" : "1px solid #D3DDD8", backgroundColor: filter === option ? "#1B5E3F" : "#fff", color: filter === option ? "#fff" : "#66786F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
             {option === "todas" ? `All (${source.length})` : option === "pendiente" ? "Pending" : option === "en-revision" ? "In review" : "Resolved"}
           </button>
         ))}
@@ -3202,19 +3109,22 @@ const AlertasScreen = ({
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#F5F7F6" }}>
+              <tr style={{ backgroundColor: "#F5F8F6" }}>
                 {["Title", "Priority", "Origin", "Date", "Status", "Action"].map((header) => (
-                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((alert, index) => (
-                <tr key={alert.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                  <td style={{ padding: "12px 14px", fontWeight: 600, color: "#37474F", maxWidth: 320 }}>{alert.title}</td>
+                <tr key={alert.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                  <td style={{ padding: "12px 14px", fontWeight: 600, color: "#33433B", maxWidth: 320 }}>{alert.title}</td>
                   <td style={{ padding: "12px 14px" }}><PriorityBadge p={alert.priority} /></td>
-                  <td style={{ padding: "12px 14px", fontSize: 12, color: "#78909C" }}>{alert.origin_label ?? ALERT_ORIGIN_LABEL[alert.origin] ?? alert.origin}</td>
-                  <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(alert.created_at)}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 12, color: "#66786F" }}>
+                    {alert.origin === "proyeccion" ? <MlBadge size="sm" detail="Rule of the ERP applied to the model forecast" /> : null}{" "}
+                    {alert.origin_label ?? ALERT_ORIGIN_LABEL[alert.origin] ?? alert.origin}
+                  </td>
+                  <td style={{ padding: "12px 14px", color: "#66786F", whiteSpace: "nowrap" }}>{fmtDate(alert.created_at)}</td>
                   <td style={{ padding: "12px 14px" }}><StatusBadge s={alertStatusUi(alert.status)} /></td>
                   <td style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -3222,7 +3132,7 @@ const AlertasScreen = ({
                         <Eye size={13} /> View
                       </button>
                       {alert.action && (
-                        <button onClick={() => onNav(alert.action!.screen as Screen)} style={{ background: "none", border: "none", color: "#1565C0", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                        <button onClick={() => onNav(alert.action!.screen as Screen)} style={{ background: "none", border: "none", color: "#24714D", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                           {alert.action.label}
                         </button>
                       )}
@@ -3232,7 +3142,7 @@ const AlertasScreen = ({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>
+                  <td colSpan={6} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No alerts match the selected filter.
                   </td>
                 </tr>
@@ -3240,7 +3150,7 @@ const AlertasScreen = ({
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+        <div style={{ padding: "12px 24px", fontSize: 11, color: "#66786F", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
           Marking an alert as reviewed does not change amounts, reserves or estimates.
         </div>
       </Card>
@@ -3249,8 +3159,8 @@ const AlertasScreen = ({
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: "32px 36px", width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ fontWeight: 700, fontSize: 18, color: "#37474F", margin: 0 }}>New follow-up alert</h3>
-              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#78909C" }}><X size={18} /></button>
+              <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>New follow-up alert</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
             </div>
 
             {formError && <InlineError message={formError} />}
@@ -3411,9 +3321,9 @@ const AlertaDetalleScreen = ({
           <ArrowLeft size={16} /> Back to alerts
         </button>
         <Card style={{ textAlign: "center", padding: "48px 24px" }}>
-          <AlertCircle size={40} color="#E53935" style={{ margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#37474F" }}>Alert not found</div>
-          <p style={{ fontSize: 12, color: "#78909C" }}>{error ?? "The alert does not exist or does not belong to this company."}</p>
+          <AlertCircle size={40} color="#B3261E" style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#33433B" }}>Alert not found</div>
+          <p style={{ fontSize: 12, color: "#66786F" }}>{error ?? "The alert does not exist or does not belong to this company."}</p>
         </Card>
       </div>
     );
@@ -3425,7 +3335,7 @@ const AlertaDetalleScreen = ({
         <button onClick={onBack} style={{ background: "none", border: "none", color: "#1B5E3F", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit", marginBottom: 16 }}>
           <ArrowLeft size={16} /> Back to alerts
         </button>
-        {loading && <div style={{ marginBottom: 12, fontSize: 12, color: "#78909C" }}>Loading alert…</div>}
+        {loading && <div style={{ marginBottom: 12, fontSize: 12, color: "#66786F" }}>Loading alert…</div>}
         {displayed && (
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
@@ -3433,7 +3343,7 @@ const AlertaDetalleScreen = ({
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <PriorityBadge p={displayed.priority} />
                 <StatusBadge s={alertStatusUi(displayedStatus)} />
-                <span style={{ fontSize: 12, color: "#78909C" }}>{fmtDate(displayed.created_at)} · {companyName}</span>
+                <span style={{ fontSize: 12, color: "#66786F" }}>{fmtDate(displayed.created_at)} · {companyName}</span>
               </div>
             </div>
           </div>
@@ -3446,28 +3356,28 @@ const AlertaDetalleScreen = ({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }}>
           <div>
             <Card style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F", marginBottom: 12 }}>Description</div>
-              <p style={{ fontSize: 14, color: "#37474F", lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>{displayed.description || "No description recorded."}</p>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B", marginBottom: 12 }}>Description</div>
+              <p style={{ fontSize: 14, color: "#33433B", lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>{displayed.description || "No description recorded."}</p>
             </Card>
 
             <Card style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F", marginBottom: 12 }}>Review suggestion</div>
-              <div style={{ backgroundColor: "#F5F7F6", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#37474F", lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B", marginBottom: 12 }}>Review suggestion</div>
+              <div style={{ backgroundColor: "#F5F8F6", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#33433B", lineHeight: 1.7 }}>
                 Check the related record, document the decision in a comment and confirm with the accountant when needed. Marking the alert as reviewed does not change amounts, reserves or estimates.
               </div>
             </Card>
 
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#37474F", marginBottom: 16 }}>Comment history</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B", marginBottom: 16 }}>Comment history</div>
               {displayedComments.length === 0 && (
-                <div style={{ fontSize: 12, color: "#78909C", marginBottom: 12 }}>No comments recorded yet.</div>
+                <div style={{ fontSize: 12, color: "#66786F", marginBottom: 12 }}>No comments recorded yet.</div>
               )}
               {displayedComments.map((item) => (
                 <div key={item.id} style={{ display: "flex", gap: 12, marginBottom: 14 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#1B5E3F", flexShrink: 0, marginTop: 5 }} />
                   <div>
-                    <div style={{ fontSize: 11, color: "#78909C" }}>{fmtDate(item.created_at)}</div>
-                    <div style={{ fontSize: 13, color: "#37474F", marginTop: 2 }}>{item.body}</div>
+                    <div style={{ fontSize: 11, color: "#66786F" }}>{fmtDate(item.created_at)}</div>
+                    <div style={{ fontSize: 13, color: "#33433B", marginTop: 2 }}>{item.body}</div>
                   </div>
                 </div>
               ))}
@@ -3486,7 +3396,7 @@ const AlertaDetalleScreen = ({
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Card style={{ padding: "20px" }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#37474F", marginBottom: 14 }}>Actions</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#33433B", marginBottom: 14 }}>Actions</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {displayed.action && (
                   <Btn variant="secondary" icon={<ExternalLink size={13} />} fullWidth onClick={() => onNav(displayed.action!.screen as Screen)}>
@@ -3500,31 +3410,31 @@ const AlertaDetalleScreen = ({
                   <button
                     onClick={() => changeStatus("reviewed")}
                     disabled={statusBusy}
-                    style={{ padding: "10px 14px", borderRadius: 9, border: "1.5px solid #1B5E3F", backgroundColor: "#E8F5E9", color: "#1B5E3F", fontSize: 13, fontWeight: 600, cursor: statusBusy ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                    style={{ padding: "10px 14px", borderRadius: 9, border: "1.5px solid #1B5E3F", backgroundColor: "#E3F1E8", color: "#1B5E3F", fontSize: 13, fontWeight: 600, cursor: statusBusy ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                   >
                     <CheckCircle size={13} /> {statusBusy ? "Saving…" : "Mark as resolved"}
                   </button>
                 )}
                 {displayedStatus === "reviewed" && (
-                  <div style={{ backgroundColor: "#E8F5E9", border: "1px solid #A5D6A7", borderRadius: 9, padding: "10px 14px", fontSize: 12, color: "#1B5E3F", fontWeight: 600, display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ backgroundColor: "#E3F1E8", border: "1px solid #9CCDB1", borderRadius: 9, padding: "10px 14px", fontSize: 12, color: "#1B5E3F", fontWeight: 600, display: "flex", gap: 6, alignItems: "center" }}>
                     <CheckCircle size={13} /> Alert resolved
                   </div>
                 )}
               </div>
               {displayedStatus === "reviewed" && (
-                <div style={{ marginTop: 12, fontSize: 11, color: "#78909C", lineHeight: 1.5 }}>
+                <div style={{ marginTop: 12, fontSize: 11, color: "#66786F", lineHeight: 1.5 }}>
                   Marking as resolved does not change amounts, reserves or estimates. The alert stays in the history.
                 </div>
               )}
               {!canManage && !demoMode && (
-                <div style={{ marginTop: 12, fontSize: 11, color: "#B0BEC5", lineHeight: 1.5 }}>
+                <div style={{ marginTop: 12, fontSize: 11, color: "#9AABA2", lineHeight: 1.5 }}>
                   Only an Administrator or Accountant can change the status.
                 </div>
               )}
             </Card>
 
             <Card style={{ padding: "18px 20px" }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "#37474F", marginBottom: 10 }}>Information</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#33433B", marginBottom: 10 }}>Information</div>
               {[
                 { label: "Company", value: companyName },
                 { label: "Origin", value: displayed.origin_label ?? ALERT_ORIGIN_LABEL[displayed.origin] ?? displayed.origin },
@@ -3533,8 +3443,8 @@ const AlertaDetalleScreen = ({
                 { label: "Due date", value: displayed.due_date ? fmtDate(displayed.due_date) : "Not recorded" },
               ].map((row) => (
                 <div key={row.label} style={{ padding: "7px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-                  <div style={{ fontSize: 10, color: "#B0BEC5" }}>{row.label}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#37474F", textTransform: row.label === "Priority" ? "capitalize" : undefined }}>{row.value}</div>
+                  <div style={{ fontSize: 10, color: "#9AABA2" }}>{row.label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#33433B", textTransform: row.label === "Priority" ? "capitalize" : undefined }}>{row.value}</div>
                 </div>
               ))}
             </Card>
@@ -3585,9 +3495,9 @@ const DEMO_AUDIT_EVENTS: AuditEvent[] = [
 ];
 
 const planVersionUi = (status: string) => {
-  if (status === "reviewed") return { label: "Reviewed", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" };
-  if (status === "archived") return { label: "Archived", color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" };
-  return { label: "Draft", color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" };
+  if (status === "reviewed") return { label: "Reviewed", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" };
+  if (status === "archived") return { label: "Archived", color: "#66786F", bg: "#EEF2F0", border: "#D3DDD8" };
+  return { label: "Draft", color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" };
 };
 
 const forecastMethodLabel = (run: ForecastRun) =>
@@ -3606,9 +3516,9 @@ const forecastMethodLabel = (run: ForecastRun) =>
 
 const licenseUi = (status: ContextSource["license"]["status"]) =>
   ({
-    verified: { label: "License verified", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" },
-    uncertain: { label: "License not verified", color: "#E65100", bg: "#FFF3E0", border: "#FFCC80" },
-    restricted: { label: "Restricted use", color: "#C62828", bg: "#FFEBEE", border: "#FFCDD2" },
+    verified: { label: "License verified", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" },
+    uncertain: { label: "License not verified", color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" },
+    restricted: { label: "Restricted use", color: "#B3261E", bg: "#FBECEA", border: "#F2C9C4" },
   })[status];
 
 const ContextoSourceCard = ({ source }: { source: ContextSource }) => {
@@ -3619,42 +3529,42 @@ const ContextoSourceCard = ({ source }: { source: ContextSource }) => {
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#1B5E3F" }}>{source.name}</div>
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>{source.publisher}</div>
+          <div style={{ fontSize: 11, color: "#66786F", marginTop: 2 }}>{source.publisher}</div>
         </div>
         <Badge {...license} />
       </div>
 
-      <p style={{ fontSize: 12, color: "#546E7A", margin: "10px 0 12px", lineHeight: 1.5 }}>{source.description}</p>
+      <p style={{ fontSize: 12, color: "#4E5F57", margin: "10px 0 12px", lineHeight: 1.5 }}>{source.description}</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 11, color: "#78909C" }}>
-        <div><strong style={{ color: "#37474F" }}>Cadence:</strong> {source.cadence}</div>
-        <div><strong style={{ color: "#37474F" }}>License:</strong> {source.license.name || "Not declared"}</div>
-        <div><strong style={{ color: "#37474F" }}>Current version:</strong> {version?.version_label ?? "Not loaded"}</div>
-        <div><strong style={{ color: "#37474F" }}>Acquired:</strong> {version ? fmtDate(version.acquired_at) : "—"}</div>
-        <div><strong style={{ color: "#37474F" }}>Cutoff:</strong> {version?.cutoff_date ? fmtDate(version.cutoff_date) : "—"}</div>
-        <div><strong style={{ color: "#37474F" }}>Source rows:</strong> {version ? version.row_count.toLocaleString(uiLocale()) : "—"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 11, color: "#66786F" }}>
+        <div><strong style={{ color: "#33433B" }}>Cadence:</strong> {source.cadence}</div>
+        <div><strong style={{ color: "#33433B" }}>License:</strong> {source.license.name || "Not declared"}</div>
+        <div><strong style={{ color: "#33433B" }}>Current version:</strong> {version?.version_label ?? "Not loaded"}</div>
+        <div><strong style={{ color: "#33433B" }}>Acquired:</strong> {version ? fmtDate(version.acquired_at) : "—"}</div>
+        <div><strong style={{ color: "#33433B" }}>Cutoff:</strong> {version?.cutoff_date ? fmtDate(version.cutoff_date) : "—"}</div>
+        <div><strong style={{ color: "#33433B" }}>Source rows:</strong> {version ? version.row_count.toLocaleString(uiLocale()) : "—"}</div>
       </div>
 
       {version && (version.is_partial || version.is_preliminary) && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "#E65100", backgroundColor: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 8, padding: "6px 10px" }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: "#8A6400", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "6px 10px" }}>
           {version.is_partial ? "Partial period. " : ""}
           {version.is_preliminary ? "Preliminary figures, subject to review by the publisher." : ""}
         </div>
       )}
 
       <div style={{ marginTop: 12, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11 }}>
-        <a href={source.source_url} target="_blank" rel="noreferrer" style={{ color: "#1565C0", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 600 }}>
+        <a href={source.source_url} target="_blank" rel="noreferrer" style={{ color: "#24714D", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 600 }}>
           <ExternalLink size={12} /> Official source
         </a>
         {source.license.url && (
-          <a href={source.license.url} target="_blank" rel="noreferrer" style={{ color: "#1565C0", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 600 }}>
+          <a href={source.license.url} target="_blank" rel="noreferrer" style={{ color: "#24714D", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 600 }}>
             <ExternalLink size={12} /> License terms
           </a>
         )}
-        <span style={{ color: "#B0BEC5" }}>Attribution: {source.attribution || "—"}</span>
+        <span style={{ color: "#9AABA2" }}>Attribution: {source.attribution || "—"}</span>
       </div>
       {source.license.evidence_path && (
-        <div style={{ marginTop: 6, fontSize: 10, color: "#B0BEC5" }}>Local evidence: {source.license.evidence_path}</div>
+        <div style={{ marginTop: 6, fontSize: 10, color: "#9AABA2" }}>Local evidence: {source.license.evidence_path}</div>
       )}
     </Card>
   );
@@ -3705,7 +3615,7 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
         actions={<Btn variant="ghost" icon={<RefreshCw size={13} />} small onClick={() => setReloadKey((key) => key + 1)}>Refresh</Btn>}
       />
 
-      <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, backgroundColor: "#E3F2FD", border: "1px solid #BBDEFB", color: "#1565C0", fontSize: 12, lineHeight: 1.5, display: "flex", gap: 10 }}>
+      <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, backgroundColor: "#EDF7F0", border: "1px solid #C8E4D3", color: "#24714D", fontSize: 12, lineHeight: 1.5, display: "flex", gap: 10 }}>
         <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
         <div>
           These figures are <strong>labeled external context</strong>. They are not tax obligations of the company,
@@ -3717,25 +3627,25 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
 
       {demoMode && (
         <Card style={{ textAlign: "center", padding: "40px 24px" }}>
-          <Database size={36} color="#90CAF9" style={{ margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#37474F", marginBottom: 6 }}>Context not available in the demo</div>
-          <p style={{ fontSize: 12, color: "#78909C", margin: 0 }}>
+          <Database size={36} color="#9CCDB1" style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#33433B", marginBottom: 6 }}>Context not available in the demo</div>
+          <p style={{ fontSize: 12, color: "#66786F", margin: 0 }}>
             This section uses public sources loaded in the backend. No simulated figures are shown, so they are not
             confused with real data. Sign in with a connected account to see it.
           </p>
         </Card>
       )}
 
-      {!demoMode && loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading context and sources…</div>}
+      {!demoMode && loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading context and sources…</div>}
       {!demoMode && error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       {!demoMode && !loading && !error && summary && (
         <>
           {summary.sources.length === 0 ? (
             <Card style={{ textAlign: "center", padding: "40px 24px" }}>
-              <Database size={36} color="#90CAF9" style={{ margin: "0 auto 12px" }} />
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#37474F", marginBottom: 6 }}>No sources loaded</div>
-              <p style={{ fontSize: 12, color: "#78909C", margin: 0 }}>
+              <Database size={36} color="#9CCDB1" style={{ margin: "0 auto 12px" }} />
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#33433B", marginBottom: 6 }}>No sources loaded</div>
+              <p style={{ fontSize: 12, color: "#66786F", margin: 0 }}>
                 Run the acquisition and the manifest load to enable this section. Missing data is not an
                 ERP error: the sources are loaded explicitly and outside the application startup.
               </p>
@@ -3753,31 +3663,31 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1B5E3F" }}>DIAN collection · national reference</div>
-                      <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>Version {tax.version_label} · original unit: millions of COP · shown in current pesos (COP)</div>
+                      <div style={{ fontSize: 11, color: "#66786F", marginTop: 2 }}>Version {tax.version_label} · original unit: millions of COP · shown in current pesos (COP)</div>
                     </div>
                     {(tax.annual.is_preliminary || tax.monthly?.is_preliminary) && (
-                      <Badge label="Preliminary" color="#E65100" bg="#FFF3E0" border="#FFCC80" />
+                      <Badge label="Preliminary" color="#8A6400" bg="#FBF4E2" border="#E9D49C" />
                     )}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-                    <div style={{ backgroundColor: "#F5F7F6", borderRadius: 10, padding: "14px 16px" }}>
-                      <div style={{ fontSize: 11, color: "#78909C", fontWeight: 600 }}>Annual total {tax.annual.year}</div>
+                    <div style={{ backgroundColor: "#F5F8F6", borderRadius: 10, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 11, color: "#66786F", fontWeight: 600 }}>Annual total {tax.annual.year}</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: "#1B5E3F", marginTop: 4 }}>{fmt(num(tax.annual.total_cop))}</div>
-                      <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 2 }}>Aggregated gross collection, not an individual obligation</div>
+                      <div style={{ fontSize: 10, color: "#9AABA2", marginTop: 2 }}>Aggregated gross collection, not an individual obligation</div>
                     </div>
-                    <div style={{ backgroundColor: "#F5F7F6", borderRadius: 10, padding: "14px 16px" }}>
-                      <div style={{ fontSize: 11, color: "#78909C", fontWeight: 600 }}>
+                    <div style={{ backgroundColor: "#F5F8F6", borderRadius: 10, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 11, color: "#66786F", fontWeight: 600 }}>
                         {tax.monthly ? `Latest published month · ${monthName} ${tax.monthly.year}` : "Latest published month"}
                       </div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: "#1B5E3F", marginTop: 4 }}>
                         {tax.monthly ? fmt(num(tax.monthly.total_cop)) : "—"}
                       </div>
-                      <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 2 }}>National monthly series</div>
+                      <div style={{ fontSize: 10, color: "#9AABA2", marginTop: 2 }}>National monthly series</div>
                     </div>
-                    <div style={{ backgroundColor: "#F5F7F6", borderRadius: 10, padding: "14px 16px" }}>
-                      <div style={{ fontSize: 11, color: "#78909C", fontWeight: 600 }}>Regional offices {tax.departments.year}</div>
+                    <div style={{ backgroundColor: "#F5F8F6", borderRadius: 10, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 11, color: "#66786F", fontWeight: 600 }}>Regional offices {tax.departments.year}</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: "#1B5E3F", marginTop: 4 }}>{fmt(num(tax.departments.total_cop))}</div>
-                      <div style={{ fontSize: 10, color: "#B0BEC5", marginTop: 2 }}>Sum of regional offices</div>
+                      <div style={{ fontSize: 10, color: "#9AABA2", marginTop: 2 }}>Sum of regional offices</div>
                     </div>
                   </div>
                 </Card>
@@ -3787,41 +3697,41 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
                 <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
                   <div style={{ padding: "18px 22px 12px" }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#1B5E3F" }}>Supersociedades sector reference · {benchmarkYear}</div>
-                    <div style={{ fontSize: 11, color: "#78909C", marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: "#66786F", marginTop: 2 }}>
                       Aggregate of the 10,000 largest companies. A biased sample; it is not an average of all companies.
                     </div>
                   </div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                       <thead>
-                        <tr style={{ backgroundColor: "#F5F7F6" }}>
+                        <tr style={{ backgroundColor: "#F5F8F6" }}>
                           {["Metric", "Sample", "Total", "Median", "Mean", "At zero", "Negative"].map((header) => (
-                            <th key={header} style={{ padding: "10px 14px", textAlign: header === "Metric" ? "left" : "right", fontSize: 10, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                            <th key={header} style={{ padding: "10px 14px", textAlign: header === "Metric" ? "left" : "right", fontSize: 10, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {benchmarks.map((row) => (
                           <tr key={row.metric}>
-                            <td style={{ padding: "10px 14px", fontWeight: 600, color: "#37474F" }}>{row.metric_label}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.sample_size.toLocaleString(uiLocale())}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.total_cop))}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.median_cop))}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.mean_cop))}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.zero_count.toLocaleString(uiLocale())}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#78909C" }}>{row.negative_count.toLocaleString(uiLocale())}</td>
+                            <td style={{ padding: "10px 14px", fontWeight: 600, color: "#33433B" }}>{row.metric_label}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#66786F" }}>{row.sample_size.toLocaleString(uiLocale())}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(row.total_cop))}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(row.median_cop))}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(row.mean_cop))}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#66786F" }}>{row.zero_count.toLocaleString(uiLocale())}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#66786F" }}>{row.negative_count.toLocaleString(uiLocale())}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div style={{ padding: "10px 22px", fontSize: 10, color: "#B0BEC5", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+                  <div style={{ padding: "10px 22px", fontSize: 10, color: "#9AABA2", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
                     Values converted from trillions (10¹² COP) to pesos. No precision is added beyond the published one.
                   </div>
                 </Card>
               )}
 
-              <div style={{ fontSize: 11, color: "#90A4AE", lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, color: "#8A9A92", lineHeight: 1.6 }}>
                 The original and processed files are kept outside git; the versioned manifests record the hash,
                 cutoff date, period and status. To reproduce: <code>python -m ml.company_trainer.sources.acquire</code> and{" "}
                 <code>python -m ml.company_trainer.sources.build_context</code>, then <code>flask context-load</code>. See
@@ -3837,38 +3747,39 @@ const ContextoScreen = ({ demoMode }: { demoMode: boolean }) => {
 
 const monitoringUi = (status: MonitoringStatus) =>
   ({
-    pending: { label: "Pending", color: "#78909C", bg: "#ECEFF1", border: "#CFD8DC" },
-    normal: { label: "Normal", color: "#1B5E3F", bg: "#E8F5E9", border: "#A5D6A7" },
-    watch: { label: "Watch", color: "#E65100", bg: "#FFF8E1", border: "#FFE082" },
-    degraded: { label: "Degraded", color: "#C62828", bg: "#FFEBEE", border: "#EF9A9A" },
+    pending: { label: "Pending", color: "#66786F", bg: "#EEF2F0", border: "#D3DDD8" },
+    normal: { label: "Normal", color: "#1B5E3F", bg: "#E3F1E8", border: "#9CCDB1" },
+    watch: { label: "Watch", color: "#8A6400", bg: "#FBF4E2", border: "#E9D49C" },
+    degraded: { label: "Degraded", color: "#B3261E", bg: "#FBECEA", border: "#E8A9A2" },
   })[status];
 
 const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | null; error: string | null; demoMode: boolean }) => {
   if (demoMode) {
     return (
       <Card>
-        <div style={{ fontSize: 12, color: "#78909C" }}>
+        <div style={{ fontSize: 12, color: "#66786F" }}>
           Monitoring compares stored model forecasts with the real values registered in the ERP, so it is only shown with live data.
         </div>
       </Card>
     );
   }
   if (error) return <InlineError message={error} />;
-  if (!view) return <div style={{ fontSize: 12, color: "#78909C" }}>Loading monitoring…</div>;
+  if (!view) return <div style={{ fontSize: 12, color: "#66786F" }}>Loading monitoring…</div>;
   const overall = monitoringUi(view.status);
   const pct = (value: number | null) => (value === null ? "—" : `${value.toFixed(2)} %`);
   return (
     <>
+      <MlNote>Monitoring compares each month the model forecast with the real value you recorded once the month closes.</MlNote>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 16 }}>
         <Card>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#78909C", marginBottom: 8 }}>OVERALL STATUS</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#66786F", marginBottom: 8 }}>OVERALL STATUS</div>
           <Badge label={overall.label} color={overall.color} bg={overall.bg} border={overall.border} />
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: "#66786F", marginTop: 10 }}>
             Model {view.model_version ?? "—"}
             {view.last_forecast_at && <span style={{ display: "block" }}>Last forecast {fmtDate(view.last_forecast_at)}</span>}
           </div>
           {view.inputs_changed_since_training && (
-            <div style={{ fontSize: 11, color: "#E65100", marginTop: 8 }}>The company data changed after the model was trained.</div>
+            <div style={{ fontSize: 11, color: "#8A6400", marginTop: 8 }}>The company data changed after the model was trained.</div>
           )}
         </Card>
         {(["income", "expenses"] as const).map((target) => {
@@ -3876,12 +3787,12 @@ const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | nul
           const ui = monitoringUi(item.status);
           return (
             <Card key={target}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#78909C", marginBottom: 8 }}>{target === "income" ? "INCOME" : "EXPENSES"}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#66786F", marginBottom: 8 }}>{target === "income" ? "INCOME" : "EXPENSES"}</div>
               <Badge label={ui.label} color={ui.color} bg={ui.bg} border={ui.border} />
-              <div style={{ fontSize: 12, color: "#37474F", marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: "#33433B", marginTop: 10 }}>
                 Rolling error {pct(item.rolling_normalized_error_pct)} · reference {pct(item.reference_normalized_error_pct)}
               </div>
-              <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "#66786F", marginTop: 4 }}>
                 {item.months_used.length > 0 ? `Months used: ${item.months_used.join(", ")}` : "No resolved months yet"}
                 {item.pending_months.length > 0 && (
                   <span style={{ display: "block" }}>Waiting for actual values: {item.pending_months.length} months</span>
@@ -3891,12 +3802,12 @@ const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | nul
           );
         })}
         <Card>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#78909C", marginBottom: 8 }}>FORECAST SERVICE</div>
-          <div style={{ fontSize: 12, color: "#37474F" }}>{view.operations.requests} requests</div>
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#66786F", marginBottom: 8 }}>FORECAST SERVICE</div>
+          <div style={{ fontSize: 12, color: "#33433B" }}>{view.operations.requests} requests</div>
+          <div style={{ fontSize: 11, color: "#66786F", marginTop: 4 }}>
             {Object.entries(view.operations.outcomes).map(([outcome, count]) => `${outcome}: ${count}`).join(" · ") || "No requests yet"}
           </div>
-          <div style={{ fontSize: 11, color: "#78909C", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "#66786F", marginTop: 4 }}>
             Latency p50 {view.operations.latency_ms.p50 ?? "—"} ms · p95 {view.operations.latency_ms.p95 ?? "—"} ms
           </div>
         </Card>
@@ -3905,9 +3816,9 @@ const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | nul
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#F5F7F6" }}>
+              <tr style={{ backgroundColor: "#F5F8F6" }}>
                 {["Month", "Target", "Step", "Predicted", "Actual", "Error", "Normalized error", "Status"].map((header) => (
-                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                  <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                 ))}
               </tr>
             </thead>
@@ -3915,21 +3826,21 @@ const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | nul
               {view.rows.map((row, index) => {
                 const ui = monitoringUi(row.status);
                 return (
-                  <tr key={`${row.forecast_run_id}-${row.target}-${row.forecast_month}`} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                    <td style={{ padding: "12px 14px", color: "#37474F", whiteSpace: "nowrap" }}>{row.forecast_month}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{row.target === "income" ? "Income" : "Expenses"}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{row.horizon_step}</td>
-                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(row.predicted_value))}</td>
-                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{row.actual_value === null ? "—" : fmt(num(row.actual_value))}</td>
-                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{row.absolute_error === null ? "—" : fmt(num(row.absolute_error))}</td>
-                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{pct(row.normalized_error_pct)}</td>
+                  <tr key={`${row.forecast_run_id}-${row.target}-${row.forecast_month}`} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                    <td style={{ padding: "12px 14px", color: "#33433B", whiteSpace: "nowrap" }}>{row.forecast_month}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F" }}>{row.target === "income" ? "Income" : "Expenses"}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F" }}>{row.horizon_step}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(row.predicted_value))}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{row.actual_value === null ? "—" : fmt(num(row.actual_value))}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{row.absolute_error === null ? "—" : fmt(num(row.absolute_error))}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{pct(row.normalized_error_pct)}</td>
                     <td style={{ padding: "12px 14px" }}><Badge label={ui.label} color={ui.color} bg={ui.bg} border={ui.border} /></td>
                   </tr>
                 );
               })}
               {view.rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>
+                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No model forecasts to monitor yet. Run a model forecast first.
                   </td>
                 </tr>
@@ -3937,7 +3848,7 @@ const MonitoringPanel = ({ view, error, demoMode }: { view: MonitoringView | nul
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+        <div style={{ padding: "12px 24px", fontSize: 11, color: "#66786F", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
           The error is normalized by the mean monthly income of the forecast history and compared with the Phase 4 reference
           ({view.reference}). Normal: {view.thresholds.normal}; watch: {view.thresholds.watch}; degraded: {view.thresholds.degraded}.
           The status uses the last {view.thresholds.rolling_months} resolved months. A month stays pending until it is closed and its
@@ -4041,12 +3952,12 @@ const HistorialScreen = ({
         actions={<Btn variant="ghost" icon={<RefreshCw size={13} />} small onClick={() => setReloadKey((key) => key + 1)}>Refresh</Btn>}
       />
 
-      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#78909C" }}>Loading history…</div>}
+      {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading history…</div>}
       {error && <InlineError message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
         {(["planes", "proyecciones", "monitoring", "seguimiento"] as const).map((option) => (
-          <button key={option} onClick={() => setTab(option)} style={{ padding: "9px 18px", borderRadius: 9, border: tab === option ? "none" : "1.5px solid #CFD8DC", backgroundColor: tab === option ? "#1B5E3F" : "#fff", color: tab === option ? "#fff" : "#78909C", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>
+          <button key={option} onClick={() => setTab(option)} style={{ padding: "9px 18px", borderRadius: 9, border: tab === option ? "none" : "1.5px solid #D3DDD8", backgroundColor: tab === option ? "#1B5E3F" : "#fff", color: tab === option ? "#fff" : "#66786F", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>
             {({ planes: "Plans", proyecciones: "Forecasts", monitoring: "Monitoring", seguimiento: "Audit" } as Record<string, string>)[option] ?? option}
           </button>
         ))}
@@ -4057,9 +3968,9 @@ const HistorialScreen = ({
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ backgroundColor: "#F5F7F6" }}>
+                <tr style={{ backgroundColor: "#F5F8F6" }}>
                   {["Plan", "Period", "Version", "Status", "Projected income", "Projected expenses", "Reserve target", "Created"].map((header) => (
-                    <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                    <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                   ))}
                 </tr>
               </thead>
@@ -4067,28 +3978,28 @@ const HistorialScreen = ({
                 {versionRows.map(({ plan, version }, index) => {
                   const style = planVersionUi(version.status);
                   return (
-                    <tr key={`${plan.id}-${version.id}`} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                      <td style={{ padding: "12px 14px", fontWeight: 600, color: "#37474F" }}>
+                    <tr key={`${plan.id}-${version.id}`} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                      <td style={{ padding: "12px 14px", fontWeight: 600, color: "#33433B" }}>
                         {plan.name}
-                        {version.notes && <span style={{ display: "block", fontSize: 10, color: "#B0BEC5", fontWeight: 400 }}>{version.notes}</span>}
+                        {version.notes && <span style={{ display: "block", fontSize: 10, color: "#9AABA2", fontWeight: 400 }}>{version.notes}</span>}
                       </td>
-                      <td style={{ padding: "12px 14px", color: "#78909C" }}>{plan.period}</td>
+                      <td style={{ padding: "12px 14px", color: "#66786F" }}>{plan.period}</td>
                       <td style={{ padding: "12px 14px", fontWeight: 700, color: "#1B5E3F" }}>v{version.version}</td>
                       <td style={{ padding: "12px 14px" }}><Badge label={style.label} color={style.color} bg={style.bg} border={style.border} /></td>
-                      <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(version.projected_income))}</td>
-                      <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(version.projected_expenses))}</td>
-                      <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: "#1565C0" }}>{fmt(num(version.estimated_reserve))}</td>
-                      <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(version.created_at)}</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(version.projected_income))}</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(version.projected_expenses))}</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: "#24714D" }}>{fmt(num(version.estimated_reserve))}</td>
+                      <td style={{ padding: "12px 14px", color: "#66786F", whiteSpace: "nowrap" }}>{fmtDate(version.created_at)}</td>
                     </tr>
                   );
                 })}
                 {versionRows.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>No plan versions recorded.</td></tr>
+                  <tr><td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>No plan versions recorded.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-          <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+          <div style={{ padding: "12px 24px", fontSize: 11, color: "#66786F", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
             Reviewed versions are kept read-only. Saving a new version does not overwrite the previous ones.
           </div>
         </Card>
@@ -4099,34 +4010,34 @@ const HistorialScreen = ({
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ backgroundColor: "#F5F7F6" }}>
+                <tr style={{ backgroundColor: "#F5F8F6" }}>
                   {["Date", "Method", "Horizon", "Projected income", "Projected expenses", "Cutoff", "Model"].map((header) => (
-                    <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                    <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {displayedForecasts.map((run, index) => (
-                  <tr key={run.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                    <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(run.created_at)}</td>
-                    <td style={{ padding: "12px 14px", color: "#37474F" }}>{forecastMethodLabel(run)}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{run.horizon_months} months</td>
+                  <tr key={run.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                    <td style={{ padding: "12px 14px", color: "#66786F", whiteSpace: "nowrap" }}>{fmtDate(run.created_at)}</td>
+                    <td style={{ padding: "12px 14px", color: "#33433B" }}>{forecastMethodLabel(run)} {run.model_version && <MlBadge size="sm" />}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F" }}>{run.horizon_months} months</td>
                     <td style={{ padding: "12px 14px", textAlign: "right", color: "#1B5E3F", fontWeight: 600 }}>{fmt(num(run.projected_income))}</td>
-                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#37474F" }}>{fmt(num(run.projected_expenses))}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(run.cutoff_date)}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C", fontSize: 12 }}>
+                    <td style={{ padding: "12px 14px", textAlign: "right", color: "#33433B" }}>{fmt(num(run.projected_expenses))}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F", whiteSpace: "nowrap" }}>{fmtDate(run.cutoff_date)}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F", fontSize: 12 }}>
                       {run.model_version ?? "No trained model"}
-                      {run.trained_at && <span style={{ display: "block", fontSize: 10, color: "#B0BEC5" }}>Trained {fmtDate(run.trained_at)}</span>}
+                      {run.trained_at && <span style={{ display: "block", fontSize: 10, color: "#9AABA2" }}>Trained {fmtDate(run.trained_at)}</span>}
                     </td>
                   </tr>
                 ))}
                 {displayedForecasts.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>No forecasts recorded.</td></tr>
+                  <tr><td colSpan={7} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>No forecasts recorded.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-          <div style={{ padding: "12px 24px", fontSize: 11, color: "#78909C", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFAFA" }}>
+          <div style={{ padding: "12px 24px", fontSize: 11, color: "#66786F", borderTop: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#FAFCFB" }}>
             Forecasts are planning estimates, not official tax assessments. The
             "Model" column is filled only by stored runs of the model trained offline; if the artifact is missing, the
             Forecasts screen shows an explicit error and never replaces the prediction with fictitious data.
@@ -4141,31 +4052,31 @@ const HistorialScreen = ({
       {tab === "seguimiento" && (
         <Card style={{ padding: 0, overflow: "hidden" }}>
           {!auditAvailable && (
-            <div style={{ padding: "16px 24px", backgroundColor: "#FFF8E1", borderBottom: "1px solid #FFE082", fontSize: 12, color: "#E65100" }}>
+            <div style={{ padding: "16px 24px", backgroundColor: "#FBF4E2", borderBottom: "1px solid #E9D49C", fontSize: 12, color: "#8A6400" }}>
               The audit history requires the Accountant or Company administrator role.
             </div>
           )}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ backgroundColor: "#F5F7F6" }}>
+                <tr style={{ backgroundColor: "#F5F8F6" }}>
                   {["Date", "Action", "Resource", "Actor", "Detail"].map((header) => (
-                    <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#78909C", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
+                    <th key={header} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {displayedAudit.map((event, index) => (
-                  <tr key={event.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                    <td style={{ padding: "12px 14px", color: "#78909C", whiteSpace: "nowrap" }}>{fmtDate(event.created_at)}</td>
-                    <td style={{ padding: "12px 14px", fontWeight: 600, color: "#37474F", fontFamily: "monospace", fontSize: 12 }}>{event.action}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C", fontFamily: "monospace", fontSize: 12 }}>{event.resource}</td>
-                    <td style={{ padding: "12px 14px", color: "#78909C" }}>{event.actor_name ?? (event.actor_id ? `User #${event.actor_id}` : "System")}</td>
-                    <td style={{ padding: "12px 14px", color: "#B0BEC5", fontSize: 11, maxWidth: 280 }}>{Object.keys(event.detail).length > 0 ? JSON.stringify(event.detail) : "—"}</td>
+                  <tr key={event.id} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
+                    <td style={{ padding: "12px 14px", color: "#66786F", whiteSpace: "nowrap" }}>{fmtDate(event.created_at)}</td>
+                    <td style={{ padding: "12px 14px", fontWeight: 600, color: "#33433B", fontFamily: "monospace", fontSize: 12 }}>{event.action}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F", fontFamily: "monospace", fontSize: 12 }}>{event.resource}</td>
+                    <td style={{ padding: "12px 14px", color: "#66786F" }}>{event.actor_name ?? (event.actor_id ? `User #${event.actor_id}` : "System")}</td>
+                    <td style={{ padding: "12px 14px", color: "#9AABA2", fontSize: 11, maxWidth: 280 }}>{Object.keys(event.detail).length > 0 ? JSON.stringify(event.detail) : "—"}</td>
                   </tr>
                 ))}
                 {displayedAudit.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: "28px 24px", textAlign: "center", color: "#78909C", fontSize: 12 }}>{auditAvailable ? "No audit events recorded." : "Your role has no access to the audit history."}</td></tr>
+                  <tr><td colSpan={5} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>{auditAvailable ? "No audit events recorded." : "Your role has no access to the audit history."}</td></tr>
                 )}
               </tbody>
             </table>
@@ -4190,11 +4101,25 @@ const toCompanyCards = (items: Company[]): CompanyCard[] =>
     role: item.role,
   }));
 
+const PLACE_KEY = "af_place";
+const SAVED_SCREENS: Screen[] = ["empresas", "resumen", "ingresos", "gastos", "datos", "proyecciones", "planificacion", "escenarios", "obligaciones", "alertas", "historial", "contexto", "equipo"];
+
+const readSavedPlace = (): { screen: Screen | null; companyId: number | null } => {
+  try {
+    const raw = JSON.parse(window.sessionStorage.getItem(PLACE_KEY) ?? "{}");
+    const screen = SAVED_SCREENS.includes(raw.screen) ? (raw.screen as Screen) : null;
+    return { screen, companyId: typeof raw.companyId === "number" ? raw.companyId : null };
+  } catch {
+    return { screen: null, companyId: null };
+  }
+};
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
   const [booting, setBooting] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
+  // The offline demo with sample data was removed: every screen works on real records.
+  const demoMode = false;
   const [user, setUser] = useState<SessionUser | null>(null);
   const [companies, setCompanies] = useState<CompanyCard[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
@@ -4211,6 +4136,15 @@ export default function App() {
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [planInitialStep, setPlanInitialStep] = useState<PlanStep>(1);
   const [backend, setBackend] = useState<BackendState>({ online: false, database: null, checked: false });
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    try {
+      window.sessionStorage.setItem(PLACE_KEY, JSON.stringify({ screen, companyId: activeCompanyId }));
+    } catch {
+      // Storage may be blocked; the app still works without it.
+    }
+  }, [loggedIn, screen, activeCompanyId]);
 
   // A new screen starts at the top, not at the scroll position of the previous one.
   useEffect(() => {
@@ -4262,9 +4196,12 @@ export default function App() {
           }
           setUser(session);
           setCompanies(cards);
-          setActiveCompanyId(cards[0]?.id ?? null);
+          // A reload keeps the screen and company the user was working on.
+          const saved = readSavedPlace();
+          const savedCompany = cards.find((card) => card.id === saved.companyId);
+          setActiveCompanyId(savedCompany?.id ?? cards[0]?.id ?? null);
           setLoggedIn(true);
-          setScreen("empresas");
+          setScreen(savedCompany && saved.screen ? saved.screen : "empresas");
         }
       } catch {
         // No active session: the login is shown.
@@ -4280,7 +4217,6 @@ export default function App() {
   useEffect(() => {
     onUnauthorized(() => {
       setLoggedIn(false);
-      setDemoMode(false);
       setUser(null);
       setCompanies([]);
       setActiveCompanyId(null);
@@ -4291,7 +4227,6 @@ export default function App() {
 
   const handleLogin = async (sessionUser: SessionUser) => {
     setUser(sessionUser);
-    setDemoMode(false);
     setLoggedIn(true);
     setScreen("empresas");
     try {
@@ -4313,27 +4248,24 @@ export default function App() {
     }
   };
 
-  const handleDemo = () => {
-    setUser(null);
-    setDemoMode(true);
-    setCompanies(EMPRESAS);
-    setActiveCompanyId(EMPRESAS[0].id);
-    setLoggedIn(true);
-    setScreen("empresas");
-  };
-
   const handleLogout = async () => {
     try {
       if (!demoMode) await apiLogout();
     } catch {
       // The local session is cleared anyway.
     }
+    try {
+      window.sessionStorage.removeItem(PLACE_KEY);
+    } catch {
+      // Nothing to clear.
+    }
     setLoggedIn(false);
     setUser(null);
-    setDemoMode(false);
     setCompanies([]);
     setActiveCompanyId(null);
     setScreen("login");
+    // Back to the public home page.
+    if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
   };
 
   const handleNav = (next: Screen) => {
@@ -4377,6 +4309,14 @@ export default function App() {
     setScreen("planificacion");
   };
 
+  const handleCompanyCreated = (company: Company) => {
+    const card: CompanyCard = { id: company.id, nombre: company.name, nit: company.nit, sector: company.sector, tamaño: company.size, role: company.role };
+    setCompanies((current) => [...current.filter((c) => c.id !== card.id), card]);
+    setActiveCompanyId(card.id);
+    // A new company has no history: the next step is to load its monthly data.
+    setScreen("datos");
+  };
+
   const handleSelectCompany = (id: number) => {
     setActiveCompanyId(id);
     setScreen("resumen");
@@ -4404,35 +4344,43 @@ export default function App() {
 
   if (booting) {
     return (
-      <div style={{ minHeight: "100vh", backgroundColor: "#F5F7F6", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F8F6", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#E3F1E8", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Calculator size={22} color="#1B5E3F" />
         </div>
-        <div style={{ fontSize: 13, color: "#78909C" }}>Checking session…</div>
+        <div style={{ fontSize: 13, color: "#66786F" }}>Checking session…</div>
       </div>
     );
   }
 
   if (!loggedIn) {
-    return <LoginScreen onLogin={handleLogin} onDemo={handleDemo} backend={backend} lang={lang} onLang={changeLang} />;
+    return (
+      <PublicSite
+        lang={lang}
+        onLang={changeLang}
+        onAuthenticated={handleLogin}
+        backendOnline={backend.online}
+        backendChecked={backend.checked}
+      />
+    );
   }
 
   return (
-    <div style={{ height: "100vh", fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: "#F5F7F6", overflow: "hidden", position: "relative" }}>
+    <div style={{ height: "100vh", fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: "#F5F8F6", overflow: "hidden", position: "relative" }}>
       <Sidebar open={sidebarOpen} overlay={narrow} onClose={() => setSidebarOpen(false)} screen={screen} onNav={handleNav} userName={userName} userRole={userRole} apiOnline={backend.online} />
 
       <main ref={mainRef} className={narrow ? "af-main af-narrow" : "af-main"} style={{ height: "100vh", overflowY: "auto", marginLeft: sidebarOpen && !narrow ? 240 : 0, transition: "margin-left 0.28s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column" }}>
         <Topbar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} empresa={needsCompany ? "AlertaFiscal" : companyName} companySubtitle={companySubtitle} backend={backend} demoMode={demoMode} onLogout={handleLogout} compact={narrow} lang={lang} onLang={changeLang} />
 
         <div style={{ flex: 1 }}>
-          {screen === "empresas" && <EmpresasScreen companies={companies} onSelect={handleSelectCompany} />}
+          {screen === "empresas" && <EmpresasScreen companies={companies} onSelect={handleSelectCompany} onCreated={handleCompanyCreated} />}
 
           {screen !== "empresas" && screen !== "contexto" && needsCompany && (
             <div style={{ padding: "28px 32px" }}>
               <Card style={{ textAlign: "center", padding: "48px 24px" }}>
-                <Building2 size={40} color="#90CAF9" style={{ margin: "0 auto 12px" }} />
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#37474F", marginBottom: 6 }}>Select a company</div>
-                <p style={{ fontSize: 13, color: "#78909C", margin: "0 0 18px" }}>Your user has no active company selected. Choose one to see its planning.</p>
+                <Building2 size={40} color="#9CCDB1" style={{ margin: "0 auto 12px" }} />
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#33433B", marginBottom: 6 }}>Select a company</div>
+                <p style={{ fontSize: 13, color: "#66786F", margin: "0 0 18px" }}>Your user has no active company selected. Choose one to see its planning.</p>
                 <Btn variant="primary" onClick={() => setScreen("empresas")}>Go to companies</Btn>
               </Card>
             </div>
@@ -4443,7 +4391,7 @@ export default function App() {
           {screen === "gastos" && !needsCompany && <GastosScreen companyId={companyId} companyName={companyName} demoMode={demoMode} />}
           {screen === "proyecciones" && !needsCompany && <ProyeccionesScreen onNav={handleNav} companyId={companyId} companyName={companyName} demoMode={demoMode} onUseForecast={handleUseForecast} />}
           {screen === "planificacion" && !needsCompany && <PlanificacionScreen onNav={handleNav} companyId={companyId} companyName={companyName} demoMode={demoMode} draft={planDraft} initialStep={planInitialStep} />}
-          {screen === "escenarios" && !needsCompany && <EscenariosScreen companyName={companyName} />}
+          {screen === "escenarios" && !needsCompany && <EscenariosScreen companyId={companyId} companyName={companyName} onNav={handleNav} />}
           {screen === "obligaciones" && !needsCompany && <ObligacionesScreen companyId={companyId} companyName={companyName} demoMode={demoMode} canManage={canManage} />}
           {screen === "alertas" && !needsCompany && <AlertasScreen companyId={companyId} companyName={companyName} demoMode={demoMode} canManage={canManage} onViewDetail={handleViewAlert} onNav={handleNav} />}
           {screen === "alerta-detalle" && !needsCompany && (
@@ -4460,9 +4408,11 @@ export default function App() {
           )}
           {screen === "historial" && !needsCompany && <HistorialScreen companyId={companyId} companyName={companyName} demoMode={demoMode} />}
           {screen === "contexto" && <ContextoScreen demoMode={demoMode} />}
+          {screen === "datos" && !needsCompany && <MonthlyDataScreen key={companyId ?? 0} companyId={companyId} companyName={companyName} onNav={handleNav} />}
+          {screen === "equipo" && !needsCompany && <TeamScreen key={companyId ?? 0} companyId={companyId} companyName={companyName} isAdmin={activeCompany?.role === "admin"} currentUserId={user?.id ?? null} />}
         </div>
 
-        <footer style={{ padding: "12px 32px", borderTop: "1px solid rgba(0,0,0,0.06)", fontSize: 11, color: "#B0BEC5", textAlign: "center", backgroundColor: "#fff" }}>
+        <footer style={{ padding: "12px 32px", borderTop: "1px solid rgba(0,0,0,0.06)", fontSize: 11, color: "#9AABA2", textAlign: "center", backgroundColor: "#fff" }}>
           {demoMode
             ? "Demo environment · Simulated data · Independent academic project. Not affiliated with the DIAN."
             : "Independent academic project. Not affiliated with the DIAN. The figures are planning estimates, not official assessments."}

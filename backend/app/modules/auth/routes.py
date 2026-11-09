@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import datetime, timezone
 
@@ -22,12 +23,12 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 _attempts: dict[str, list[float]] = {}
 
 
-def _rate_limited(key: str) -> bool:
+def _rate_limited(key: str, limit: int | None = None) -> bool:
     window = current_app.config["LOGIN_WINDOW_MINUTES"] * 60
     now = time.time()
     hits = [t for t in _attempts.get(key, []) if now - t < window]
     _attempts[key] = hits
-    return len(hits) >= current_app.config["LOGIN_MAX_ATTEMPTS"]
+    return len(hits) >= (limit or current_app.config["LOGIN_MAX_ATTEMPTS"])
 
 
 def _register_attempt(key: str) -> None:
@@ -105,6 +106,11 @@ def login():
         if previous and previous.revoked_at is None:
             previous.revoked_at = datetime.now(timezone.utc)
 
+    return _start_session(user, "auth.login")
+
+
+def _start_session(user: User, action: str, status: int = 200):
+    """Open a session for ``user`` and return the response with both cookies set."""
     session, token, csrf_token = create_session(user)
     memberships = (
         db.session.query(CompanyMembership)
@@ -112,9 +118,10 @@ def login():
         .join(CompanyMembership.company)
         .all()
     )
-    record_audit(None, "auth.login", f"user:{user.id}", {"session_id": session.id})
+    record_audit(None, action, f"user:{user.id}", {"session_id": session.id})
 
     response = jsonify({"user": _serialize_user(user, memberships), "csrf_token": csrf_token})
+    response.status_code = status
     response.set_cookie(
         current_app.config["SESSION_COOKIE_NAME"],
         token,
@@ -124,6 +131,52 @@ def login():
         path="/",
     )
     return set_csrf_cookie(response, csrf_token)
+
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MIN_PASSWORD = 10
+
+
+@auth_bp.post("/register")
+def register():
+    """Public sign-up: creates the user and, when given, a first company with the user as admin."""
+    data = get_json()
+    email = str(data.get("email", "")).strip().lower()
+    full_name = str(data.get("full_name", "")).strip()
+    password = str(data.get("password", ""))
+
+    key = f"register:{request.remote_addr}"
+    if _rate_limited(key, current_app.config["REGISTER_MAX_ATTEMPTS"]):
+        return error("too_many_attempts", "Too many attempts. Try again later.", 429)
+
+    problems = {}
+    if not EMAIL_RE.match(email) or len(email) > 255:
+        problems["email"] = "Enter a valid email"
+    if len(full_name) < 3 or len(full_name) > 160:
+        problems["full_name"] = "The name must have between 3 and 160 characters"
+    if len(password) < MIN_PASSWORD or len(password) > 200:
+        problems["password"] = "The password must have at least 10 characters"
+    if problems:
+        return error("invalid_payload", next(iter(problems.values())), 422, problems)
+
+    _register_attempt(key)
+    if db.session.query(User).filter_by(email=email).first() is not None:
+        return error("email_taken", "An account with that email already exists. Sign in instead.", 409)
+
+    user = User(email=email, full_name=full_name, password_hash=hash_password(password))
+    db.session.add(user)
+    db.session.flush()
+
+    company_data = data.get("company")
+    if isinstance(company_data, dict) and company_data:
+        from ..companies.routes import create_company_for
+
+        result = create_company_for(user, company_data)
+        if isinstance(result, tuple):  # an error response
+            g.force_rollback = True
+            return result
+
+    return _start_session(user, "auth.register", 201)
 
 
 @auth_bp.post("/logout")
