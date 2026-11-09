@@ -46,3 +46,22 @@ export async function me(): Promise<SessionUser | null> {
     return null
   }
 }
+
+export type NewCompany = { name: string; nit: string; sector: string; size: string }
+
+/** Public sign-up. With `company`, the new user becomes its administrator. Starts a session. */
+export async function register(
+  fullName: string,
+  email: string,
+  password: string,
+  company?: NewCompany,
+): Promise<SessionUser> {
+  await ensureCsrf(true, COLD_START_TIMEOUT_MS)
+  const response = await request<LoginResponse>('/api/v1/auth/register', {
+    method: 'POST',
+    body: { full_name: fullName, email, password, company },
+    timeoutMs: COLD_START_TIMEOUT_MS,
+  })
+  setCsrfToken(response.csrf_token)
+  return response.user
+}
