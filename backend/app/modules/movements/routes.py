@@ -387,3 +387,116 @@ def create_counterparty(company_id: int):
     db.session.flush()
     record_audit(company_id, "counterparty.create", f"counterparty:{row.id}")
     return jsonify({"id": row.id, "name": row.name, "nit": row.nit, "kind": row.kind}), 201
+
+
+# ─────────────────────────── Monthly totals ───────────────────────────
+# A quick way to load a company's history: one income and one expense summary document per
+# month. They are ordinary ERP documents (the forecast reads them like any other), with a
+# fixed number per month so saving the same month again replaces its amounts.
+
+MONTHLY_INCOME_PREFIX = "MONTH-I-"
+MONTHLY_EXPENSE_PREFIX = "MONTH-E-"
+MAX_MONTHS_PER_REQUEST = 120
+
+
+def _parse_month(raw) -> str:
+    text = str(raw or "").strip()
+    if len(text) != 7 or text[4] != "-":
+        raise ValueError(f"Invalid month '{text}' (YYYY-MM)")
+    year, month = int(text[:4]), int(text[5:])
+    if not (2000 <= year <= 2100 and 1 <= month <= 12):
+        raise ValueError(f"Invalid month '{text}' (YYYY-MM)")
+    return f"{year:04d}-{month:02d}"
+
+
+@movements_bp.get("/monthly-totals")
+def list_monthly_totals(company_id: int):
+    authorized_company(company_id)
+    from ..planning.forecasting import monthly_history
+
+    history = monthly_history(company_id)
+    entered = {
+        row.doc_number[len(MONTHLY_INCOME_PREFIX):]
+        for row in db.session.query(IncomeDocument.doc_number).filter(
+            IncomeDocument.company_id == company_id,
+            IncomeDocument.doc_number.like(f"{MONTHLY_INCOME_PREFIX}%"),
+            IncomeDocument.status != "void",
+        )
+    }
+    closed = monthly_history(company_id, closed_only=True)
+    return jsonify(
+        {
+            "items": [
+                {
+                    "month": month,
+                    "income": money(Decimal(str(income))),
+                    "expenses": money(Decimal(str(expenses))),
+                    "from_monthly_form": month in entered,
+                }
+                for month, income, expenses in zip(history["months"], history["income"], history["expenses"])
+            ],
+            "closed_months": len(closed["months"]),
+        }
+    )
+
+
+@movements_bp.post("/monthly-totals")
+def save_monthly_totals(company_id: int):
+    authorized_company(company_id, min_role="auxiliar")
+    from datetime import datetime, timezone
+
+    data = get_json()
+    rows = data.get("months")
+    if not isinstance(rows, list) or not rows:
+        return error("invalid_payload", "Send at least one month", 422)
+    if len(rows) > MAX_MONTHS_PER_REQUEST:
+        return error("invalid_payload", f"Send at most {MAX_MONTHS_PER_REQUEST} months at a time", 422)
+
+    now = datetime.now(timezone.utc)
+    current = f"{now.year:04d}-{now.month:02d}"
+    parsed: dict[str, tuple[Decimal, Decimal]] = {}
+    try:
+        for item in rows:
+            if not isinstance(item, dict):
+                raise ValueError("Each month must be an object")
+            month = _parse_month(item.get("month"))
+            if month > current:
+                raise ValueError(f"{month} is in the future")
+            parsed[month] = (parse_money(item.get("income"), "income"), parse_money(item.get("expenses"), "expenses"))
+    except ValueError as exc:
+        return error("invalid_payload", str(exc), 422)
+
+    saved = 0
+    for month, (income_total, expense_total) in sorted(parsed.items()):
+        year, mon = int(month[:4]), int(month[5:])
+        issue_date = datetime(year, mon, 15, tzinfo=timezone.utc)
+        for model, prefix, total in (
+            (IncomeDocument, MONTHLY_INCOME_PREFIX, income_total),
+            (ExpenseDocument, MONTHLY_EXPENSE_PREFIX, expense_total),
+        ):
+            doc_number = f"{prefix}{month}"
+            row = db.session.query(model).filter_by(company_id=company_id, doc_number=doc_number).first()
+            if row is None:
+                fields = dict(
+                    company_id=company_id,
+                    doc_number=doc_number,
+                    issue_date=issue_date,
+                    description="Monthly total entered by the user",
+                    created_by=g.current_user.id,
+                )
+                if model is IncomeDocument:
+                    row = IncomeDocument(status="collected", **fields)
+                else:
+                    row = ExpenseDocument(status="paid", category="Monthly total", reviewed=True, **fields)
+                db.session.add(row)
+            elif row.status == "void":
+                row.status = "collected" if model is IncomeDocument else "paid"
+            row.subtotal = total
+            row.tax_amount = Decimal("0")
+            row.total = total
+        saved += 1
+
+    db.session.flush()
+    record_audit(company_id, "monthly_totals.save", f"company:{company_id}", {"months": sorted(parsed)})
+    _refresh_monitoring(company_id)
+    return list_monthly_totals(company_id)

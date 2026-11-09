@@ -85,7 +85,7 @@ def set_csrf_cookie(response, token: str):
     return response
 
 
-SESSION_UNBOUND_PATHS = frozenset({"/api/v1/auth/login", "/api/v1/auth/logout"})
+SESSION_UNBOUND_PATHS = frozenset({"/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/register"})
 
 
 def validate_csrf() -> bool:
