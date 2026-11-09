@@ -20,6 +20,7 @@
 | Method | Route | Description |
 |---|---|---|
 | GET | `/auth/csrf` | Issues a CSRF token (body + cookie). |
+| POST | `/auth/register` | Public sign-up: `{full_name, email, password, company?}` → user + `csrf_token` (201) and an open session. With `company: {name, nit, sector, size}` the user becomes its `admin`. Email taken → `409 email_taken`; NIT taken → `409 nit_taken` and nothing is created. Limited per IP (`REGISTER_MAX_ATTEMPTS`, default 20 per window). |
 | POST | `/auth/login` | `{email, password}` → user + `csrf_token`. |
 | POST | `/auth/logout` | Revokes the current session. |
 | GET | `/auth/me` | User and companies (memberships). |
@@ -54,7 +55,10 @@ X-CSRF-Token: <token>
 | Method | Route | Role |
 |---|---|---|
 | GET | `/companies` | authenticated |
+| POST | `/companies` | authenticated: `{name, nit, sector, size}`; the creator becomes `admin` |
 | GET | `/companies/{id}` | member |
+| GET/POST | `/companies/{id}/members` | admin: list, or add a registered user by `{email, role}` (`404 user_not_found` if no account uses the email) |
+| PATCH | `/companies/{id}/members/{member_id}` | admin: `{role?, is_active?}`; the last active admin cannot be demoted or removed (`409 last_admin`) |
 | GET | `/companies/{id}/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD` | member |
 
 The dashboard returns `totals`, `monthly`, `alerts.open`, `obligations` and `plan` (target/recorded/coverage).
@@ -69,7 +73,10 @@ The dashboard returns `totals`, `monthly`, `alerts.open`, `obligations` and `pla
 | PATCH | `/companies/{id}/expenses/{expense_id}` | contador |
 | POST | `/companies/{id}/receipts` | auxiliar |
 | POST | `/companies/{id}/payments` | auxiliar |
+| GET/POST | `/companies/{id}/monthly-totals` | member / auxiliar |
 | GET/POST | `/companies/{id}/counterparties` | member / auxiliar |
+
+Monthly totals are the quick way to load a history for the model: `POST` takes `{months: [{month: "YYYY-MM", income, expenses}]}` (at most 120, none in the future) and stores one income and one expense document per month (`MONTH-I-YYYY-MM`, `MONTH-E-YYYY-MM`). Saving a month again replaces its amounts. `GET` returns every month of the history with its totals, `from_monthly_form`, and `closed_months` (the months the forecast can use).
 
 A receipt or payment cannot exceed the outstanding balance of its document (`422`), and a document that is already fully collected or paid answers `409`. Receipt dates are calendar dates (`YYYY-MM-DD`). The audit list (`GET /companies/{id}/audit`) includes `actor_name`.
 

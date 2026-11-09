@@ -477,3 +477,38 @@ export type MonitoringView = {
 
 export const getMonitoring = (companyId: number) =>
   api.get<MonitoringView>(`/api/v1/companies/${companyId}/monitoring`)
+
+// ─── Companies, members and monthly totals ───
+
+export const COMPANY_SECTORS = ['Retail', 'Services', 'Manufacturing', 'Construction', 'Agriculture', 'Mining', 'Technology', 'Other'] as const
+export const COMPANY_SIZES = ['Micro', 'Small', 'Medium', 'Large'] as const
+
+export const createCompany = (payload: { name: string; nit: string; sector: string; size: string }) =>
+  api.post<Company>('/api/v1/companies', payload)
+
+export type Member = {
+  id: number
+  user_id: number
+  email: string
+  full_name: string
+  role: 'admin' | 'contador' | 'auxiliar'
+  is_active: boolean
+}
+
+export const listMembers = (companyId: number) =>
+  api.get<ListResponse<Member>>(`/api/v1/companies/${companyId}/members`)
+
+export const addMember = (companyId: number, payload: { email: string; role: string }) =>
+  api.post<Member>(`/api/v1/companies/${companyId}/members`, payload)
+
+export const updateMember = (companyId: number, memberId: number, payload: { role?: string; is_active?: boolean }) =>
+  api.patch<Member>(`/api/v1/companies/${companyId}/members/${memberId}`, payload)
+
+export type MonthlyTotal = { month: string; income: string; expenses: string; from_monthly_form: boolean }
+export type MonthlyTotals = { items: MonthlyTotal[]; closed_months: number }
+
+export const getMonthlyTotals = (companyId: number) =>
+  api.get<MonthlyTotals>(`/api/v1/companies/${companyId}/monthly-totals`)
+
+export const saveMonthlyTotals = (companyId: number, months: Array<{ month: string; income: string; expenses: string }>) =>
+  api.post<MonthlyTotals>(`/api/v1/companies/${companyId}/monthly-totals`, { months })
