@@ -87,7 +87,7 @@
         "path": "ml/data/processed/dian_recaudo/20261030T214856Z/quality.json",
         "file_name": "quality.json",
         "bytes": 5348,
-        "sha256": "a6cb844ac9593cecf0e69a3464678c5756fbd729e9b5a235e02a7a4fb1f6bbd4"
+        "sha256": "9c0c1ad06f6f4e886fae230c97766ab7b6067e2ec715f90717454659663332c7"
       }
     ],
     "notes": [
@@ -96,6 +96,6 @@
       "No se une por NIT ni se usa para etiquetar incumplimiento.",
       "No se redistribuyen los crudos mientras la licencia siga sin verificar."
     ],
-    "processed_at": "2026-10-30T23:34:58Z"
+    "processed_at": "2026-11-10T00:27:58Z"
   }
 }
