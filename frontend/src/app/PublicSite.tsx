@@ -275,11 +275,11 @@ const HomeView = ({ lang, onView }: { lang: Lang; onView: (v: PublicView) => voi
 
 // ─── Project phases ──────────────────────────────────────────────────────────
 
-type Phase = { n: number; cdio: string; crisp: [string, string]; title: [string, string]; goal: [string, string]; done: Array<[string, string]>; result: [string, string]; docs: string };
+type Phase = { n: number; crisp: [string, string]; title: [string, string]; goal: [string, string]; done: Array<[string, string]>; result: [string, string]; docs: string };
 
 const PHASES: Phase[] = [
   {
-    n: 1, cdio: "C", crisp: ["Business and data understanding", "Comprensión del negocio y de los datos"],
+    n: 1, crisp: ["Business and data understanding", "Comprensión del negocio y de los datos"],
     title: ["Business and data understanding", "Comprensión del negocio y de los datos"],
     goal: ["Define the problem, the users, the metric and the success criterion before training anything.", "Definir el problema, los usuarios, la métrica y el criterio de éxito antes de entrenar cualquier modelo."],
     done: [
@@ -291,7 +291,7 @@ const PHASES: Phase[] = [
     docs: "docs/01_business_and_data.md · docs/03_alert_rules.md",
   },
   {
-    n: 2, cdio: "D", crisp: ["Data engineering", "Ingeniería de datos"],
+    n: 2, crisp: ["Data engineering", "Ingeniería de datos"],
     title: ["Data preparation", "Preparación de los datos"],
     goal: ["Build a reproducible dataset, because no public data of monthly SME income exists.", "Construir un dataset reproducible, porque no existen datos públicos de ingresos mensuales de pymes."],
     done: [
@@ -303,7 +303,7 @@ const PHASES: Phase[] = [
     docs: "docs/02_dataset_report.md · docs/02_dataset_card.md",
   },
   {
-    n: 3, cdio: "D", crisp: ["Model engineering", "Ingeniería del modelo"],
+    n: 3, crisp: ["Model engineering", "Ingeniería del modelo"],
     title: ["Modeling", "Modelado"],
     goal: ["Compare candidate models on validation only and export the best one.", "Comparar modelos candidatos solo en validación y exportar el mejor."],
     done: [
@@ -315,7 +315,7 @@ const PHASES: Phase[] = [
     docs: "docs/03_model_selection.md",
   },
   {
-    n: 4, cdio: "I", crisp: ["Model evaluation", "Evaluación del modelo"],
+    n: 4, crisp: ["Model evaluation", "Evaluación del modelo"],
     title: ["Evaluation", "Evaluación"],
     goal: ["Run one official evaluation under a protocol tagged in Git before reading any test row.", "Correr una única evaluación oficial con un protocolo etiquetado en Git antes de leer datos de prueba."],
     done: [
@@ -326,7 +326,7 @@ const PHASES: Phase[] = [
     docs: "docs/04_evaluation_protocol.md · docs/04_evaluation_report.md",
   },
   {
-    n: 5, cdio: "I", crisp: ["Deployment", "Despliegue"],
+    n: 5, crisp: ["Deployment", "Despliegue"],
     title: ["Integration into the ERP", "Integración en el ERP"],
     goal: ["Use the evaluated model inside a web ERP that SMEs and accountants can operate.", "Usar el modelo evaluado dentro de un ERP web que pymes y contadores puedan operar."],
     done: [
@@ -338,7 +338,7 @@ const PHASES: Phase[] = [
     docs: "docs/erp/ · backend/model_artifacts/",
   },
   {
-    n: 6, cdio: "O", crisp: ["Monitoring and maintenance", "Monitoreo y mantenimiento"],
+    n: 6, crisp: ["Monitoring and maintenance", "Monitoreo y mantenimiento"],
     title: ["Monitoring and operation", "Monitoreo y operación"],
     goal: ["Detect when the model stops working and define how to act.", "Detectar cuándo el modelo deja de funcionar y definir cómo actuar."],
     done: [
@@ -350,13 +350,6 @@ const PHASES: Phase[] = [
     docs: "docs/06_monitoring.md · docs/06_test_cases.md",
   },
 ];
-
-const CDIO_LABEL: Record<string, [string, string]> = {
-  C: ["Conceive", "Concebir"],
-  D: ["Design", "Diseñar"],
-  I: ["Implement", "Implementar"],
-  O: ["Operate", "Operar"],
-};
 
 const PhasesView = ({ lang }: { lang: Lang }) => {
   const [active, setActive] = useState(1);
@@ -371,8 +364,8 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
           <p className="lp-hero-lead" style={{ maxWidth: 760 }}>
             {pick(
               lang,
-              "The model was built with CRISP-ML(Q), the CRISP-DM process model adapted to machine learning with quality assurance at every phase. Each phase also maps to CDIO, the methodology the Faculty suggests for technological PGC projects. The criterion was set before modeling and the protocol before evaluating, and each phase left a document in the repository.",
-              "El modelo se construyó con CRISP-ML(Q), el modelo de proceso CRISP-DM adaptado a machine learning con aseguramiento de calidad en cada fase. Cada fase se ubica además en CDIO, la metodología que la Facultad sugiere para los PGC tecnológicos. El criterio se definió antes de modelar y el protocolo antes de evaluar, y cada fase dejó un documento en el repositorio.",
+              "The project follows CRISP-ML(Q), the CRISP-DM process model adapted to machine learning with quality assurance at every phase. The criterion was set before modeling and the protocol before evaluating, and each phase left a document in the repository.",
+              "El proyecto sigue CRISP-ML(Q), el modelo de proceso CRISP-DM adaptado a machine learning con aseguramiento de calidad en cada fase. El criterio se definió antes de modelar y el protocolo antes de evaluar, y cada fase dejó un documento en el repositorio.",
             )}
           </p>
         </div>
@@ -385,7 +378,6 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
               <span className="lp-phase-num">{p.n}</span>
               <span className="lp-phase-name">{t(p.title)}</span>
               <span className="lp-phase-cdio">CRISP-ML(Q) · {t(p.crisp)}</span>
-              <span className="lp-phase-cdio">CDIO · {t(CDIO_LABEL[p.cdio])}</span>
             </button>
           ))}
         </div>
@@ -395,7 +387,6 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
               <span className="lp-chip">{pick(lang, "Phase", "Fase")} {phase.n}</span>
               <span className="lp-chip">CRISP-ML(Q) · {t(phase.crisp)}</span>
-              <span className="lp-chip">CDIO · {t(CDIO_LABEL[phase.cdio])}</span>
             </div>
             <h2 style={{ fontSize: 26, fontWeight: 800, color: C.ink, margin: "6px 0 10px", letterSpacing: "-0.02em" }}>{t(phase.title)}</h2>
             <p style={{ fontSize: 15, lineHeight: 1.65, color: C.muted, margin: 0 }}>{t(phase.goal)}</p>
@@ -427,7 +418,7 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
               <span className="lp-timeline-dot">{p.n}</span>
               <div>
                 <div style={{ fontWeight: 700, color: C.ink, fontSize: 15 }}>{t(p.title)}</div>
-                <div style={{ fontSize: 12, color: C.g700, fontWeight: 600, marginTop: 2 }}>CRISP-ML(Q) · {t(p.crisp)} · CDIO · {t(CDIO_LABEL[p.cdio])}</div>
+                <div style={{ fontSize: 12, color: C.g700, fontWeight: 600, marginTop: 2 }}>CRISP-ML(Q) · {t(p.crisp)}</div>
                 <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.55, marginTop: 4 }}>{t(p.result)}</div>
               </div>
             </div>
@@ -481,12 +472,6 @@ const PgcView = ({ lang }: { lang: Lang }) => {
     ["Course creation", "Creación de cursos", false],
     ["Entrepreneurship and innovation", "Emprendimiento e innovación", false],
   ];
-  const cdio: Array<{ k: string; phases: string; text: [string, string] }> = [
-    { k: "C", phases: "1", text: ["Problem, users, metric and success criterion.", "Problema, usuarios, métrica y criterio de éxito."] },
-    { k: "D", phases: "2 – 3", text: ["Reproducible dataset, features and model selection.", "Dataset reproducible, variables y selección del modelo."] },
-    { k: "I", phases: "4 – 5", text: ["Official evaluation and integration into the web ERP.", "Evaluación oficial e integración en el ERP web."] },
-    { k: "O", phases: "6", text: ["Deployment, monitoring, retraining and rollback.", "Despliegue, monitoreo, reentrenamiento y reversión."] },
-  ];
   const t = (pair: [string, string]) => (lang === "es" ? pair[1] : pair[0]);
   return (
     <>
@@ -514,7 +499,7 @@ const PgcView = ({ lang }: { lang: Lang }) => {
             </PgcRow>
             <PgcRow label={pick(lang, "Cycle", "Ciclo")}>{PGC_INFO.cycle || pending}</PgcRow>
             <PgcRow label={pick(lang, "Articulating CADI", "CADI articulador")}>
-              {pick(lang, "Software Engineering II (semester VI, item 7 of the protocol)", "Ingeniería del software II (VI semestre, ítem 7 del protocolo)")}
+              Machine Learning
             </PgcRow>
             <PgcRow label={pick(lang, "Research line", "Línea de investigación")}>
               {pick(lang, "Learning, knowledge, technologies, communication and digitalization (Agreement 09 of 2021).", "Aprendizaje, conocimiento, tecnologías, comunicación y digitalización (Acuerdo 09 de 2021).")}
@@ -572,25 +557,13 @@ const PgcView = ({ lang }: { lang: Lang }) => {
           </PgcBlock>
 
           <PgcBlock icon={<Cpu size={18} />} title={pick(lang, "Methodology and development schedule", "Metodología a utilizar y cronograma de desarrollo")}>
-            <p className="lp-p">{pick(lang, "Two complementary frameworks. The machine learning work follows CRISP-ML(Q) (Studer et al., 2021): business and data understanding, data engineering, model engineering, model evaluation, deployment, and monitoring and maintenance, with quality assurance in each phase. The project as a whole is organized with CDIO (Conceive, Design, Implement, Operate), suggested by item 1 of the protocol for technological projects.", "Dos marcos complementarios. El trabajo de machine learning sigue CRISP-ML(Q) (Studer et al., 2021): comprensión del negocio y de los datos, ingeniería de datos, ingeniería del modelo, evaluación del modelo, despliegue, y monitoreo y mantenimiento, con aseguramiento de calidad en cada fase. El proyecto en conjunto se organiza con CDIO (Concebir, Diseñar, Implementar, Operar), sugerida por el ítem 1 del protocolo para proyectos tecnológicos.")}</p>
-            <div className="lp-table-wrap" style={{ marginBottom: 18 }}>
-              <table className="lp-table lp-table-phases">
-                <thead><tr><th>{pick(lang, "Phase", "Fase")}</th><th>CRISP-ML(Q)</th><th>CDIO</th></tr></thead>
-                <tbody>
-                  {PHASES.map((p) => (
-                    <tr key={p.n}><td>{p.n}</td><td>{t(p.crisp)}</td><td>{t(CDIO_LABEL[p.cdio])}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="lp-p">{pick(lang, "CDIO groups the phases like this:", "CDIO agrupa las fases así:")}</p>
-            <div className="lp-cdio">
-              {cdio.map((step) => (
-                <div key={step.k} className="lp-cdio-item">
-                  <div className="lp-cdio-letter">{step.k}</div>
-                  <div style={{ fontWeight: 700, color: C.ink }}>{t(CDIO_LABEL[step.k])}</div>
-                  <div style={{ fontSize: 12, color: C.g700, fontWeight: 600, margin: "2px 0 6px" }}>{pick(lang, "Phases", "Fases")} {step.phases}</div>
-                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{t(step.text)}</div>
+            <p className="lp-p">{pick(lang, "CRISP-ML(Q) (Studer et al., 2021): the CRISP-DM process model adapted to machine learning, with quality assurance in every phase. Item 1 of the protocol lets the project propose its own strategy when it shows a strict engineering process; CRISP-ML(Q) is the standard process for machine learning projects and each phase closes with a verifiable deliverable.", "CRISP-ML(Q) (Studer et al., 2021): el modelo de proceso CRISP-DM adaptado a machine learning, con aseguramiento de calidad en cada fase. El ítem 1 del protocolo permite proponer una estrategia propia que evidencie un proceso estricto de ingeniería; CRISP-ML(Q) es el proceso estándar para proyectos de machine learning y cada fase cierra con un entregable verificable.")}</p>
+            <div className="lp-crisp">
+              {PHASES.map((p) => (
+                <div key={p.n} className="lp-cdio-item">
+                  <div className="lp-cdio-letter">{p.n}</div>
+                  <div style={{ fontWeight: 700, color: C.ink }}>{t(p.crisp)}</div>
+                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, marginTop: 6 }}>{t(p.goal)}</div>
                 </div>
               ))}
             </div>

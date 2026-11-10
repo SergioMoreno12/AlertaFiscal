@@ -72,6 +72,7 @@
 .lp-p { font-size: 14.5px; line-height: 1.7; margin: 0 0 12px; color: #33433b; }
 .lp-ol { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; font-size: 14.5px; line-height: 1.6; }
 .lp-cdio { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.lp-crisp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .lp-cdio-item { border: 1px solid #dce5e0; border-radius: 14px; padding: 16px; background: #f2f8f4; }
 .lp-cdio-letter { width: 34px; height: 34px; border-radius: 10px; background: #1b5e3f; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
 .lp-table-wrap { overflow-x: auto; }
@@ -79,7 +80,6 @@
 .lp-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #66786f; padding: 10px 12px; background: #f2f8f4; border-bottom: 1px solid #dce5e0; }
 .lp-table td { padding: 10px 12px; border-bottom: 1px solid #dce5e0; }
 .lp-table td:first-child { font-weight: 800; color: #1b5e3f; width: 80px; }
-.lp-table-phases td:first-child { width: 60px; }
 .lp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .lp-product { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #dce5e0; font-size: 13.5px; color: #66786f; }
 .lp-product-on { border-color: #9ccdb1; background: #f2f8f4; color: #154d33; font-weight: 600; }
@@ -112,7 +112,7 @@
   .lp-hero-grid, .lp-split, .lp-phase-detail, .lp-pgc-grid { grid-template-columns: 1fr; }
   .lp-grid-4 { grid-template-columns: 1fr 1fr; }
   .lp-phase-track { grid-template-columns: repeat(3, 1fr); }
-  .lp-cdio { grid-template-columns: 1fr 1fr; }
+  .lp-cdio, .lp-crisp { grid-template-columns: 1fr 1fr; }
   .lp-products { grid-template-columns: 1fr 1fr; }
 }
 
@@ -130,6 +130,6 @@
 
 @media (max-width: 420px) {
   .lp-hide-xs { display: none; }
-  .lp-cdio { grid-template-columns: 1fr; }
+  .lp-cdio, .lp-crisp { grid-template-columns: 1fr; }
   .lp-header-row { gap: 10px; }
 }
