@@ -436,7 +436,12 @@ export const PGC_INFO = {
   program: "Ingeniería de Sistemas y Computación",
   campus: "Extensión Chía",
   cycle: "Ciclo II · Profundización (VI semestre)",
-  members: ["Jonathan Alejandro Yacuma Rivera", "Manuel Eduardo Alarcón Aza"],
+  members: [
+    "Jonathan Alejandro Yacuma Rivera",
+    "Manuel Eduardo Alarcón Aza",
+    "Sergio Steeven Moreno Forero",
+    "Samuel Castellanos Rivera",
+  ],
 };
 
 const PgcRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -507,7 +512,6 @@ const PgcView = ({ lang }: { lang: Lang }) => {
           </PgcBlock>
 
           <PgcBlock icon={<Users size={18} />} title={pick(lang, "Project members", "Integrantes del proyecto")}>
-            <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px" }}>{pick(lang, "Groups of 2 students, as required by item 6 of the protocol.", "Grupos de 2 estudiantes, como pide el ítem 6 del protocolo.")}</p>
             {PGC_INFO.members.map((name) => (
               <div key={name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: `1px solid ${C.line}` }}>
                 <span className="lp-avatar">{name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
