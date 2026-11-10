@@ -156,16 +156,16 @@
         "table": "sector_benchmarks",
         "path": "ml/data/processed/supersociedades_top10000/20261030T214803Z/sector_benchmarks.csv",
         "file_name": "sector_benchmarks.csv",
-        "bytes": 29046,
-        "sha256": "6e33d3ad4ff605b33e2fba77ec8d56dec2ba7a6925be7010cf6c8a1f251c15ee",
+        "bytes": 28626,
+        "sha256": "f45e8bb279d9524bcc0efe395d4ceda0d632ca95d8008ed78c8061e37c11726c",
         "rows": 175
       },
       {
         "table": "quality",
         "path": "ml/data/processed/supersociedades_top10000/20261030T214803Z/quality.json",
         "file_name": "quality.json",
-        "bytes": 1011,
-        "sha256": "687d6b076df40857f8196d6a67677b458c11fa8c72e33abf86cf1ac8754cfd2b"
+        "bytes": 989,
+        "sha256": "173631b2140810013328cb383dcce34a151dc79c54c81ac7d2e46dfba863a4d2"
       }
     ],
     "notes": [
@@ -173,6 +173,6 @@
       "El dataset cubre las 10.000 empresas más grandes; no es representativo del universo empresarial.",
       "Los datos se usan solo como contexto agregado; no se unen por NIT con el ERP."
     ],
-    "processed_at": "2026-10-30T22:11:10Z"
+    "processed_at": "2026-11-10T00:24:56Z"
   }
 }
