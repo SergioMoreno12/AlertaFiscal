@@ -275,93 +275,291 @@ const HomeView = ({ lang, onView }: { lang: Lang; onView: (v: PublicView) => voi
 
 // ─── Project phases ──────────────────────────────────────────────────────────
 
-type Phase = { n: number; cdio: string; title: [string, string]; goal: [string, string]; done: Array<[string, string]>; result: [string, string]; docs: string };
+type Pair = [string, string];
+type Phase = {
+  n: number;
+  crisp: Pair;
+  title: Pair;
+  owner: string;
+  question: Pair;
+  goal: Pair;
+  activities: Pair[];
+  quality: Pair[];
+  decisions: Array<{ what: Pair; why: Pair }>;
+  figures: Array<{ value: string; label: Pair }>;
+  deliverables: Array<{ file: string; what: Pair }>;
+  limits: Pair[];
+  result: Pair;
+};
 
 const PHASES: Phase[] = [
   {
-    n: 1, cdio: "C",
+    n: 1,
+    crisp: ["Business and data understanding", "Comprensión del negocio y de los datos"],
     title: ["Business and data understanding", "Comprensión del negocio y de los datos"],
-    goal: ["Define the problem, the users, the metric and the success criterion before training anything.", "Definir el problema, los usuarios, la métrica y el criterio de éxito antes de entrenar cualquier modelo."],
-    done: [
-      ["Users: SME owner and accountant with several clients.", "Usuarios: dueño de la pyme y contador con varios clientes."],
-      ["Target: monthly income and expenses, 6 months ahead (regression, not risk classification).", "Objetivo: ingresos y gastos mensuales a 6 meses (regresión, no clasificación de riesgo)."],
-      ["Alert rules documented as a consequence of the forecast.", "Reglas de alerta documentadas como consecuencia del pronóstico."],
+    owner: "Sergio Steeven Moreno Forero",
+    question: ["What decision must the model support, and what does “good enough” mean before training anything?", "¿Qué decisión debe apoyar el modelo y qué significa “suficientemente bueno” antes de entrenar nada?"],
+    goal: ["Define the problem, the users, the target, the metrics and the success criterion, and take stock of the public data available.", "Definir el problema, los usuarios, la variable objetivo, las métricas y el criterio de éxito, y hacer el inventario de los datos públicos disponibles."],
+    activities: [
+      ["Described the problem: SMEs pay VAT, income tax and withholdings out of their operating cash and learn what they owe when the filing date arrives.", "Se describió el problema: las pymes pagan IVA, renta y retenciones con su caja de operación y saben cuánto deben cuando llega la fecha de declarar."],
+      ["Identified two users: the SME owner and the accountant who manages several clients.", "Se identificaron dos usuarios: el dueño de la pyme y el contador que maneja varios clientes."],
+      ["Framed the task as supervised regression over time series: monthly income and expenses, 6 months ahead, from the company's own history.", "Se planteó la tarea como regresión supervisada sobre series de tiempo: ingresos y gastos mensuales a 6 meses, a partir del historial de la propia empresa."],
+      ["Chose the metrics: MAE and RMSE as main metrics, MAPE as secondary, and an MAE normalized by the company's mean monthly income.", "Se eligieron las métricas: MAE y RMSE como principales, MAPE como secundaria y un MAE normalizado por el ingreso mensual medio de la empresa."],
+      ["Inventoried two public sources: Supersociedades (10,000 largest companies, annual) and DIAN (monthly tax collection, national).", "Se inventariaron dos fuentes públicas: Supersociedades (10.000 empresas más grandes, anual) y DIAN (recaudo mensual, nacional)."],
+      ["Listed five known data problems (rounding, bimonthly VAT, national totals, only large companies, unit confusion) with their treatment.", "Se listaron cinco problemas de datos conocidos (redondeo, IVA bimestral, totales nacionales, solo empresas grandes, confusión de unidades) con su tratamiento."],
+      ["Wrote the alert rules as a consequence of the forecast, and what the system will not do.", "Se escribieron las reglas de alerta como consecuencia del pronóstico y lo que el sistema no hará."],
     ],
-    result: ["Criterion: ≥ 10 % better than the seasonal baseline in MAE and median normalized MAE ≤ 15 %.", "Criterio: ≥ 10 % mejor que el baseline estacional en MAE y mediana del MAE normalizado ≤ 15 %."],
-    docs: "docs/01_business_and_data.md · docs/03_alert_rules.md",
+    quality: [
+      ["Success criterion fixed and approved by the four members (November 3, 2026) before any model existed.", "Criterio de éxito fijado y aprobado por los cuatro integrantes (3 de noviembre de 2026) antes de que existiera cualquier modelo."],
+      ["Honesty statement: the data is semi-synthetic and is never presented as real company data.", "Declaración de honestidad: los datos son semi-sintéticos y nunca se presentan como datos de empresas reales."],
+      ["Risk table with mitigation for each risk (short history, leakage, users reading the forecast as tax advice, Law 1581 of 2012).", "Tabla de riesgos con su mitigación (historial corto, fuga de información, usuarios que lean el pronóstico como asesoría tributaria, Ley 1581 de 2012)."],
+    ],
+    decisions: [
+      { what: ["Forecast income and expenses, not tax risk or penalties.", "Pronosticar ingresos y gastos, no riesgo tributario ni sanciones."], why: ["There are no public labels of penalties per company, and the decision to support is how much cash to reserve.", "No hay etiquetas públicas de sanciones por empresa, y la decisión a apoyar es cuánto efectivo reservar."] },
+      { what: ["Seasonal naive as the baseline to beat.", "Seasonal naive como baseline a superar."], why: ["“Same month last year” is simple and strong for seasonal series; a model that does not beat it is not worth its complexity.", "“El mismo mes del año anterior” es simple y fuerte en series estacionales; un modelo que no lo supera no justifica su complejidad."] },
+      { what: ["Error normalized by income, judged by the median and the 90th percentile.", "Error normalizado por el ingreso, juzgado con la mediana y el percentil 90."], why: ["Companies differ about 100 times in size; the median keeps very small companies from dominating.", "Las empresas difieren unas 100 veces en tamaño; la mediana evita que las empresas muy pequeñas dominen el resultado."] },
+    ],
+    figures: [
+      { value: "≥ 10 %", label: ["better than the baseline in MAE", "mejor que el baseline en MAE"] },
+      { value: "≤ 15 %", label: ["median normalized MAE", "mediana del MAE normalizado"] },
+      { value: "≤ 30 %", label: ["90th percentile of normalized MAE", "percentil 90 del MAE normalizado"] },
+      { value: "6", label: ["months of horizon", "meses de horizonte"] },
+    ],
+    deliverables: [
+      { file: "docs/01_business_and_data.md", what: ["Problem, users, metrics, criterion, data inventory, risks and scope.", "Problema, usuarios, métricas, criterio, inventario de datos, riesgos y alcance."] },
+      { file: "docs/03_alert_rules.md", what: ["Alert rules applied to the forecast.", "Reglas de alerta aplicadas al pronóstico."] },
+    ],
+    limits: [
+      ["Only 36 months per company: three observations of each calendar month.", "Solo 36 meses por empresa: tres observaciones de cada mes del año."],
+      ["No public monthly data of small businesses exists, so the data has to be built.", "No existen datos públicos mensuales de pymes, así que los datos deben construirse."],
+    ],
+    result: ["A measurable success criterion, approved before modeling: at least 10 % better than the baseline in MAE, median normalized MAE ≤ 15 % and 90th percentile ≤ 30 %.", "Un criterio de éxito medible y aprobado antes de modelar: al menos 10 % mejor que el baseline en MAE, mediana del MAE normalizado ≤ 15 % y percentil 90 ≤ 30 %."],
   },
   {
-    n: 2, cdio: "D",
+    n: 2,
+    crisp: ["Data engineering", "Ingeniería de datos"],
     title: ["Data preparation", "Preparación de los datos"],
-    goal: ["Build a reproducible dataset, because no public data of monthly SME income exists.", "Construir un dataset reproducible, porque no existen datos públicos de ingresos mensuales de pymes."],
-    done: [
-      ["Calibrated with Supersociedades (10,000 companies) and DIAN monthly collection.", "Calibrado con Supersociedades (10.000 empresas) y el recaudo mensual de la DIAN."],
-      ["500 companies × 36 months = 18,000 rows; SHA-256 per file.", "500 empresas × 36 meses = 18.000 filas; SHA-256 por archivo."],
-      ["Split: train months 1–24, validation 25–30, test 31–36, 75 holdout companies.", "División: entrenamiento meses 1–24, validación 25–30, prueba 31–36 y 75 empresas reservadas."],
+    owner: "Samuel Castellanos Rivera",
+    question: ["How can a realistic and reproducible dataset be built when no public monthly SME data exists?", "¿Cómo construir un dataset realista y reproducible si no existen datos públicos mensuales de pymes?"],
+    goal: ["Generate a semi-synthetic dataset calibrated with real public statistics, split it without leakage and prove that it is reproducible.", "Generar un dataset semi-sintético calibrado con estadísticas públicas reales, dividirlo sin fuga de información y demostrar que es reproducible."],
+    activities: [
+      ["Computed margins and growth per sector from Supersociedades records with income ≥ 0.5 trillion COP, where rounding does not distort them.", "Se calcularon márgenes y crecimiento por sector con los registros de Supersociedades de ingresos ≥ 0,5 billones COP, donde el redondeo no los distorsiona."],
+      ["Estimated expenses as income minus profit, and excluded absurd values (margins outside −50 % … +60 %, growth outside −50 % … +100 %).", "Se estimaron los gastos como ingresos menos utilidad y se excluyeron valores absurdos (márgenes fuera de −50 % … +60 %, crecimiento fuera de −50 % … +100 %)."],
+      ["Built the seasonal shape from DIAN collection: averaged the bimonthly VAT pairs, shifted them two months back and excluded the COVID years 2020–2021.", "Se construyó la forma estacional con el recaudo de la DIAN: se promediaron los pares bimestrales de IVA, se corrieron dos meses atrás y se excluyeron los años COVID 2020–2021."],
+      ["Generated 36 months per company with growth, seasonality, noise and, for 72 companies, a permanent level shift as a hard case.", "Se generaron 36 meses por empresa con crecimiento, estacionalidad, ruido y, para 72 empresas, un cambio de nivel permanente como caso difícil."],
+      ["Rescaled every company to small-business size (annual income between COP 300 and 6,000 million) keeping its size rank.", "Se reescaló cada empresa a tamaño pyme (ingreso anual entre COP 300 y 6.000 millones) conservando su posición de tamaño."],
+      ["Split by time and by company, and wrote a 26-check verification script.", "Se dividió por tiempo y por empresa, y se escribió un script de 26 verificaciones."],
     ],
-    result: ["Semi-synthetic, reproducible dataset that passes 26 of 26 checks.", "Dataset semi-sintético y reproducible que pasa 26 de 26 verificaciones."],
-    docs: "docs/02_dataset_report.md · docs/02_dataset_card.md",
+    quality: [
+      ["Fixed random seed (42): running the four scripts again produces byte-identical files, proven by SHA-256.", "Semilla aleatoria fija (42): al correr de nuevo los cuatro scripts los archivos salen idénticos byte a byte, comprobado con SHA-256."],
+      ["26 of 26 checks: columns, rows, no gaps, no duplicates, no nulls, no negatives, split rules and holdout coverage per sector.", "26 de 26 verificaciones: columnas, filas, sin huecos, sin duplicados, sin nulos, sin negativos, reglas de división y cobertura del holdout por sector."],
+      ["The file with the true generating parameters is never used as model input; real tax ids never reach an output file.", "El archivo con los parámetros reales del generador nunca se usa como entrada del modelo; los NIT reales nunca llegan a un archivo de salida."],
+    ],
+    decisions: [
+      { what: ["Semi-synthetic data instead of invented numbers.", "Datos semi-sintéticos en lugar de cifras inventadas."], why: ["Each profile comes from real margins, growth and seasonality, so the series behave like real businesses.", "Cada perfil sale de márgenes, crecimiento y estacionalidad reales, así que las series se comportan como negocios reales."] },
+      { what: ["75 companies reserved as holdout.", "75 empresas reservadas como holdout."], why: ["To measure, at the end, how the model behaves on companies it never saw: the situation of a new user of the app.", "Para medir al final cómo se comporta el modelo con empresas que nunca vio: la situación de un usuario nuevo de la app."] },
+      { what: ["DIAN used only for the shape of seasonality.", "La DIAN se usa solo para la forma de la estacionalidad."], why: ["Its figures are national totals; using them as a company's values would be wrong.", "Sus cifras son totales nacionales; usarlas como valores de una empresa sería un error."] },
+    ],
+    figures: [
+      { value: "500", label: ["companies (301 from real records, 199 simulated)", "empresas (301 de registros reales, 199 simuladas)"] },
+      { value: "18.000", label: ["company-months, 2023-01 to 2025-12", "meses-empresa, 2023-01 a 2025-12"] },
+      { value: "6", label: ["sectors", "sectores"] },
+      { value: "26/26", label: ["checks passed", "verificaciones superadas"] },
+    ],
+    deliverables: [
+      { file: "docs/02_dataset_report.md", what: ["Generation method, parameters, split, checks and limitations.", "Método de generación, parámetros, división, verificaciones y limitaciones."] },
+      { file: "docs/02_dataset_card.md · 02_data_dictionary.md", what: ["Dataset card and data dictionary.", "Ficha del dataset y diccionario de datos."] },
+      { file: "ml/data/processed/", what: ["monthly_series.csv and split_manifest.csv.", "monthly_series.csv y split_manifest.csv."] },
+    ],
+    limits: [
+      ["Margins come from large companies; small businesses may differ.", "Los márgenes vienen de empresas grandes; las pymes pueden ser distintas."],
+      ["About 30 % of company-months are losses (retail's real median margin is 1.8 %).", "Cerca del 30 % de los meses-empresa son pérdidas (el margen mediano real del comercio es 1,8 %)."],
+      ["All sectors share one national seasonal shape.", "Todos los sectores comparten una sola forma estacional nacional."],
+    ],
+    result: ["A reproducible semi-synthetic dataset of 500 companies × 36 months, split into train (months 1–24), validation (25–30), test (31–36) and 75 holdout companies, passing 26 of 26 checks.", "Un dataset semi-sintético reproducible de 500 empresas × 36 meses, dividido en entrenamiento (meses 1–24), validación (25–30), prueba (31–36) y 75 empresas holdout, que pasa 26 de 26 verificaciones."],
   },
   {
-    n: 3, cdio: "D",
+    n: 3,
+    crisp: ["Model engineering", "Ingeniería del modelo"],
     title: ["Modeling", "Modelado"],
-    goal: ["Compare candidate models on validation only and export the best one.", "Comparar modelos candidatos solo en validación y exportar el mejor."],
-    done: [
-      ["Features: position in the history, month of the year, lags 1–3; series scaled by the mean of the last 3 months.", "Variables: posición en la historia, mes del año, rezagos 1–3; serie escalada por la media de los últimos 3 meses."],
-      ["Candidates: seasonal naive, linear regression, random forest and MLP (40 fits).", "Candidatos: seasonal naive, regresión lineal, random forest y MLP (40 ajustes)."],
-      ["Random forest exported to JSON and run in pure Python; 50 parity cases equal to scikit-learn.", "Random forest exportado a JSON y ejecutado en Python puro; 50 casos de paridad iguales a scikit-learn."],
+    owner: "Jonathan Alejandro Yacuma Rivera",
+    question: ["Which model forecasts better than the baseline and can still run inside the web server?", "¿Qué modelo pronostica mejor que el baseline y aun así puede ejecutarse dentro del servidor web?"],
+    goal: ["Design the features, compare candidate models only on validation, select one and export it so the backend can run it without scikit-learn.", "Diseñar las variables, comparar modelos candidatos solo en validación, seleccionar uno y exportarlo para que el backend lo ejecute sin scikit-learn."],
+    activities: [
+      ["Built six features from the target series only: position in the history (t), month of the year as sine and cosine, and lags 1–3.", "Se construyeron seis variables solo con la serie objetivo: posición en el historial (t), mes del año como seno y coseno, y rezagos 1–3."],
+      ["Scaled each series by the mean of its last three months (mean_last_n, n = 3), so companies of very different sizes share one model.", "Se escaló cada serie por la media de sus últimos tres meses (mean_last_n, n = 3), para que empresas de tamaños muy distintos compartan un modelo."],
+      ["Trained one model per target (income and expenses) on months 1–24 and forecast months 25–30 recursively.", "Se entrenó un modelo por objetivo (ingresos y gastos) con los meses 1–24 y se pronosticaron los meses 25–30 de forma recursiva."],
+      ["Compared four candidates in 40 fits: seasonal naive, linear regression, random forest (6 combinations) and MLP (12 combinations).", "Se compararon cuatro candidatos en 40 ajustes: seasonal naive, regresión lineal, random forest (6 combinaciones) y MLP (12 combinaciones)."],
+      ["Broke the error down by horizon, sector and company size.", "Se desglosó el error por horizonte, sector y tamaño de empresa."],
+      ["Exported the forest to JSON and wrote a pure-Python predictor with the backend's algorithm.", "Se exportó el bosque a JSON y se escribió un predictor en Python puro con el algoritmo del backend."],
     ],
-    result: ["Validation MAE: random forest 17.3 vs. 27.9 baseline, 35.9 linear, 45.5 MLP (millions COP/month).", "MAE en validación: random forest 17,3 vs. 27,9 baseline, 35,9 lineal, 45,5 MLP (millones COP/mes)."],
-    docs: "docs/03_model_selection.md",
+    quality: [
+      ["Test and holdout rows are filtered out before any computation; selection uses validation only.", "Las filas de prueba y holdout se descartan antes de cualquier cálculo; la selección usa solo validación."],
+      ["Every feature comes from past months; inside the recursion each prediction feeds the next lag, never the real value.", "Toda variable viene de meses pasados; dentro de la recursión cada predicción alimenta el siguiente rezago, nunca el valor real."],
+      ["Parity test: 50 companies, 600 points; maximum difference with scikit-learn below 1e-15 (tolerance 1e-6).", "Prueba de paridad: 50 empresas, 600 puntos; diferencia máxima con scikit-learn menor a 1e-15 (tolerancia 1e-6)."],
+    ],
+    decisions: [
+      { what: ["Random forest selected (100 trees, depth 8 for income and 6 for expenses).", "Se seleccionó random forest (100 árboles, profundidad 8 para ingresos y 6 para gastos)."], why: ["Lowest validation MAE, stable across the horizon, and exportable.", "Menor MAE en validación, estable a lo largo del horizonte y exportable."] },
+      { what: ["MLP kept only as a comparison.", "La MLP quedó solo como comparación."], why: ["It was worse than the baseline (45.5) and the backend cannot run a neural network.", "Fue peor que el baseline (45,5) y el backend no puede ejecutar una red neuronal."] },
+      { what: ["Sector is not a feature.", "El sector no es una variable."], why: ["The ERP cannot guarantee a clean sector value, so training on it would break the contract with serving.", "El ERP no garantiza un valor limpio de sector, así que entrenar con él rompería el contrato con la producción."] },
+    ],
+    figures: [
+      { value: "17,3", label: ["random forest validation MAE (M COP/month)", "MAE en validación del random forest (M COP/mes)"] },
+      { value: "27,9", label: ["seasonal naive baseline", "baseline seasonal naive"] },
+      { value: "−38 %", label: ["error vs. the baseline", "error frente al baseline"] },
+      { value: "1,41 MB", label: ["exported model (JSON)", "modelo exportado (JSON)"] },
+    ],
+    deliverables: [
+      { file: "docs/03_model_selection.md", what: ["Features, candidates, results by horizon, sector and size, selection and export.", "Variables, candidatos, resultados por horizonte, sector y tamaño, selección y exportación."] },
+      { file: "ml/artifacts/model_global.json", what: ["Exported model, version global-20261103-84df89b5.", "Modelo exportado, versión global-20261103-84df89b5."] },
+      { file: "ml/artifacts/parity_cases.json", what: ["50 parity cases the backend replays in its tests.", "50 casos de paridad que el backend repite en sus pruebas."] },
+    ],
+    limits: [
+      ["A single validation window (months 25–30); the ranking could change with another one.", "Una sola ventana de validación (meses 25–30); el orden podría cambiar con otra."],
+      ["Sudden level changes are only reflected after three months of the new level enter the history.", "Los cambios bruscos de nivel solo se reflejan cuando tres meses del nuevo nivel entran al historial."],
+    ],
+    result: ["Random forest selected: validation MAE 17.3 vs. 27.9 baseline, 35.9 linear regression and 45.5 MLP (millions COP/month), exported and equal to scikit-learn.", "Random forest seleccionado: MAE en validación 17,3 vs. 27,9 del baseline, 35,9 de la regresión lineal y 45,5 de la MLP (millones COP/mes), exportado e igual a scikit-learn."],
   },
   {
-    n: 4, cdio: "I",
+    n: 4,
+    crisp: ["Model evaluation", "Evaluación del modelo"],
     title: ["Evaluation", "Evaluación"],
-    goal: ["Run one official evaluation under a protocol tagged in Git before reading any test row.", "Correr una única evaluación oficial con un protocolo etiquetado en Git antes de leer datos de prueba."],
-    done: [
-      ["Temporal test (425 companies) and holdout test (75 unseen companies).", "Prueba temporal (425 empresas) y prueba con empresas no vistas (75)."],
-      ["Leakage review of every feature and split.", "Revisión de fuga de información en cada variable y división."],
+    owner: "Manuel Eduardo Alarcón Aza",
+    question: ["Does the model meet the criterion on months and companies nobody used to train or choose it?", "¿Cumple el modelo el criterio en meses y empresas que nadie usó para entrenarlo ni elegirlo?"],
+    goal: ["Measure once and honestly the exact file the app will run, and give a verdict: accepted or not accepted.", "Medir una sola vez y con honestidad el archivo exacto que ejecutará la app, y dar un veredicto: aceptado o no aceptado."],
+    activities: [
+      ["Wrote the evaluation protocol and tagged it in Git (eval-protocol-v1) before reading any test row.", "Se escribió el protocolo de evaluación y se etiquetó en Git (eval-protocol-v1) antes de leer cualquier fila de prueba."],
+      ["Reviewed Phase 3 for data leakage and exportability, file by file.", "Se revisó la Fase 3 en busca de fuga de información y exportabilidad, archivo por archivo."],
+      ["Defined two scenarios: temporal test (425 companies, months 31–36) and holdout test (75 unseen companies).", "Se definieron dos escenarios: prueba temporal (425 empresas, meses 31–36) y prueba holdout (75 empresas no vistas)."],
+      ["Ran the official evaluation once, on November 4, 2026, with a pure-Python predictor and the artifact identified by its SHA-256.", "Se corrió la evaluación oficial una sola vez, el 4 de noviembre de 2026, con un predictor en Python puro y el artefacto identificado por su SHA-256."],
+      ["Reported MAE, RMSE, normalized MAE, MAPE and bias, by horizon, sector and size, and the 10 largest errors.", "Se reportaron MAE, RMSE, MAE normalizado, MAPE y sesgo, por horizonte, sector y tamaño, y los 10 errores más grandes."],
     ],
-    result: ["Accepted: 12 of 12 checks. Holdout income MAE 23.7 vs. 39.7 baseline (−40 %); median normalized error 12.3 % / 11.8 %.", "Aceptado: 12 de 12 comprobaciones. MAE de ingresos en no vistas 23,7 vs. 39,7 del baseline (−40 %); error normalizado mediano 12,3 % / 11,8 %."],
-    docs: "docs/04_evaluation_protocol.md · docs/04_evaluation_report.md",
+    quality: [
+      ["Run-once rule enforced by the script: it refuses a second official run.", "Regla de una sola corrida impuesta por el script: rechaza una segunda corrida oficial."],
+      ["Parity gate: the run stops before reading test rows if the predictor differs from scikit-learn.", "Compuerta de paridad: la corrida se detiene antes de leer datos de prueba si el predictor difiere de scikit-learn."],
+      ["Forbidden afterwards: retraining because of test results, re-running for a better number or reporting only favorable metrics.", "Prohibido después: reentrenar por los resultados de prueba, repetir para mejorar la cifra o reportar solo métricas favorables."],
+    ],
+    decisions: [
+      { what: ["12 acceptance checks, no partial acceptance.", "12 comprobaciones de aceptación, sin aceptación parcial."], why: ["Three conditions × two targets × two scenarios: the model passes all of them or it is not accepted.", "Tres condiciones × dos objetivos × dos escenarios: el modelo las pasa todas o no se acepta."] },
+      { what: ["Holdout as the main reference.", "El holdout como referencia principal."], why: ["A company in the app was never part of training, exactly like the holdout companies.", "Una empresa en la app nunca estuvo en el entrenamiento, igual que las empresas holdout."] },
+    ],
+    figures: [
+      { value: "12/12", label: ["acceptance checks passed", "comprobaciones de aceptación superadas"] },
+      { value: "−40 %", label: ["income MAE vs. baseline on holdout (23.7 vs. 39.7)", "MAE de ingresos vs. baseline en holdout (23,7 vs. 39,7)"] },
+      { value: "12,3 %", label: ["median normalized error, income (holdout)", "error normalizado mediano, ingresos (holdout)"] },
+      { value: "11,8 %", label: ["median normalized error, expenses (holdout)", "error normalizado mediano, gastos (holdout)"] },
+    ],
+    deliverables: [
+      { file: "docs/04_evaluation_protocol.md", what: ["Scenarios, metrics, acceptance criteria and run-once rule.", "Escenarios, métricas, criterios de aceptación y regla de una sola corrida."] },
+      { file: "docs/04_leakage_review.md", what: ["Leakage and exportability review of Phase 3.", "Revisión de fuga de información y exportabilidad de la Fase 3."] },
+      { file: "docs/04_evaluation_report.md", what: ["Official results and verdict.", "Resultados oficiales y veredicto."] },
+    ],
+    limits: [
+      ["Test error is higher than validation, because it includes the December peak and unseen companies.", "El error de prueba es mayor que el de validación, porque incluye el pico de diciembre y empresas no vistas."],
+      ["Horizons +5 and +6 are 45–70 % worse than +1, although the model beats the baseline at every horizon.", "Los horizontes +5 y +6 son 45–70 % peores que +1, aunque el modelo supera al baseline en todos."],
+      ["Results describe the method on semi-synthetic data, not the accuracy for a specific real company.", "Los resultados describen el método sobre datos semi-sintéticos, no la precisión para una empresa real concreta."],
+    ],
+    result: ["Accepted: 12 of 12 checks. On holdout, income MAE 23.7 vs. 39.7 of the baseline (−40 %); median normalized error 12.3 % in income and 11.8 % in expenses.", "Aceptado: 12 de 12 comprobaciones. En holdout, MAE de ingresos 23,7 vs. 39,7 del baseline (−40 %); error normalizado mediano 12,3 % en ingresos y 11,8 % en gastos."],
   },
   {
-    n: 5, cdio: "I",
+    n: 5,
+    crisp: ["Deployment", "Despliegue"],
     title: ["Integration into the ERP", "Integración en el ERP"],
-    goal: ["Use the evaluated model inside a web ERP that SMEs and accountants can operate.", "Usar el modelo evaluado dentro de un ERP web que pymes y contadores puedan operar."],
-    done: [
-      ["React + TypeScript frontend, Flask + PostgreSQL backend, deployed on Render with Supabase.", "Frontend React + TypeScript, backend Flask + PostgreSQL, desplegado en Render con Supabase."],
-      ["Each forecast stores the model version, its hash and the signature of the history used.", "Cada pronóstico guarda la versión del modelo, su hash y la firma del historial usado."],
-      ["With fewer than 6 months the app offers manual planning instead of inventing a forecast.", "Con menos de 6 meses la app ofrece planificación manual en lugar de inventar un pronóstico."],
+    owner: "Manuel Eduardo Alarcón Aza",
+    question: ["How does the evaluated model reach SMEs and accountants inside a tool they can operate?", "¿Cómo llega el modelo evaluado a las pymes y contadores dentro de una herramienta que puedan operar?"],
+    goal: ["Integrate the evaluated model, byte for byte, into a web ERP with sign-in, roles and isolation per company, and deploy it in the cloud.", "Integrar el modelo evaluado, byte a byte, en un ERP web con inicio de sesión, roles y aislamiento por empresa, y desplegarlo en la nube."],
+    activities: [
+      ["Ported the base ERP into the repository and kept every module, endpoint, table and migration.", "Se trasladó el ERP base al repositorio conservando cada módulo, endpoint, tabla y migración."],
+      ["Built the React + TypeScript frontend and the Flask + PostgreSQL backend, with a REST API under /api/v1.", "Se construyó el frontend en React + TypeScript y el backend en Flask + PostgreSQL, con una API REST en /api/v1."],
+      ["Wrote the inference service: it validates version, hash, features and normalization of the artifact, and walks the trees in pure Python.", "Se escribió el servicio de inferencia: valida versión, hash, variables y normalización del artefacto, y recorre los árboles en Python puro."],
+      ["Connected the flow forecast → plan version → reserve → alerts, where the accountant sets the reserve target.", "Se conectó el flujo pronóstico → versión del plan → reserva → alertas, donde el contador fija la meta de reserva."],
+      ["Configured Docker locally, Supabase as the cloud database, Render for hosting and GitHub Actions for CI.", "Se configuró Docker en local, Supabase como base de datos en la nube, Render para el hosting y GitHub Actions para CI."],
     ],
-    result: ["Forecast → plan → reserve → alerts working online, with roles and isolation per company.", "Pronóstico → plan → reserva → alertas funcionando en línea, con roles y aislamiento por empresa."],
-    docs: "docs/erp/ · backend/model_artifacts/",
+    quality: [
+      ["A test checks that the deployed file has the evaluated SHA-256; the 50 parity cases are replayed in the backend.", "Una prueba verifica que el archivo desplegado tenga el SHA-256 evaluado; los 50 casos de paridad se repiten en el backend."],
+      ["Fewer than 6 months, or a missing or invalid model, return an explicit code and offer manual planning: no forecast is ever invented.", "Menos de 6 meses, o un modelo ausente o inválido, devuelven un código explícito y ofrecen planificación manual: nunca se inventa un pronóstico."],
+      ["Security: Argon2id passwords, HttpOnly cookies, CSRF on every write, roles per company and 403 for another company's data.", "Seguridad: contraseñas con Argon2id, cookies HttpOnly, CSRF en cada escritura, roles por empresa y 403 ante datos de otra empresa."],
+    ],
+    decisions: [
+      { what: ["The server does not use scikit-learn.", "El servidor no usa scikit-learn."], why: ["A JSON artifact and a small predictor keep the deployment light and make the model auditable.", "Un artefacto JSON y un predictor pequeño hacen el despliegue liviano y el modelo auditable."] },
+      { what: ["Every forecast stores model version, hash and history signature.", "Cada pronóstico guarda versión del modelo, hash y firma del historial."], why: ["Any number on screen can be traced back to the exact model and data that produced it.", "Cualquier cifra en pantalla se puede rastrear al modelo y los datos exactos que la produjeron."] },
+      { what: ["Horizon capped at 6 months.", "Horizonte limitado a 6 meses."], why: ["That is the horizon that was evaluated.", "Es el horizonte que se evaluó."] },
+    ],
+    figures: [
+      { value: "49", label: ["endpoints of the ported ERP", "endpoints del ERP trasladado"] },
+      { value: "22", label: ["database tables", "tablas de la base de datos"] },
+      { value: "50", label: ["parity cases replayed in the backend", "casos de paridad repetidos en el backend"] },
+      { value: "3", label: ["roles: admin, accountant, assistant", "roles: administrador, contador, auxiliar"] },
+    ],
+    deliverables: [
+      { file: "docs/erp/", what: ["Architecture, API, deployment, security and traceability against the base ERP.", "Arquitectura, API, despliegue, seguridad y trazabilidad frente al ERP base."] },
+      { file: "backend/model_artifacts/", what: ["The deployed model, identical to the evaluated one.", "El modelo desplegado, idéntico al evaluado."] },
+      { file: "render.yaml", what: ["Blueprint that creates the backend and the frontend on Render.", "Blueprint que crea el backend y el frontend en Render."] },
+    ],
+    limits: [
+      ["Free hosting plan: the first request after inactivity can take about a minute.", "Plan de hosting gratuito: la primera solicitud tras inactividad puede tardar cerca de un minuto."],
+      ["The login rate limiter lives in memory; with several replicas it must move to a shared store.", "El limitador de intentos de inicio de sesión vive en memoria; con varias réplicas debe pasar a un almacén compartido."],
+    ],
+    result: ["The ERP works online: users sign up, load their history, get the 6-month forecast and turn it into a reserve plan with alerts, with roles and isolation per company.", "El ERP funciona en línea: los usuarios se registran, cargan su historial, obtienen el pronóstico a 6 meses y lo convierten en un plan de reserva con alertas, con roles y aislamiento por empresa."],
   },
   {
-    n: 6, cdio: "O",
+    n: 6,
+    crisp: ["Monitoring and maintenance", "Monitoreo y mantenimiento"],
     title: ["Monitoring and operation", "Monitoreo y operación"],
-    goal: ["Detect when the model stops working and define how to act.", "Detectar cuándo el modelo deja de funcionar y definir cómo actuar."],
-    done: [
-      ["Each forecast month is compared with the real value when the month closes.", "Cada mes pronosticado se compara con el valor real cuando el mes cierra."],
-      ["Status normal / watch / degraded against the evaluation reference.", "Estado normal / vigilancia / degradado frente a la referencia de la evaluación."],
-      ["Retraining and rollback procedure; privacy and retention rules.", "Procedimiento de reentrenamiento y reversión; reglas de privacidad y retención."],
+    owner: "Sergio Steeven Moreno Forero",
+    question: ["How do we know when the model stops working, and what do we do then?", "¿Cómo sabemos cuándo el modelo deja de funcionar y qué hacemos entonces?"],
+    goal: ["Compare every forecast with the real value when the month closes, classify the error, and define how to retrain or roll back.", "Comparar cada pronóstico con el valor real cuando cierra el mes, clasificar el error y definir cómo reentrenar o revertir."],
+    activities: [
+      ["Each model forecast stores one row per target and month; when the month closes and its documents exist, the real value and the error are filled in.", "Cada pronóstico del modelo guarda una fila por objetivo y mes; cuando el mes cierra y existen sus documentos, se llenan el valor real y el error."],
+      ["Normalized the error by the company's mean monthly income, the same definition used in the evaluation.", "Se normalizó el error por el ingreso mensual medio de la empresa, la misma definición usada en la evaluación."],
+      ["Compared a 3-month rolling error with the holdout reference (12.34 % income, 11.75 % expenses).", "Se comparó un error móvil de 3 meses con la referencia del holdout (12,34 % ingresos, 11,75 % gastos)."],
+      ["Recorded operational events: outcome and latency of every forecast call.", "Se registraron eventos operativos: resultado y latencia de cada llamada al pronóstico."],
+      ["Wrote the retraining and rollback procedure, the privacy and retention rules, and 15 test cases.", "Se escribió el procedimiento de reentrenamiento y reversión, las reglas de privacidad y retención, y 15 casos de prueba."],
     ],
-    result: ["15 of 15 required test cases passed; backend test suite green in CI.", "15 de 15 casos de prueba requeridos superados; pruebas del backend en verde en CI."],
-    docs: "docs/06_monitoring.md · docs/06_test_cases.md",
+    quality: [
+      ["Thresholds as closed intervals with no gaps: normal (ratio ≤ 1.0), watch (≤ 1.5), degraded (> 1.5).", "Umbrales como intervalos cerrados sin huecos: normal (razón ≤ 1,0), vigilancia (≤ 1,5), degradado (> 1,5)."],
+      ["Monitoring only observes: it never changes the model or the stored forecasts.", "El monitoreo solo observa: nunca cambia el modelo ni los pronósticos guardados."],
+      ["15 of 15 required cases passed, including persistence across a Render redeploy.", "15 de 15 casos requeridos superados, incluida la persistencia tras un redespliegue en Render."],
+    ],
+    decisions: [
+      { what: ["Review after 2 consecutive degraded months.", "Revisión tras 2 meses seguidos degradado."], why: ["One bad month is expected: horizons +5 and +6 are naturally worse.", "Un mes malo es esperable: los horizontes +5 y +6 son naturalmente peores."] },
+      { what: ["Retrain the global model if 20 % or more of the companies degrade together.", "Reentrenar el modelo global si 20 % o más de las empresas se degradan a la vez."], why: ["That points to drift affecting everyone, not to one company.", "Eso indica una deriva que afecta a todos, no a una sola empresa."] },
+      { what: ["Every model version is kept in Git with its hash.", "Cada versión del modelo se guarda en Git con su hash."], why: ["A rollback restores the previous file and checks it against its evaluation report.", "Una reversión restaura el archivo anterior y lo verifica contra su informe de evaluación."] },
+    ],
+    figures: [
+      { value: "3", label: ["months of rolling error", "meses de error móvil"] },
+      { value: "1,0 · 1,5", label: ["watch and degraded thresholds (× reference)", "umbrales de vigilancia y degradado (× referencia)"] },
+      { value: "15/15", label: ["required test cases passed", "casos de prueba requeridos superados"] },
+      { value: "24", label: ["months of monitoring data kept", "meses de datos de monitoreo conservados"] },
+    ],
+    deliverables: [
+      { file: "docs/06_monitoring.md", what: ["Reference error, thresholds, tables and where monitoring is shown.", "Error de referencia, umbrales, tablas y dónde se muestra el monitoreo."] },
+      { file: "docs/06_retraining_and_rollback.md", what: ["When to act, who decides, how to retrain and how to roll back.", "Cuándo actuar, quién decide, cómo reentrenar y cómo revertir."] },
+      { file: "docs/06_test_cases.md · 06_privacy_and_retention.md", what: ["The 15 test cases, and privacy and retention rules.", "Los 15 casos de prueba, y las reglas de privacidad y retención."] },
+    ],
+    limits: [
+      ["The reference comes from semi-synthetic data; with real companies it may need recalibration.", "La referencia viene de datos semi-sintéticos; con empresas reales puede requerir recalibración."],
+      ["Monitoring cannot tell a real change in the business from a data entry error; the accountant checks the data first.", "El monitoreo no distingue un cambio real del negocio de un error de digitación; el contador revisa primero los datos."],
+    ],
+    result: ["Each company shows a monitoring status (normal, watch or degraded) against the evaluation reference, with a documented path to retrain or roll back the model.", "Cada empresa muestra un estado de monitoreo (normal, vigilancia o degradado) frente a la referencia de la evaluación, con un camino documentado para reentrenar o revertir el modelo."],
   },
 ];
 
-const CDIO_LABEL: Record<string, [string, string]> = {
-  C: ["Conceive", "Concebir"],
-  D: ["Design", "Diseñar"],
-  I: ["Implement", "Implementar"],
-  O: ["Operate", "Operar"],
-};
+const DetailHeading = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="lp-detail-heading">
+    <span>{icon}</span>
+    {children}
+  </div>
+);
 
 const PhasesView = ({ lang }: { lang: Lang }) => {
   const [active, setActive] = useState(1);
   const phase = PHASES.find((p) => p.n === active) ?? PHASES[0];
-  const t = (pair: [string, string]) => (lang === "es" ? pair[1] : pair[0]);
+  const t = (pair: Pair) => (lang === "es" ? pair[1] : pair[0]);
+  const go = (n: number) => {
+    setActive(n);
+    document.getElementById("phase-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   return (
     <>
       <section className="lp-page-head">
@@ -371,8 +569,8 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
           <p className="lp-hero-lead" style={{ maxWidth: 760 }}>
             {pick(
               lang,
-              "Six phases with a fixed order: the criterion was set before modeling and the protocol before evaluating. Each phase left a document in the repository.",
-              "Seis fases con un orden fijo: el criterio se definió antes de modelar y el protocolo antes de evaluar. Cada fase dejó un documento en el repositorio.",
+              "The project follows CRISP-ML(Q), the CRISP-DM process model adapted to machine learning with quality assurance at every phase. The criterion was set before modeling and the protocol before evaluating, and each phase left a document in the repository.",
+              "El proyecto sigue CRISP-ML(Q), el modelo de proceso CRISP-DM adaptado a machine learning con aseguramiento de calidad en cada fase. El criterio se definió antes de modelar y el protocolo antes de evaluar, y cada fase dejó un documento en el repositorio.",
             )}
           </p>
         </div>
@@ -384,50 +582,107 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
             <button key={p.n} type="button" role="tab" aria-selected={p.n === active} onClick={() => setActive(p.n)} className={p.n === active ? "lp-phase-step lp-phase-step-active" : "lp-phase-step"}>
               <span className="lp-phase-num">{p.n}</span>
               <span className="lp-phase-name">{t(p.title)}</span>
-              <span className="lp-phase-cdio">{t(CDIO_LABEL[p.cdio])}</span>
+              <span className="lp-phase-cdio">CRISP-ML(Q) · {t(p.crisp)}</span>
             </button>
           ))}
         </div>
 
-        <div className="lp-phase-detail" role="tabpanel">
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <span className="lp-chip">{pick(lang, "Phase", "Fase")} {phase.n}</span>
-              <span className="lp-chip">CDIO · {t(CDIO_LABEL[phase.cdio])}</span>
+        <article id="phase-detail" className="lp-phase-article" role="tabpanel">
+          <header className="lp-phase-header">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span className="lp-chip">{pick(lang, "Phase", "Fase")} {phase.n} / {PHASES.length}</span>
+              <span className="lp-chip">CRISP-ML(Q) · {t(phase.crisp)}</span>
+              <span className="lp-chip lp-chip-outline"><Users size={12} /> {pick(lang, "Owner", "Responsable")}: {phase.owner}</span>
             </div>
-            <h2 style={{ fontSize: 26, fontWeight: 800, color: C.ink, margin: "6px 0 10px", letterSpacing: "-0.02em" }}>{t(phase.title)}</h2>
-            <p style={{ fontSize: 15, lineHeight: 1.65, color: C.muted, margin: 0 }}>{t(phase.goal)}</p>
-            <div style={{ marginTop: 22, fontSize: 12, fontWeight: 700, color: C.g700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{pick(lang, "What was done", "Qué se hizo")}</div>
-            <ul className="lp-list">
-              {phase.done.map((item) => (
-                <li key={item[0]}><CheckCircle2 size={16} color={C.g600} style={{ flexShrink: 0, marginTop: 2 }} /> <span>{t(item)}</span></li>
+            <h2 className="lp-phase-title">{t(phase.title)}</h2>
+            <p className="lp-phase-goal">{t(phase.goal)}</p>
+            <div className="lp-question">
+              <span className="lp-question-label">{pick(lang, "Key question", "Pregunta clave")}</span>
+              {t(phase.question)}
+            </div>
+          </header>
+
+          <div className="lp-figures">
+            {phase.figures.map((figure) => (
+              <div key={figure.value + figure.label[0]} className="lp-figure">
+                <div className="lp-figure-value">{figure.value}</div>
+                <div className="lp-figure-label">{t(figure.label)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="lp-phase-columns">
+            <section>
+              <DetailHeading icon={<ClipboardList size={16} />}>{pick(lang, "What was done", "Qué se hizo")}</DetailHeading>
+              <ol className="lp-steps">
+                {phase.activities.map((item) => <li key={item[0]}>{t(item)}</li>)}
+              </ol>
+            </section>
+            <section>
+              <DetailHeading icon={<ShieldCheck size={16} />}>{pick(lang, "Quality assurance", "Aseguramiento de calidad")}</DetailHeading>
+              <ul className="lp-list" style={{ marginTop: 0 }}>
+                {phase.quality.map((item) => (
+                  <li key={item[0]}><CheckCircle2 size={16} color={C.g600} style={{ flexShrink: 0, marginTop: 2 }} /> <span>{t(item)}</span></li>
+                ))}
+              </ul>
+            </section>
+          </div>
+
+          <section style={{ marginTop: 28 }}>
+            <DetailHeading icon={<Target size={16} />}>{pick(lang, "Key decisions and why", "Decisiones clave y por qué")}</DetailHeading>
+            <div className="lp-decisions">
+              {phase.decisions.map((decision) => (
+                <div key={decision.what[0]} className="lp-decision">
+                  <div className="lp-decision-what">{t(decision.what)}</div>
+                  <div className="lp-decision-why">{t(decision.why)}</div>
+                </div>
               ))}
-            </ul>
+            </div>
+          </section>
+
+          <div className="lp-phase-columns" style={{ marginTop: 28 }}>
+            <section>
+              <DetailHeading icon={<FileText size={16} />}>{pick(lang, "Deliverables", "Entregables")}</DetailHeading>
+              <ul className="lp-deliverables">
+                {phase.deliverables.map((item) => (
+                  <li key={item.file}>
+                    <code>{item.file}</code>
+                    <span>{t(item.what)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section>
+              <DetailHeading icon={<Flag size={16} />}>{pick(lang, "Limits", "Limitaciones")}</DetailHeading>
+              <ul className="lp-limits">
+                {phase.limits.map((item) => <li key={item[0]}>{t(item)}</li>)}
+              </ul>
+            </section>
           </div>
-          <div className="lp-result">
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: C.g300, textTransform: "uppercase", letterSpacing: "0.08em" }}><Target size={14} /> {pick(lang, "Result", "Resultado")}</div>
-            <p style={{ fontSize: 16, lineHeight: 1.6, margin: "10px 0 18px", color: C.white }}>{t(phase.result)}</p>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{pick(lang, "Documents", "Documentos")}</div>
-            <code style={{ fontSize: 12, color: C.g200, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{phase.docs}</code>
-            <div style={{ display: "flex", gap: 8, marginTop: 22 }}>
-              <button type="button" className="lp-btn lp-btn-ghost-light" disabled={active === 1} onClick={() => setActive((n) => Math.max(1, n - 1))} style={{ opacity: active === 1 ? 0.4 : 1 }}>{pick(lang, "Previous", "Anterior")}</button>
-              <button type="button" className="lp-btn lp-btn-ghost-light" disabled={active === PHASES.length} onClick={() => setActive((n) => Math.min(PHASES.length, n + 1))} style={{ opacity: active === PHASES.length ? 0.4 : 1 }}>{pick(lang, "Next", "Siguiente")}</button>
+
+          <div className="lp-result" style={{ marginTop: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: C.g300, textTransform: "uppercase", letterSpacing: "0.08em" }}><Target size={14} /> {pick(lang, "Result of the phase", "Resultado de la fase")}</div>
+            <p style={{ fontSize: 17, lineHeight: 1.6, margin: "10px 0 18px", color: C.white }}>{t(phase.result)}</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="lp-btn lp-btn-ghost-light" disabled={active === 1} onClick={() => go(Math.max(1, active - 1))} style={{ opacity: active === 1 ? 0.4 : 1 }}>{pick(lang, "Previous phase", "Fase anterior")}</button>
+              <button type="button" className="lp-btn lp-btn-ghost-light" disabled={active === PHASES.length} onClick={() => go(Math.min(PHASES.length, active + 1))} style={{ opacity: active === PHASES.length ? 0.4 : 1 }}>{pick(lang, "Next phase", "Fase siguiente")}</button>
             </div>
           </div>
-        </div>
+        </article>
       </Section>
 
       <Section tone="tint">
         <Eyebrow>{pick(lang, "All phases at a glance", "Todas las fases de un vistazo")}</Eyebrow>
         <div className="lp-timeline">
           {PHASES.map((p) => (
-            <div key={p.n} className="lp-timeline-item">
+            <button key={p.n} type="button" className="lp-timeline-item" onClick={() => go(p.n)}>
               <span className="lp-timeline-dot">{p.n}</span>
               <div>
                 <div style={{ fontWeight: 700, color: C.ink, fontSize: 15 }}>{t(p.title)}</div>
+                <div style={{ fontSize: 12, color: C.g700, fontWeight: 600, marginTop: 2 }}>CRISP-ML(Q) · {t(p.crisp)} · {p.owner}</div>
                 <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.55, marginTop: 4 }}>{t(p.result)}</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </Section>
@@ -437,12 +692,17 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
 
 // ─── PGC (Anexo 1 format of the Faculty of Engineering) ──────────────────────
 
-/** Fill in Sede and Ciclo here when they are confirmed; empty values are shown as pending. */
+/** Data of the PGC proposal (Annex 1). An empty value is shown as pending. */
 export const PGC_INFO = {
   program: "Ingeniería de Sistemas y Computación",
-  campus: "",
-  cycle: "",
-  members: ["Jonathan Alejandro Yacuma Rivera", "Manuel Eduardo Alarcón Aza"],
+  campus: "Extensión Chía",
+  cycle: "Ciclo II · Profundización (VI semestre)",
+  members: [
+    "Jonathan Alejandro Yacuma Rivera",
+    "Manuel Eduardo Alarcón Aza",
+    "Sergio Steeven Moreno Forero",
+    "Samuel Castellanos Rivera",
+  ],
 };
 
 const PgcRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -478,12 +738,6 @@ const PgcView = ({ lang }: { lang: Lang }) => {
     ["Course creation", "Creación de cursos", false],
     ["Entrepreneurship and innovation", "Emprendimiento e innovación", false],
   ];
-  const cdio: Array<{ k: string; phases: string; text: [string, string] }> = [
-    { k: "C", phases: "1", text: ["Problem, users, metric and success criterion.", "Problema, usuarios, métrica y criterio de éxito."] },
-    { k: "D", phases: "2 – 3", text: ["Reproducible dataset, features and model selection.", "Dataset reproducible, variables y selección del modelo."] },
-    { k: "I", phases: "4 – 5", text: ["Official evaluation and integration into the web ERP.", "Evaluación oficial e integración en el ERP web."] },
-    { k: "O", phases: "6", text: ["Deployment, monitoring, retraining and rollback.", "Despliegue, monitoreo, reentrenamiento y reversión."] },
-  ];
   const t = (pair: [string, string]) => (lang === "es" ? pair[1] : pair[0]);
   return (
     <>
@@ -510,13 +764,15 @@ const PgcView = ({ lang }: { lang: Lang }) => {
               {pick(lang, "Technological project: software product and information system.", "Proyecto tecnológico: producto de software y sistema de información.")}
             </PgcRow>
             <PgcRow label={pick(lang, "Cycle", "Ciclo")}>{PGC_INFO.cycle || pending}</PgcRow>
+            <PgcRow label={pick(lang, "Articulating CADI", "CADI articulador")}>
+              Machine Learning
+            </PgcRow>
             <PgcRow label={pick(lang, "Research line", "Línea de investigación")}>
               {pick(lang, "Learning, knowledge, technologies, communication and digitalization (Agreement 09 of 2021).", "Aprendizaje, conocimiento, tecnologías, comunicación y digitalización (Acuerdo 09 de 2021).")}
             </PgcRow>
           </PgcBlock>
 
           <PgcBlock icon={<Users size={18} />} title={pick(lang, "Project members", "Integrantes del proyecto")}>
-            <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px" }}>{pick(lang, "Groups of 2 students, as required by item 6 of the protocol.", "Grupos de 2 estudiantes, como pide el ítem 6 del protocolo.")}</p>
             {PGC_INFO.members.map((name) => (
               <div key={name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: `1px solid ${C.line}` }}>
                 <span className="lp-avatar">{name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
@@ -566,14 +822,13 @@ const PgcView = ({ lang }: { lang: Lang }) => {
           </PgcBlock>
 
           <PgcBlock icon={<Cpu size={18} />} title={pick(lang, "Methodology and development schedule", "Metodología a utilizar y cronograma de desarrollo")}>
-            <p className="lp-p">{pick(lang, "CDIO methodology (Conceive, Design, Implement, Operate), suggested by item 1 of the protocol for technological projects. The six project phases map onto it:", "Metodología CDIO (Concebir, Diseñar, Implementar, Operar), sugerida por el ítem 1 del protocolo para proyectos tecnológicos. Las seis fases del proyecto se ubican así:")}</p>
-            <div className="lp-cdio">
-              {cdio.map((step) => (
-                <div key={step.k} className="lp-cdio-item">
-                  <div className="lp-cdio-letter">{step.k}</div>
-                  <div style={{ fontWeight: 700, color: C.ink }}>{t(CDIO_LABEL[step.k])}</div>
-                  <div style={{ fontSize: 12, color: C.g700, fontWeight: 600, margin: "2px 0 6px" }}>{pick(lang, "Phases", "Fases")} {step.phases}</div>
-                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{t(step.text)}</div>
+            <p className="lp-p">{pick(lang, "CRISP-ML(Q) (Studer et al., 2021): the CRISP-DM process model adapted to machine learning, with quality assurance in every phase. Item 1 of the protocol lets the project propose its own strategy when it shows a strict engineering process; CRISP-ML(Q) is the standard process for machine learning projects and each phase closes with a verifiable deliverable.", "CRISP-ML(Q) (Studer et al., 2021): el modelo de proceso CRISP-DM adaptado a machine learning, con aseguramiento de calidad en cada fase. El ítem 1 del protocolo permite proponer una estrategia propia que evidencie un proceso estricto de ingeniería; CRISP-ML(Q) es el proceso estándar para proyectos de machine learning y cada fase cierra con un entregable verificable.")}</p>
+            <div className="lp-crisp">
+              {PHASES.map((p) => (
+                <div key={p.n} className="lp-cdio-item">
+                  <div className="lp-cdio-letter">{p.n}</div>
+                  <div style={{ fontWeight: 700, color: C.ink }}>{t(p.crisp)}</div>
+                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, marginTop: 6 }}>{t(p.goal)}</div>
                 </div>
               ))}
             </div>
@@ -617,6 +872,7 @@ const PgcView = ({ lang }: { lang: Lang }) => {
 
           <PgcBlock icon={<LineChart size={18} />} title={pick(lang, "References", "Referencias bibliográficas")}>
             <ul className="lp-refs">
+              <li>Studer, S., Bui, T. B., Drescher, C., Hanuschkin, A., Winkler, L., Peters, S., &amp; Müller, K.-R. (2021). Towards CRISP-ML(Q): A machine learning process model with quality assurance methodology. <em>Machine Learning and Knowledge Extraction, 3</em>(2), 392–413.</li>
               <li>Breiman, L. (2001). Random forests. <em>Machine Learning, 45</em>(1), 5–32.</li>
               <li>Davenport, T. H., &amp; Prusak, L. (1998). <em>Working knowledge</em>. Harvard Business School Press.</li>
               <li>Gama, J., Žliobaitė, I., Bifet, A., Pechenizkiy, M., &amp; Bouchachia, A. (2014). A survey on concept drift adaptation. <em>ACM Computing Surveys, 46</em>(4).</li>
