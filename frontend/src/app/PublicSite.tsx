@@ -941,6 +941,7 @@ const FormError = ({ message }: { message: string }) => (
 const LoginForm = ({ lang, onAuthenticated, onView, backendOnline, backendChecked }: { lang: Lang; onAuthenticated: (u: SessionUser) => void; onView: (v: PublicView) => void; backendOnline: boolean; backendChecked: boolean }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const submit = async (event: React.FormEvent) => {
@@ -964,7 +965,11 @@ const LoginForm = ({ lang, onAuthenticated, onView, backendOnline, backendChecke
         </div>
         <div style={{ marginBottom: 20 }}>
           <Label htmlFor="lp-password">{pick(lang, "Password", "Contraseña")}</Label>
-          <input id="lp-password" className="lp-input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input id="lp-password" className="lp-input" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12.5, color: "#4E5F57", cursor: "pointer" }}>
+            <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+            {pick(lang, "Show password", "Mostrar contraseña")}
+          </label>
         </div>
         {message && <FormError message={message} />}
         <PrimaryButton type="submit" disabled={loading} full>
@@ -989,6 +994,7 @@ const RegisterForm = ({ lang, onAuthenticated, onView, backendOnline, backendChe
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [confirm, setConfirm] = useState("");
   const [withCompany, setWithCompany] = useState(true);
   const [companyName, setCompanyName] = useState("");
@@ -1039,12 +1045,18 @@ const RegisterForm = ({ lang, onAuthenticated, onView, backendOnline, backendChe
         <div className="lp-form-2">
           <div>
             <Label htmlFor="rg-pass">{pick(lang, "Password (min. 10)", "Contraseña (mín. 10)")}</Label>
-            <input id="rg-pass" className="lp-input" type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input id="rg-pass" className="lp-input" type={showPassword ? "text" : "password"} required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           <div>
             <Label htmlFor="rg-pass2">{pick(lang, "Confirm password", "Confirmar contraseña")}</Label>
-            <input id="rg-pass2" className="lp-input" type="password" required minLength={10} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <input id="rg-pass2" className="lp-input" type={showPassword ? "text" : "password"} required minLength={10} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </div>
+        </div>
+        <div style={{ marginTop: -6, marginBottom: 12 }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12.5, color: "#4E5F57", cursor: "pointer" }}>
+            <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+            {pick(lang, "Show password", "Mostrar contraseña")}
+          </label>
         </div>
 
         <div className="lp-segment" role="radiogroup" aria-label={pick(lang, "Company", "Empresa")}>
