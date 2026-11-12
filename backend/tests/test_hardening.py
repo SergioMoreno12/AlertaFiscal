@@ -234,22 +234,25 @@ def test_unknown_email_and_wrong_password_get_the_same_answer(client):
     assert unknown.get_json()["error"]["code"] == wrong.get_json()["error"]["code"] == "invalid_credentials"
 
 
-def test_login_works_with_a_fresh_token_while_a_stale_session_cookie_remains(client):
+def test_login_works_with_a_fresh_token_while_a_stale_session_cookie_remains(app, client):
     """A failed logout leaves the session cookie; the page has lost its token and must still sign in."""
     first = client.get("/api/v1/auth/csrf").get_json()["csrf_token"]
     login = client.post("/api/v1/auth/login", json={"email": "b@example.com", "password": "Password12345"},
                         headers={"X-CSRF-Token": first})
     assert login.status_code == 200
 
-    fresh = client.get("/api/v1/auth/csrf").get_json()["csrf_token"]  # not bound to the live session
+    fresh = client.get("/api/v1/auth/csrf").get_json()["csrf_token"]
     again = client.post("/api/v1/auth/login", json={"email": "b@example.com", "password": "Password12345"},
                         headers={"X-CSRF-Token": fresh})
     assert again.status_code == 200
 
-    # Other writes stay bound to the session token; logout accepts a fresh signed token.
-    unbound = client.get("/api/v1/auth/csrf").get_json()["csrf_token"]
+    # Other writes stay bound to the session: a signed token that this session did not ask
+    # for (here, one issued to another browser and planted as the cookie) is rejected.
+    unbound = app.test_client().get("/api/v1/auth/csrf").get_json()["csrf_token"]
+    client.set_cookie(app.config["CSRF_COOKIE_NAME"], unbound)
     blocked = client.post("/api/v1/companies/2/alerts", json={"title": "x"}, headers={"X-CSRF-Token": unbound})
     assert blocked.status_code == 403
+    # Logout only needs the signed token in the header and the cookie.
     allowed = client.post("/api/v1/auth/logout", headers={"X-CSRF-Token": unbound})
     assert allowed.status_code == 200
     assert client.get("/api/v1/auth/me").status_code == 401

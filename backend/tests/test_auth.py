@@ -34,3 +34,14 @@ def test_logout_revokes_session(auth):
 
 def test_me_requires_session(client):
     assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def test_new_csrf_token_works_for_the_current_session(auth):
+    """After a page reload the client asks for a new token; writes must keep working."""
+    client = auth["client"]
+    fresh = client.get("/api/v1/auth/csrf").get_json()["csrf_token"]
+    assert fresh != auth["csrf"]
+    stale = client.post("/api/v1/companies/1/alerts/evaluate", headers={"X-CSRF-Token": auth["csrf"]})
+    assert stale.status_code == 403
+    ok = client.post("/api/v1/companies/1/alerts/evaluate", headers={"X-CSRF-Token": fresh})
+    assert ok.status_code == 200

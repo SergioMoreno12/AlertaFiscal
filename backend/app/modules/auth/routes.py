@@ -70,6 +70,15 @@ def _serialize_user(user: User, memberships) -> dict:
 @auth_bp.get("/csrf")
 def csrf():
     token = new_csrf_token()
+    # A page reload loses the token kept in memory, and on a separate frontend domain
+    # the page cannot read the cookie either. Bind the new token to the current session
+    # so the next write is accepted instead of failing until the user logs in again.
+    session = getattr(g, "session_row", None)
+    if session is not None:
+        from ...security import _hash_token
+
+        session.csrf_hash = _hash_token(token)
+        db.session.commit()
     response = jsonify({"csrf_token": token})
     return set_csrf_cookie(response, token)
 

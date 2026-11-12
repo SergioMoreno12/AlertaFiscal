@@ -38,6 +38,29 @@ const cleanAmount = (raw: string) => raw.replace(/[^\d.,]/g, "").replace(/\./g, 
 // ─── Monthly data ────────────────────────────────────────────────────────────
 
 type Row = { month: string; income: string; expenses: string; locked: boolean; saved?: MonthlyTotal };
+type Draft = Record<string, { income: string; expenses: string }>;
+
+// Unsaved months are kept for the browser session, so a failed save, a reload or a change
+// of screen does not throw away what the user typed.
+const draftKey = (companyId: number) => `af_monthly_draft_${companyId}`;
+
+const readDraft = (companyId: number): Draft => {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(draftKey(companyId)) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Draft) : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeDraft = (companyId: number, draft: Draft) => {
+  try {
+    if (Object.keys(draft).length === 0) sessionStorage.removeItem(draftKey(companyId));
+    else sessionStorage.setItem(draftKey(companyId), JSON.stringify(draft));
+  } catch {
+    // Storage can be unavailable (private window): the form still works without the draft.
+  }
+};
 
 export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId: number | null; companyName: string; onNav: (screen: "proyecciones") => void }) => {
   const [items, setItems] = useState<MonthlyTotal[]>([]);
@@ -73,6 +96,7 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
   useEffect(() => {
     const lastClosed = addMonths(currentPeriod(), -1);
     const byMonth = new Map(items.map((item) => [item.month, item]));
+    const draft = companyId ? readDraft(companyId) : {};
     const earliestRecorded = items.length ? items[0].month : lastClosed;
     let first = addMonths(lastClosed, -(11 + extra));
     if (earliestRecorded < first) first = earliestRecorded;
@@ -80,16 +104,17 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
     for (let month = lastClosed; month >= first; month = addMonths(month, -1)) {
       const saved = byMonth.get(month);
       const hasOtherRecords = Boolean(saved && !saved.from_monthly_form && (num(saved.income) > 0 || num(saved.expenses) > 0));
+      const typed = hasOtherRecords ? undefined : draft[month];
       next.push({
         month,
-        income: saved && (saved.from_monthly_form || hasOtherRecords) ? String(Math.round(num(saved.income))) : "",
-        expenses: saved && (saved.from_monthly_form || hasOtherRecords) ? String(Math.round(num(saved.expenses))) : "",
+        income: typed ? typed.income : saved && (saved.from_monthly_form || hasOtherRecords) ? String(Math.round(num(saved.income))) : "",
+        expenses: typed ? typed.expenses : saved && (saved.from_monthly_form || hasOtherRecords) ? String(Math.round(num(saved.expenses))) : "",
         locked: hasOtherRecords,
         saved,
       });
     }
     setRows(next);
-  }, [items, extra]);
+  }, [items, extra, companyId]);
 
   const update = (month: string, field: "income" | "expenses", value: string) =>
     setRows((current) => current.map((row) => (row.month === month ? { ...row, [field]: cleanAmount(value) } : row)));
@@ -101,6 +126,13 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
     return !before || Math.round(num(before.income)) !== Math.round(num(row.income)) || Math.round(num(before.expenses)) !== Math.round(num(row.expenses));
   });
 
+  const dirtyKey = dirty.map((row) => `${row.month}:${row.income}:${row.expenses}`).join("|");
+  useEffect(() => {
+    if (!companyId || loading || rows.length === 0) return;
+    writeDraft(companyId, Object.fromEntries(dirty.map((row) => [row.month, { income: row.income, expenses: row.expenses }])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, loading, dirtyKey]);
+
   const save = async () => {
     if (!companyId || dirty.length === 0) return;
     setSaving(true);
@@ -111,6 +143,7 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
         companyId,
         dirty.map((row) => ({ month: row.month, income: row.income || "0", expenses: row.expenses || "0" })),
       );
+      writeDraft(companyId, {});
       setItems(data.items);
       setClosedMonths(data.closed_months);
       setNotice(`${dirty.length} month(s) saved. They are part of the company history now.`);
@@ -164,13 +197,16 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
           <div style={{ fontSize: 12, fontWeight: 700, color: "#66786F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>How it is used</div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: "#33433B", lineHeight: 1.7 }}>
             <li>Each month is saved as one income record and one expense record of the company.</li>
-            <li>The <MlBadge size="sm" /> forecast reads these months; the month in progress is not used until it closes.</li>
+            <li>The forecast reads these months; the month in progress is not used until it closes. <MlBadge size="sm" /></li>
             <li>Months recorded document by document are shown locked: edit them in Income and Expenses.</li>
           </ul>
         </Card>
       </div>
 
-      {error && <InlineError message={error} onRetry={() => setReloadKey((k) => k + 1)} />}
+      {error && <InlineError message={error} onRetry={dirty.length ? save : () => setReloadKey((k) => k + 1)} />}
+      {!error && !notice && !loading && dirty.length > 0 && (
+        <div role="status" style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", color: "#8A6400", fontSize: 12.5, fontWeight: 600 }}>{`${dirty.length} month(s) not saved yet. Press Save to add them to the history.`}</div>
+      )}
       {notice && (
         <div role="status" style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#E3F1E8", border: "1px solid #C8E4D3", color: "#154D33", fontSize: 12.5, fontWeight: 600 }}>{notice}</div>
       )}
@@ -207,10 +243,10 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
                   <tr key={row.month} style={{ borderTop: "1px solid #EEF2F0" }}>
                     <td style={{ padding: "8px 14px", fontWeight: 600, color: "#1E2B25", whiteSpace: "nowrap" }}>{monthLabel(row.month)}</td>
                     <td style={{ padding: "6px 14px" }}>
-                      <input aria-label={`Income ${row.month}`} inputMode="numeric" value={row.income} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "income", e.target.value)} style={cellInput} />
+                      <input aria-label={`Income · ${monthLabel(row.month)}`} inputMode="numeric" value={row.income} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "income", e.target.value)} style={cellInput} />
                     </td>
                     <td style={{ padding: "6px 14px" }}>
-                      <input aria-label={`Expenses ${row.month}`} inputMode="numeric" value={row.expenses} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "expenses", e.target.value)} style={cellInput} />
+                      <input aria-label={`Expenses · ${monthLabel(row.month)}`} inputMode="numeric" value={row.expenses} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "expenses", e.target.value)} style={cellInput} />
                     </td>
                     <td style={{ padding: "8px 14px", textAlign: "right", fontWeight: 600, color: !filled ? "#9AABA2" : result < 0 ? "#B3261E" : "#1B5E3F", whiteSpace: "nowrap" }}>{filled ? fmt(result) : "—"}</td>
                     <td style={{ padding: "8px 14px", fontSize: 12, color: "#66786F", whiteSpace: "nowrap" }}>

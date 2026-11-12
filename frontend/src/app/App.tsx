@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip,
-  LineChart, Line, CartesianGrid, Legend,
+  LineChart, Line, CartesianGrid, Legend, ComposedChart, Area,
 } from "recharts";
 import {
   LayoutDashboard, Bell, FileText, ShoppingCart, TrendingUp,
@@ -44,6 +44,7 @@ import {
   getAlert,
   getCompanies,
   getDashboard,
+  getMonthlyTotals,
   getPlan,
   listAlerts,
   getMonitoring,
@@ -585,7 +586,7 @@ const ResumenScreen = ({
       {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading company data…</div>}
       {error && (
         <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#FBECEA", border: "1px solid #F2C9C4", color: "#B3261E", fontSize: 12 }}>
-          {error} · <button onClick={() => setReloadKey((key) => key + 1)} style={{ border: "none", background: "none", color: "#B3261E", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>retry</button>
+          {error} · <button onClick={() => setReloadKey((key) => key + 1)} style={{ border: "none", background: "none", color: "#B3261E", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>Retry</button>
         </div>
       )}
 
@@ -1547,6 +1548,22 @@ const GastosScreen = ({
 const modelLabel = (name: string) =>
   ({ seasonal_naive: "Seasonal naive (lag-12)", linear_regression: "Linear regression", random_forest: "Random Forest" } as Record<string, string>)[name] ?? name;
 
+// Typical error of the global model on companies it never saw, as a share of the company's
+// average month (Phase 4 official run, holdout test, median normalized MAE:
+// docs/04_evaluation_report.md). Half of the evaluated companies had a smaller error.
+const TYPICAL_ERROR_PCT = { income: 12.34, expenses: 11.75 };
+
+/** "nov. 26": the forecast crosses the year, so a month alone is ambiguous. */
+const monthWithYear = (period: string) => `${shortMonth(period)} ${period.slice(2, 4)}`;
+
+const longMonth = (period: string) => {
+  const [year, month] = period.split("-").map(Number);
+  if (!year || !month) return period;
+  return new Date(year, month - 1, 1).toLocaleDateString(uiLocale(), { month: "long", year: "numeric" });
+};
+
+const pct1 = (value: number) => value.toLocaleString(uiLocale(), { maximumFractionDigits: 1 });
+
 const ProyeccionesScreen = ({
   onNav,
   companyId,
@@ -1576,13 +1593,18 @@ const ProyeccionesScreen = ({
     }
     let alive = true;
     setLoadingContext(true);
-    Promise.all([getDashboard(companyId), listForecasts(companyId)])
-      .then(([dashboard, runs]) => {
+    // Every recorded month (the dashboard only carries the last six), so the table and the
+    // chart show the same history the model read.
+    const recorded: Promise<Array<{ month: string; income: string | number; expenses: string | number }>> = getMonthlyTotals(companyId)
+      .then((data) => data.items)
+      .catch(() => getDashboard(companyId).then((dashboard) => dashboard.monthly));
+    Promise.all([recorded, listForecasts(companyId)])
+      .then(([points, runs]) => {
         if (!alive) return;
         setHistory(
-          dashboard.monthly.map((point) => ({
+          points.map((point) => ({
             month: point.month,
-            mes: shortMonth(point.month),
+            mes: monthWithYear(point.month),
             ingresos: num(point.income),
             gastos: num(point.expenses),
           })),
@@ -1613,6 +1635,8 @@ const ProyeccionesScreen = ({
             trained_at: latest.trained_at,
             stale_inputs: latest.stale_inputs,
             is_demo: latest.is_demo,
+            scope: latest.scope,
+            artifact_sha256: latest.artifact_sha256,
             data_provenance: latest.data_provenance,
             estimated: true,
             disclaimer: "Planning forecast for guidance only. It is not an official tax assessment.",
@@ -1668,11 +1692,24 @@ const ProyeccionesScreen = ({
   const models = result?.models ?? {};
   // Only closed months before the forecast start are history; a month in progress would look like a drop.
   const firstForecast = monthly[0]?.month;
-  const pastHistory = firstForecast ? history.filter((point) => point.month < firstForecast) : history;
+  const pastHistory = (firstForecast ? history.filter((point) => point.month < firstForecast) : history).slice(-12);
+  // The typical error is a share of the company's average month, so the range has the same
+  // width in every forecast month.
+  const average = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
+  const incomeMargin = (average(pastHistory.map((point) => point.ingresos)) * TYPICAL_ERROR_PCT.income) / 100;
+  const expensesMargin = (average(pastHistory.map((point) => point.gastos)) * TYPICAL_ERROR_PCT.expenses) / 100;
+  const showRange = result?.scope === "global" && incomeMargin > 0;
+  const lastRecorded = pastHistory[pastHistory.length - 1];
+  const firstMonth = monthly[0];
+  const incomeChange = firstMonth && lastRecorded && lastRecorded.ingresos > 0
+    ? ((num(firstMonth.projected_income) - lastRecorded.ingresos) / lastRecorded.ingresos) * 100
+    : null;
+  const runIndex = result?.id != null ? savedRuns.findIndex((run) => run.id === result.id) : -1;
+  const runLabel = runIndex >= 0 ? `Run ${savedRuns.length - runIndex} of this company` : "Latest run";
   const tableRows = [
     ...pastHistory.map((point) => ({ mes: point.mes, ingresos: point.ingresos, gastos: point.gastos, tipo: "Recorded" })),
     ...monthly.map((point) => ({
-      mes: shortMonth(point.month),
+      mes: monthWithYear(point.month),
       ingresos: num(point.projected_income),
       gastos: num(point.projected_expenses),
       tipo: "Forecast",
@@ -1680,7 +1717,7 @@ const ProyeccionesScreen = ({
   ];
 
   // The last recorded month also starts the dashed forecast lines, so both segments join.
-  const chartRows: Array<Record<string, string | number | null>> = pastHistory.map((point, index) => ({
+  const chartRows: Array<Record<string, string | number | number[] | null>> = pastHistory.map((point, index) => ({
     mes: point.mes,
     "Recorded income": point.ingresos,
     "Recorded expenses": point.gastos,
@@ -1689,9 +1726,12 @@ const ProyeccionesScreen = ({
   }));
   monthly.forEach((point) => {
     chartRows.push({
-      mes: shortMonth(point.month),
+      mes: monthWithYear(point.month),
       "Recorded income": null,
       "Recorded expenses": null,
+      ...(showRange
+        ? { "Typical income range": [Math.max(0, num(point.projected_income) - incomeMargin), num(point.projected_income) + incomeMargin] }
+        : {}),
       "Forecast income (ML)": num(point.projected_income),
       "Forecast expenses (ML)": num(point.projected_expenses),
     });
@@ -1701,7 +1741,7 @@ const ProyeccionesScreen = ({
     <div style={{ padding: "28px 32px" }}>
       <SectionHeader
         title="Forecasts"
-        subtitle={`${companyName} · Model trained offline, applied to the ERP history`}
+        subtitle={`${companyName} · Estimate of the coming months from your recorded history`}
         actions={
           estado === "done" && result?.available ? (
             <Btn variant="primary" icon={<Calculator size={13} />} small onClick={() => onUseForecast(result)}>
@@ -1718,18 +1758,18 @@ const ProyeccionesScreen = ({
       </MlNote>
 
       <Card style={{ marginBottom: 24, padding: "14px 18px", backgroundColor: "#F5F8F6" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#33433B", marginBottom: 6 }}>How the ML is applied</div>
-            <p style={{ fontSize: 11, color: "#4E5F57", margin: 0, lineHeight: 1.65 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <details style={{ flex: 1, minWidth: 240 }}>
+            <summary style={{ fontSize: 12, fontWeight: 700, color: "#33433B", cursor: "pointer" }}>Technical detail: how the model is applied</summary>
+            <p style={{ fontSize: 11, color: "#4E5F57", margin: "8px 0 0", lineHeight: 1.65 }}>
               Training and evaluation with a time-based split run offline (<code>ml/src/</code> for the global model,{" "}
               <code>ml/company_trainer/train.py</code> for a company model). The backend reads the JSON artifact,
               validates the expected inputs and predicts without scikit-learn. Nothing is trained when the dashboard loads or on
               requests. The model, the inputs and the version live in the artifact and in the run assumptions,
               separate from the interface.
             </p>
-          </div>
-          <Field label="Horizon (months)">
+          </details>
+          <Field label="Months to forecast">
             <select
               value={horizon}
               onChange={(event) => setHorizon(Number(event.target.value))}
@@ -1756,8 +1796,8 @@ const ProyeccionesScreen = ({
           <BarChart2 size={48} color="#9CCDB1" style={{ margin: "0 auto 16px" }} />
           <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Generate forecast</h3>
           <p style={{ fontSize: 13, color: "#66786F", maxWidth: 520, margin: "0 auto 24px", lineHeight: 1.6 }}>
-            The income and expenses recorded in the ERP are the inputs of the trained model. If the
-            artifact or the minimum history is missing, you will see an explicit error and can continue with manual planning.
+            The model reads the closed months you recorded and estimates the income and expenses of the coming months.
+            It needs at least 6 closed months; with fewer, you can still plan by hand.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Btn variant="primary" icon={<RefreshCw size={13} />} onClick={runProjection}>Generate forecast with the model</Btn>
@@ -1821,6 +1861,23 @@ const ProyeccionesScreen = ({
             ))}
           </div>
 
+          {firstMonth && (
+            <Card style={{ marginBottom: 16, padding: "16px 22px", backgroundColor: "#F2F8F4", border: "1px solid #C8E4D3" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#1B5E3F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>In short</div>
+              <div style={{ fontSize: 14, color: "#1E2B25", lineHeight: 1.65 }}>
+                <div>{`In ${longMonth(firstMonth.month)} the model expects income of ${fmt(num(firstMonth.projected_income))} and expenses of ${fmt(num(firstMonth.projected_expenses))}.`}</div>
+                {incomeChange !== null && lastRecorded && (
+                  <div>{incomeChange >= 0
+                    ? `Income would be ${pct1(incomeChange)} % higher than in ${lastRecorded.mes}, your last recorded month.`
+                    : `Income would be ${pct1(-incomeChange)} % lower than in ${lastRecorded.mes}, your last recorded month.`}</div>
+                )}
+                {showRange && (
+                  <div style={{ fontSize: 12.5, color: "#4E5F57", marginTop: 6 }}>{`Typical range for a month: income ± ${fmt(incomeMargin)}, expenses ± ${fmt(expensesMargin)}. It is the error measured on companies the model never saw (half had less, half had more), not a guarantee.`}</div>
+                )}
+              </div>
+            </Card>
+          )}
+
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
             {result.is_demo && (
               <span style={{ fontSize: 11, color: "#8A6400", backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 8, padding: "7px 11px" }}>
@@ -1833,7 +1890,7 @@ const ProyeccionesScreen = ({
               </span>
             )}
             <span style={{ fontSize: 11, color: "#4E5F57", backgroundColor: "#EEF2F0", borderRadius: 8, padding: "7px 11px" }}>
-              Run #{result.id ?? "—"} · version {result.model_version ?? "no version"} · cutoff {fmtDate(result.cutoff_date)} · stored {fmtDate(result.created_at)}
+              {`${runLabel} · version ${result.model_version ?? "no version"} · cutoff ${fmtDate(result.cutoff_date)} · stored ${fmtDate(result.created_at)}`}
             </span>
           </div>
 
@@ -1841,31 +1898,32 @@ const ProyeccionesScreen = ({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B" }}>Your history and the model forecast</div>
-                <div style={{ fontSize: 12, color: "#66786F", marginTop: 2 }}>Solid lines: months you recorded · dashed lines: <MlBadge size="sm" /> forecast</div>
+                <div style={{ fontSize: 12, color: "#66786F", marginTop: 2 }}>Solid lines: months you recorded · dashed lines: model forecast <MlBadge size="sm" />{showRange ? " · shaded: typical income range" : ""}</div>
               </div>
             </div>
             <div style={{ height: 280 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartRows} margin={{ top: 6, right: 12, left: 8, bottom: 0 }}>
+                <ComposedChart data={chartRows} margin={{ top: 6, right: 12, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F0" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#66786F" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#66786F" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(Number(v) / 1_000_000)}M`} width={48} />
-                  <Tooltip formatter={(value) => (value == null ? "—" : fmt(Number(value)))} />
+                  <Tooltip formatter={(value) => (value == null ? "—" : Array.isArray(value) ? `${fmt(Number(value[0]))} – ${fmt(Number(value[1]))}` : fmt(Number(value)))} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {showRange && <Area type="monotone" dataKey="Typical income range" stroke="none" fill="#1B5E3F" fillOpacity={0.12} connectNulls={false} isAnimationActive={false} />}
                   <Line type="monotone" dataKey="Recorded income" stroke="#1B5E3F" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
                   <Line type="monotone" dataKey="Recorded expenses" stroke="#9CCDB1" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
                   <Line type="monotone" dataKey="Forecast income (ML)" stroke="#1B5E3F" strokeWidth={2.5} strokeDasharray="6 5" dot={{ r: 3 }} connectNulls={false} />
                   <Line type="monotone" dataKey="Forecast expenses (ML)" stroke="#5BAA80" strokeWidth={2.5} strokeDasharray="6 5" dot={{ r: 3 }} connectNulls={false} />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 24, marginBottom: 24 }}>
-            <Card>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 24, marginBottom: 24 }}>
+            <Card style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 16, color: "#33433B", marginBottom: 4 }}>Recorded history vs forecast</div>
               <div style={{ fontSize: 12, color: "#66786F", marginBottom: 16 }}>
-                {result.history_period ? `History ${result.history_period.from} to ${result.history_period.to}` : "ERP history"} · forecast {months} months
+                {`${pastHistory.length} recorded month(s) and ${monthly.length} forecast month(s)`}{showRange ? " · ± is the typical range" : ""}
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -1880,8 +1938,14 @@ const ProyeccionesScreen = ({
                     {tableRows.map((row, index) => (
                       <tr key={`${row.tipo}-${row.mes}-${index}`} style={{ backgroundColor: row.tipo === "Forecast" ? "#F2F8F4" : index % 2 === 0 ? "#fff" : "#FAFCFB" }}>
                         <td style={{ padding: "9px 12px", fontWeight: 600, color: "#33433B" }}>{row.mes}</td>
-                        <td style={{ padding: "9px 12px", color: "#33433B" }}>{fmt(row.ingresos)}</td>
-                        <td style={{ padding: "9px 12px", color: "#33433B" }}>{fmt(row.gastos)}</td>
+                        <td style={{ padding: "9px 12px", color: "#33433B", whiteSpace: "nowrap" }}>
+                          {fmt(row.ingresos)}
+                          {showRange && row.tipo === "Forecast" && <div style={{ fontSize: 10.5, color: "#66786F" }}>{`± ${fmtM(incomeMargin)}`}</div>}
+                        </td>
+                        <td style={{ padding: "9px 12px", color: "#33433B", whiteSpace: "nowrap" }}>
+                          {fmt(row.gastos)}
+                          {showRange && row.tipo === "Forecast" && <div style={{ fontSize: 10.5, color: "#66786F" }}>{`± ${fmtM(expensesMargin)}`}</div>}
+                        </td>
                         <td style={{ padding: "9px 12px" }}>
                           {row.tipo === "Forecast" ? <MlBadge size="sm" /> : <Badge label="Your data" color="#4E5F57" bg="#EEF2F0" border="#D3DDD8" />}
                         </td>
