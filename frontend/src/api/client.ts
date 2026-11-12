@@ -65,6 +65,19 @@ type RequestOptions = {
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  try {
+    return await send<T>(path, options)
+  } catch (error) {
+    // The token in memory can go stale (another tab asked for a new one, or the cookie
+    // expired). Ask for a fresh token once and repeat the request.
+    const mutating = (options.method ?? 'GET') !== 'GET'
+    if (!mutating || options.skipCsrf || !(error instanceof ApiError) || error.code !== 'csrf_failed') throw error
+    await ensureCsrf(true, options.timeoutMs)
+    return send<T>(path, options)
+  }
+}
+
+async function send<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
   const mutating = method !== 'GET'
 

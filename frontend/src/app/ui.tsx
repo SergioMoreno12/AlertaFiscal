@@ -74,7 +74,7 @@ export const InlineError = ({ message, onRetry }: { message: string; onRetry?: (
     {onRetry && (
       <>
         {" · "}
-        <button onClick={onRetry} style={{ border: "none", background: "none", color: "#B3261E", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>retry</button>
+        <button onClick={onRetry} style={{ border: "none", background: "none", color: "#B3261E", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>Retry</button>
       </>
     )}
   </div>

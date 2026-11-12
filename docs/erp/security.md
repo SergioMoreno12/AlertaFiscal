@@ -31,6 +31,8 @@ Signed *double submit* pattern:
 2. The server returns the token in the body and in the `af_csrf` cookie (readable by JS).
 3. Every `POST/PUT/PATCH/DELETE` request to `/api/*` must send `X-CSRF-Token`.
 4. The server compares the header, the cookie, the HMAC signature and the hash linked to the session.
+   When a signed-in browser asks for a new token (step 1), that token replaces the one linked to its
+   session. A signed token issued to anyone else is still rejected.
    Login and logout skip only the session link: a stale session cookie left by a failed logout would
    otherwise block the next sign-in. They still need the signed token in both the header and the cookie.
 
@@ -40,7 +42,10 @@ non-numeric percentages answer `422`. Login verifies a dummy hash for unknown em
 time does not reveal which accounts exist. Forecast error details name the artifact file, never the
 server path.
 
-The frontend keeps the token in memory. If the page reloads, a new one is requested. Requests without a token are rejected with `403 csrf_failed` **before** the view runs.
+The frontend keeps the token in memory. If the page reloads, a new one is requested (the frontend
+and the API are on different domains in production, so the page cannot read the cookie). If a write
+answers `csrf_failed` because the token went stale (for example, another tab asked for a new one),
+the client asks for a fresh token once and repeats the request. Requests without a token are rejected with `403 csrf_failed` **before** the view runs.
 
 ## Authorization and multi-company isolation
 
