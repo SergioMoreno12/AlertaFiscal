@@ -268,6 +268,16 @@ const SECONDARY_NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType 
   { id: "contexto", label: "Context and sources", icon: Database },
 ];
 
+// The menu follows the order of use: record data, forecast and plan, then follow up.
+const navItem = (id: Screen) => [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS].find((item) => item.id === id)!;
+const NAV_GROUPS: { title?: string; items: { id: Screen; label: string; icon: React.ElementType; badge?: number }[] }[] = [
+  { items: [navItem("resumen")] },
+  { title: "1 · Your data", items: [navItem("datos"), navItem("ingresos"), navItem("gastos")] },
+  { title: "2 · Forecast and plan", items: [navItem("proyecciones"), navItem("planificacion"), navItem("obligaciones")] },
+  { title: "3 · Follow-up", items: [navItem("alertas"), navItem("historial")] },
+  { title: "Settings and reference", items: [navItem("empresas"), navItem("equipo"), navItem("contexto")] },
+];
+
 // Below this width the sidebar floats over the content instead of pushing it.
 const NARROW_QUERY = "(max-width: 900px)";
 
@@ -304,33 +314,24 @@ const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, ap
       </div>
 
       <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
-        {NAV_ITEMS.map((item) => {
-          const active = item.id === screen;
-          const Icon = item.icon;
-          return (
-            <button key={item.id} onClick={() => { onNav(item.id); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", borderRadius: 9, marginBottom: 2, border: "none", cursor: "pointer", backgroundColor: active ? "rgba(255,255,255,0.14)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: active ? 600 : 400, fontSize: 13, textAlign: "left", transition: "background-color 0.15s", fontFamily: "inherit" }}>
-              <Icon size={16} />
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge !== undefined && (
-                <span style={{ backgroundColor: "#C9A227", color: "#1B5E3F", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700, lineHeight: "18px" }}>{item.badge}</span>
-              )}
-            </button>
-          );
-        })}
-
-        <div style={{ margin: "14px 12px 8px", paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase" }}>
-          Reference
-        </div>
-        {SECONDARY_NAV_ITEMS.map((item) => {
-          const active = item.id === screen;
-          const Icon = item.icon;
-          return (
-            <button key={item.id} onClick={() => { onNav(item.id); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", borderRadius: 9, marginBottom: 2, border: "none", cursor: "pointer", backgroundColor: active ? "rgba(255,255,255,0.14)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.45)", fontWeight: active ? 600 : 400, fontSize: 13, textAlign: "left", transition: "background-color 0.15s", fontFamily: "inherit" }}>
-              <Icon size={16} />
-              <span style={{ flex: 1 }}>{item.label}</span>
-            </button>
-          );
-        })}
+        {NAV_GROUPS.map((group) => (
+          <div key={group.title ?? "top"}>
+            {group.title && <div style={{ margin: "14px 12px 8px", paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase" }}>{group.title}</div>}
+            {group.items.map((item) => {
+              const active = item.id === screen;
+              const Icon = item.icon;
+              return (
+                <button key={item.id} onClick={() => { onNav(item.id); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", borderRadius: 9, marginBottom: 2, border: "none", cursor: "pointer", backgroundColor: active ? "rgba(255,255,255,0.14)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: active ? 600 : 400, fontSize: 13, textAlign: "left", transition: "background-color 0.15s", fontFamily: "inherit" }}>
+                  <Icon size={16} />
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.badge !== undefined && (
+                    <span style={{ backgroundColor: "#C9A227", color: "#1B5E3F", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700, lineHeight: "18px" }}>{item.badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div style={{ padding: "14px 18px", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 10 }}>
@@ -342,10 +343,12 @@ const Sidebar = ({ open, overlay, onClose, screen, onNav, userName, userRole, ap
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10 }}>{userRole}</div>
         </div>
       </div>
-      <div style={{ padding: "10px 18px 14px", display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.55)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: apiOnline ? "#5BAA80" : "#C9A227", display: "inline-block" }} />
-        {apiOnline ? "API connected" : "No connection to the API"}
-      </div>
+      {!apiOnline && (
+        <div role="status" style={{ padding: "10px 18px 14px", display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.75)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#C9A227", display: "inline-block" }} />
+          No connection to the server
+        </div>
+      )}
     </aside>
   </>
 );
@@ -363,12 +366,12 @@ const Topbar = ({ sidebarOpen, onToggle, empresa, companySubtitle, backend, demo
       </div>
     </div>
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-      {!compact && <span
-        title={backend.online ? "Backend and database respond" : "Backend not available"}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${backend.online ? "#9CCDB1" : "#E9D49C"}`, backgroundColor: backend.online ? "#E3F1E8" : "#FBF4E2", color: backend.online ? "#1B5E3F" : "#8A6400", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
+      {!compact && backend.checked && !backend.online && <span
+        role="status"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #E9D49C", backgroundColor: "#FBF4E2", color: "#8A6400", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
       >
-        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: backend.online ? "#2E8A5C" : "#C9A227", display: "inline-block" }} />
-        {backend.checked ? (backend.online ? `API · ${backend.database ?? "ok"}` : "API unavailable") : "Checking API"}
+        <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#C9A227", display: "inline-block" }} />
+        No connection to the server
       </span>}
       {demoMode && !compact && <DemoBanner />}
       <LanguageToggle lang={lang} onChange={onLang} />
@@ -472,6 +475,7 @@ const ResumenScreen = ({
 }) => {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [apiAlerts, setApiAlerts] = useState<ApiAlert[]>([]);
+  const [setup, setSetup] = useState<{ closedMonths: number | null; obligations: number | null }>({ closedMonths: null, obligations: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -490,11 +494,18 @@ const ResumenScreen = ({
     // alerts. If the role cannot evaluate, the existing state is shown.
     evaluateAlerts(companyId)
       .catch(() => null)
-      .then(() => Promise.all([getDashboard(companyId), listAlerts(companyId)]))
-      .then(([summary, alerts]) => {
+      .then(() => Promise.all([
+        getDashboard(companyId),
+        listAlerts(companyId),
+        // Only used by the first-steps list: a failure here must not hide the overview.
+        getMonthlyTotals(companyId).then((data) => data.closed_months).catch(() => null),
+        listObligations(companyId).then((data) => data.items.length).catch(() => null),
+      ]))
+      .then(([summary, alerts, closedMonths, obligations]) => {
         if (!alive) return;
         setDashboard(summary);
         setApiAlerts(alerts.items.slice(0, 3));
+        setSetup({ closedMonths, obligations });
       })
       .catch((err) => {
         if (alive) setError(errorMessage(err));
@@ -519,6 +530,17 @@ const ResumenScreen = ({
   const reserved = reserve ? num(reserve.reserved) : plan ? num(plan.reserved) : demoMode ? 3000000 : 0;
   const coverage = reserveTarget > 0 ? (reserved / reserveTarget) * 100 : 0;
   const pendingReserve = reserve ? num(reserve.pending) : Math.max(reserveTarget - reserved, 0);
+
+  // First steps of a new company, in the order the app is meant to be used.
+  const closedMonths = setup.closedMonths ?? dashboard?.monthly.length ?? 0;
+  const firstSteps: Array<{ title: string; detail: string; action: string; screen: Screen; done: boolean }> = [
+    { title: "Load the history of the company", detail: `${Math.min(closedMonths, 6)} of 6 closed months recorded. The model needs at least 6.`, action: "Enter monthly data", screen: "datos", done: closedMonths >= 6 },
+    { title: "Generate the forecast", detail: "The model estimates the income and expenses of the next 6 months.", action: "Go to forecasts", screen: "proyecciones", done: Boolean(latestForecast) },
+    { title: "Create the reserve plan", detail: "Start from the forecast and set how much to set aside for taxes.", action: "Go to tax planning", screen: "planificacion", done: Boolean(plan) },
+    { title: "Record the tax obligations", detail: "Write down the due dates you want to follow up.", action: "Go to obligations", screen: "obligaciones", done: (setup.obligations ?? dashboard?.obligations.length ?? 0) > 0 },
+  ];
+  const stepsDone = firstSteps.filter((item) => item.done).length;
+  const nextStep = firstSteps.findIndex((item) => !item.done);
 
   const chartData = dashboard && dashboard.monthly.length > 0
     ? dashboard.monthly.map((point) => ({ mes: shortMonth(point.month), ingresos: num(point.income), gastos: num(point.expenses) }))
@@ -590,28 +612,37 @@ const ResumenScreen = ({
         </div>
       )}
 
-      {dashboard && dashboard.monthly.length === 0 && !latestForecast && (
+      {dashboard && firstSteps.some((item) => !item.done) && (
         <Card style={{ marginBottom: 24, border: "1.5px solid #C8E4D3", background: "linear-gradient(135deg, #F2F8F4, #FFFFFF)" }}>
-          <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#1B5E3F", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Layers size={22} color="#fff" />
-            </div>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <div style={{ fontWeight: 800, fontSize: 16, color: "#1E2B25" }}>Start here: load the company history</div>
-              <div style={{ fontSize: 13, color: "#66786F", marginTop: 4, lineHeight: 1.55 }}>
-                Enter the income and expenses of at least 6 closed months. Then the model can forecast the next 6 months.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Btn icon={<Layers size={14} />} onClick={() => onNav("datos")}>Enter monthly data</Btn>
-              <Btn variant="secondary" icon={<TrendingUp size={14} />} onClick={() => onNav("ingresos")}>Record income</Btn>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#1E2B25" }}>First steps</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1B5E3F" }}>{`${stepsDone} of ${firstSteps.length} done`}</div>
           </div>
+          <div style={{ height: 6, borderRadius: 99, backgroundColor: "#E3F1E8", overflow: "hidden", margin: "10px 0 6px" }}>
+            <div style={{ width: `${(stepsDone / firstSteps.length) * 100}%`, height: "100%", backgroundColor: "#1B5E3F", transition: "width .3s" }} />
+          </div>
+          {firstSteps.map((item, index) => {
+            const isNext = index === nextStep;
+            return (
+              <div key={item.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderTop: index ? "1px solid #E6EEE9" : "none", flexWrap: "wrap" }}>
+                <div aria-hidden="true" style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, backgroundColor: item.done ? "#1B5E3F" : isNext ? "#E3F1E8" : "#F0F4F2", color: item.done ? "#fff" : isNext ? "#1B5E3F" : "#9AABA2", border: isNext ? "1.5px solid #1B5E3F" : "none" }}>
+                  {item.done ? <CheckCircle size={15} /> : index + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: item.done ? "#66786F" : "#1E2B25", textDecoration: item.done ? "line-through" : "none" }}>{item.title}</div>
+                  <div style={{ fontSize: 12, color: "#66786F", marginTop: 2 }}>{item.detail}</div>
+                </div>
+                {item.done
+                  ? <span style={{ fontSize: 11, fontWeight: 700, color: "#1B5E3F" }}>Done</span>
+                  : <Btn small variant={isNext ? "primary" : "ghost"} onClick={() => onNav(item.screen)}>{item.action} <ChevronRight size={12} /></Btn>}
+              </div>
+            );
+          })}
         </Card>
       )}
 
       {/* KPI Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="af-kpi-grid">
         {[
           { label: "Recorded income", value: fmtM(income), sub: demoMode ? "Records of the current period" : "Year to date", color: "#1B5E3F", bg: "#E3F1E8", icon: <TrendingUp size={18} color="#1B5E3F" />, note: "Observed" },
           { label: "Recorded expenses", value: fmtM(expenses), sub: demoMode ? "Records of the current period" : "Year to date", color: "#33433B", bg: "#EEF2F0", icon: <ShoppingCart size={18} color="#33433B" />, note: "Observed" },
@@ -2162,20 +2193,25 @@ const PlanificacionScreen = ({
         const latestMonth = summary.monthly[summary.monthly.length - 1];
         const fallbackIncome = latestMonth ? num(latestMonth.income) : num(summary.totals.income);
         const fallbackExpenses = latestMonth ? num(latestMonth.expenses) : num(summary.totals.expenses);
+        // A plan covers one month. Without a saved version it starts from the forecast of
+        // that month (or the first forecast month), never from the total of the whole horizon.
+        const planPeriod = draft?.period ?? currentPlan?.period ?? currentPeriod();
+        const forecastMonths = latestForecast?.monthly ?? [];
+        const forecastMonth = forecastMonths.find((point) => point.month === planPeriod) ?? forecastMonths[0];
         const projectedIncome = currentVersion
           ? num(currentVersion.projected_income)
-          : latestForecast
-            ? num(latestForecast.projected_income)
+          : forecastMonth
+            ? num(forecastMonth.projected_income)
             : fallbackIncome;
         const projectedExpenses = currentVersion
           ? num(currentVersion.projected_expenses)
-          : latestForecast
-            ? num(latestForecast.projected_expenses)
+          : forecastMonth
+            ? num(forecastMonth.projected_expenses)
             : fallbackExpenses;
 
         setForm({
           name: currentPlan?.name ?? `Tax plan ${currentPeriod()}`,
-          period: draft?.period ?? currentPlan?.period ?? currentPeriod(),
+          period: draft?.period ?? currentPlan?.period ?? (!currentVersion && forecastMonth ? forecastMonth.month : currentPeriod()),
           projected_income: draft?.projected_income ?? String(Math.round(projectedIncome)),
           projected_expenses: draft?.projected_expenses ?? String(Math.round(projectedExpenses)),
           estimated_reserve: currentVersion ? String(Math.round(num(currentVersion.estimated_reserve))) : "",
@@ -2395,8 +2431,8 @@ const PlanificacionScreen = ({
               { label: "Period", value: form.period },
               { label: "Observed income", value: fmt(observedIncome), note: dashboard ? "Year to date" : "Sample data" },
               { label: "Observed expenses", value: fmt(observedExpenses), note: dashboard ? "Year to date" : "Sample data" },
-              { label: "Plan income", value: fmt(projectedIncome), note: "Planning forecast" },
-              { label: "Plan expenses", value: fmt(projectedExpenses), note: "Planning forecast" },
+              { label: "Plan income", value: fmt(projectedIncome), note: "For the month of the plan" },
+              { label: "Plan expenses", value: fmt(projectedExpenses), note: "For the month of the plan" },
             ].map((row) => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "8px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                 <span style={{ fontSize: 13, color: "#66786F" }}>{row.label}</span>
@@ -4265,7 +4301,7 @@ export default function App() {
           const savedCompany = cards.find((card) => card.id === saved.companyId);
           setActiveCompanyId(savedCompany?.id ?? cards[0]?.id ?? null);
           setLoggedIn(true);
-          setScreen(savedCompany && saved.screen ? saved.screen : "empresas");
+          setScreen(savedCompany && saved.screen ? saved.screen : cards.length ? "resumen" : "empresas");
         }
       } catch {
         // No active session: the login is shown.
@@ -4292,7 +4328,10 @@ export default function App() {
   const handleLogin = async (sessionUser: SessionUser) => {
     setUser(sessionUser);
     setLoggedIn(true);
-    setScreen("empresas");
+    // With a company the overview (and its first steps) is the starting point.
+    setScreen(sessionUser.companies.length ? "resumen" : "empresas");
+    // Drop "#login" / "#registro" from the address once the user is inside.
+    if (window.location.hash) window.history.replaceState(null, "", window.location.pathname + window.location.search);
     try {
       const list = await getCompanies();
       const cards = toCompanyCards(list.items);

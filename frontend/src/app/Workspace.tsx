@@ -35,6 +35,14 @@ const monthLabel = (period: string) => {
 
 const cleanAmount = (raw: string) => raw.replace(/[^\d.,]/g, "").replace(/\./g, "").replace(",", ".");
 
+/** "52500000" → "52.500.000" (Colombian grouping; the comma is the decimal mark). */
+const groupAmount = (raw: string) => {
+  if (!raw) return "";
+  const [whole, decimals] = raw.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return decimals === undefined ? grouped : `${grouped},${decimals}`;
+};
+
 // ─── Monthly data ────────────────────────────────────────────────────────────
 
 type Row = { month: string; income: string; expenses: string; locked: boolean; saved?: MonthlyTotal };
@@ -243,10 +251,10 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
                   <tr key={row.month} style={{ borderTop: "1px solid #EEF2F0" }}>
                     <td style={{ padding: "8px 14px", fontWeight: 600, color: "#1E2B25", whiteSpace: "nowrap" }}>{monthLabel(row.month)}</td>
                     <td style={{ padding: "6px 14px" }}>
-                      <input aria-label={`Income · ${monthLabel(row.month)}`} inputMode="numeric" value={row.income} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "income", e.target.value)} style={cellInput} />
+                      <input aria-label={`Income · ${monthLabel(row.month)}`} inputMode="decimal" value={groupAmount(row.income)} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "income", e.target.value)} style={cellInput} />
                     </td>
                     <td style={{ padding: "6px 14px" }}>
-                      <input aria-label={`Expenses · ${monthLabel(row.month)}`} inputMode="numeric" value={row.expenses} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "expenses", e.target.value)} style={cellInput} />
+                      <input aria-label={`Expenses · ${monthLabel(row.month)}`} inputMode="decimal" value={groupAmount(row.expenses)} disabled={row.locked} placeholder="0" onChange={(e) => update(row.month, "expenses", e.target.value)} style={cellInput} />
                     </td>
                     <td style={{ padding: "8px 14px", textAlign: "right", fontWeight: 600, color: !filled ? "#9AABA2" : result < 0 ? "#B3261E" : "#1B5E3F", whiteSpace: "nowrap" }}>{filled ? fmt(result) : "—"}</td>
                     <td style={{ padding: "8px 14px", fontSize: 12, color: "#66786F", whiteSpace: "nowrap" }}>

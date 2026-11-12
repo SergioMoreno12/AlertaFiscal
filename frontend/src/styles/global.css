@@ -56,3 +56,23 @@ textarea {
     padding: 12px 14px !important;
   }
 }
+
+/* Overview figures: four in a row, two on medium widths, one on a phone (never 3 + 1). */
+.af-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1180px) {
+  .af-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .af-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
