@@ -65,3 +65,29 @@ export async function register(
   setCsrfToken(response.csrf_token)
   return response.user
 }
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api.post<{ status: string }>('/api/v1/auth/password', { current_password: currentPassword, new_password: newPassword })
+
+/** Whether the server can send the recovery email (an email provider is configured). */
+export async function passwordResetAvailable(): Promise<boolean> {
+  try {
+    return (await api.get<{ available: boolean }>('/api/v1/auth/password-reset/available')).available
+  } catch {
+    return false
+  }
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await ensureCsrf(true, COLD_START_TIMEOUT_MS)
+  await request('/api/v1/auth/password-reset/request', { method: 'POST', body: { email }, timeoutMs: COLD_START_TIMEOUT_MS })
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  await ensureCsrf(true, COLD_START_TIMEOUT_MS)
+  await request('/api/v1/auth/password-reset/confirm', {
+    method: 'POST',
+    body: { token, new_password: newPassword },
+    timeoutMs: COLD_START_TIMEOUT_MS,
+  })
+}

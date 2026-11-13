@@ -4,12 +4,13 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowRight, Building2, CheckCircle, Plus, RefreshCw, Save, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle, FileUp, Plus, RefreshCw, Save, UserPlus, Users } from "lucide-react";
 import {
   COMPANY_SECTORS,
   COMPANY_SIZES,
   addMember,
   createCompany,
+  deleteMonthlyTotal,
   getMonthlyTotals,
   listMembers,
   saveMonthlyTotals,
@@ -19,6 +20,8 @@ import {
   type MonthlyTotal,
 } from "../api/fiscal.api";
 import { Badge, Btn, Card, Field, InlineError, MlBadge, SectionHeader, currentPeriod, errorMessage, fmt, inputStyle, num, roleLabel, shortMonth } from "./ui";
+
+import { ConfirmDialog, ImportMonthsPanel, RowActions, type ImportedMonth } from "./Records";
 
 const MIN_MONTHS = 6;
 
@@ -70,7 +73,7 @@ const writeDraft = (companyId: number, draft: Draft) => {
   }
 };
 
-export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId: number | null; companyName: string; onNav: (screen: "proyecciones") => void }) => {
+export const MonthlyDataScreen = ({ companyId, companyName, onNav, canManage }: { companyId: number | null; companyName: string; onNav: (screen: "proyecciones") => void; canManage: boolean }) => {
   const [items, setItems] = useState<MonthlyTotal[]>([]);
   const [closedMonths, setClosedMonths] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
@@ -80,6 +83,11 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [toDelete, setToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -122,7 +130,58 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
       });
     }
     setRows(next);
-  }, [items, extra, companyId]);
+  }, [items, extra, companyId, draftVersion]);
+
+  // Imported months go to the table as unsaved values: the user reviews them and presses Save.
+  const applyImport = (months: ImportedMonth[]) => {
+    if (!companyId || months.length === 0) return;
+    const byMonth = new Map(items.map((item) => [item.month, item]));
+    const draft = readDraft(companyId);
+    let skipped = 0;
+    months.forEach((item) => {
+      const saved = byMonth.get(item.month);
+      if (saved && !saved.from_monthly_form && (num(saved.income) > 0 || num(saved.expenses) > 0)) {
+        skipped += 1;
+        return;
+      }
+      draft[item.month] = { income: String(Math.round(num(item.income))), expenses: String(Math.round(num(item.expenses))) };
+    });
+    writeDraft(companyId, draft);
+    // Show enough earlier months for the oldest imported one.
+    const lastClosed = addMonths(currentPeriod(), -1);
+    const [fy, fm] = months[0].month.split("-").map(Number);
+    const [ly, lm] = lastClosed.split("-").map(Number);
+    const span = (ly - fy) * 12 + (lm - fm);
+    setExtra((current) => Math.max(current, span - 11));
+    setDraftVersion((version) => version + 1);
+    setImporting(false);
+    setError(null);
+    setNotice(
+      skipped
+        ? `${months.length - skipped} month(s) loaded into the table. ${skipped} month(s) with individual records were skipped. Review them and press Save.`
+        : `${months.length} month(s) loaded into the table. Review them and press Save.`,
+    );
+  };
+
+  const confirmDelete = async () => {
+    if (!companyId || !toDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const data = await deleteMonthlyTotal(companyId, toDelete);
+      const draft = readDraft(companyId);
+      delete draft[toDelete];
+      writeDraft(companyId, draft);
+      setItems(data.items);
+      setClosedMonths(data.closed_months);
+      setNotice(`${monthLabel(toDelete)} was deleted from the history.`);
+      setToDelete(null);
+    } catch (err) {
+      setDeleteError(errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const update = (month: string, field: "income" | "expenses", value: string) =>
     setRows((current) => current.map((row) => (row.month === month ? { ...row, [field]: cleanAmount(value) } : row)));
@@ -211,8 +270,10 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
         </Card>
       </div>
 
+      {importing && <ImportMonthsPanel onApply={applyImport} onClose={() => setImporting(false)} />}
+
       {error && <InlineError message={error} onRetry={dirty.length ? save : () => setReloadKey((k) => k + 1)} />}
-      {!error && !notice && !loading && dirty.length > 0 && (
+      {!error && !loading && dirty.length > 0 && (
         <div role="status" style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", color: "#8A6400", fontSize: 12.5, fontWeight: 600 }}>{`${dirty.length} month(s) not saved yet. Press Save to add them to the history.`}</div>
       )}
       {notice && (
@@ -225,7 +286,8 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
             <div style={{ fontWeight: 700, color: "#1E2B25", fontSize: 14 }}>Monthly totals (COP)</div>
             <div style={{ fontSize: 12, color: "#66786F", marginTop: 2 }}>Write the totals of each closed month and save. Saving a month again replaces its values.</div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Btn variant="secondary" small icon={<FileUp size={13} />} onClick={() => setImporting(true)}>Import from a file</Btn>
             <Btn variant="secondary" small icon={<Plus size={13} />} onClick={() => setExtra((n) => n + 6)}>Add 6 earlier months</Btn>
             <Btn small icon={<Save size={13} />} onClick={save} disabled={saving || dirty.length === 0}>{saving ? "Saving…" : `Save${dirty.length ? ` (${dirty.length})` : ""}`}</Btn>
           </div>
@@ -234,14 +296,14 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ backgroundColor: "#F2F8F4" }}>
-                {["Month", "Income", "Expenses", "Result", "Source"].map((h) => (
+                {["Month", "Income", "Expenses", "Result", "Source", ...(canManage ? [""] : [])].map((h) => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: h === "Month" || h === "Source" ? "left" : "right", fontSize: 11, fontWeight: 700, color: "#66786F", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading && rows.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#66786F" }}>Loading…</td></tr>
+                <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#66786F" }}>Loading…</td></tr>
               )}
               {rows.map((row) => {
                 const result = num(row.income) - num(row.expenses);
@@ -260,6 +322,11 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
                     <td style={{ padding: "8px 14px", fontSize: 12, color: "#66786F", whiteSpace: "nowrap" }}>
                       {row.locked ? "Individual records" : row.saved?.from_monthly_form ? "Monthly form" : "Not recorded"}
                     </td>
+                    {canManage && (
+                      <td style={{ padding: "8px 14px", textAlign: "right" }}>
+                        {row.saved?.from_monthly_form && <RowActions label={monthLabel(row.month)} onDelete={() => { setDeleteError(null); setToDelete(row.month); }} />}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -286,6 +353,17 @@ export const MonthlyDataScreen = ({ companyId, companyName, onNav }: { companyId
             </ResponsiveContainer>
           </div>
         </Card>
+      )}
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Delete the totals of this month?"
+          detail={`${monthLabel(toDelete)}: the income and expense totals entered in this form are removed from the history the model reads.`}
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
       )}
     </div>
   );

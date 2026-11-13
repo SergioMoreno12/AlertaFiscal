@@ -84,6 +84,18 @@ def update_obligation(company_id: int, obligation_id: int):
     if row is None or row.company_id != company_id:
         return error("not_found", "Obligation not found", 404)
     data = get_json()
+    if "name" in data:
+        name = str(data["name"] or "").strip()
+        if not name:
+            return error("invalid_payload", "name is required", 422)
+        row.name = name[:160]
+    if "period" in data:
+        row.period = str(data["period"] or "")[:40]
+    if "due_date" in data:
+        due_date = parse_date(str(data["due_date"] or ""))
+        if due_date is None:
+            return error("invalid_payload", "Invalid due_date (YYYY-MM-DD)", 422)
+        row.due_date = due_date
     if "status" in data:
         if data["status"] not in ("pending", "filed", "paid", "void"):
             return error("invalid_payload", "Invalid status", 422)
@@ -101,6 +113,19 @@ def update_obligation(company_id: int, obligation_id: int):
             return error("invalid_payload", str(exc), 422)
     record_audit(company_id, "obligation.update", f"obligation:{row.id}", {"status": row.status})
     return jsonify(_obligation_dict(row))
+
+
+@tracking_bp.delete("/obligations/<int:obligation_id>")
+def delete_obligation(company_id: int, obligation_id: int):
+    authorized_company(company_id, min_role="contador")
+    row = db.session.get(TaxObligation, obligation_id)
+    if row is None or row.company_id != company_id:
+        return error("not_found", "Obligation not found", 404)
+    detail = {"name": row.name, "period": row.period, "due_date": date_iso(row.due_date)}
+    db.session.delete(row)
+    db.session.flush()
+    record_audit(company_id, "obligation.delete", f"obligation:{obligation_id}", detail)
+    return jsonify({"status": "deleted", "id": obligation_id})
 
 
 @tracking_bp.get("/audit")

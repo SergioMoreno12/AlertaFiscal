@@ -332,7 +332,30 @@ export const createExpense = (
   },
 ) => api.post<Expense>(`/api/v1/companies/${companyId}/expenses`, payload)
 
-export const updateExpense = (companyId: number, expenseId: number, payload: { reviewed?: boolean; category?: string; description?: string }) =>
+export type DocumentEdit = {
+  doc_number?: string
+  issue_date?: string
+  description?: string
+  counterparty_id?: number | null
+  subtotal?: string
+  tax_amount?: string
+  total?: string
+}
+
+export const updateIncome = (companyId: number, incomeId: number, payload: DocumentEdit & { status?: 'pending' | 'collected' }) =>
+  api.patch<Income>(`/api/v1/companies/${companyId}/income/${incomeId}`, payload)
+
+export const deleteIncome = (companyId: number, incomeId: number) =>
+  api.delete<{ status: string }>(`/api/v1/companies/${companyId}/income/${incomeId}`)
+
+export const deleteExpense = (companyId: number, expenseId: number) =>
+  api.delete<{ status: string }>(`/api/v1/companies/${companyId}/expenses/${expenseId}`)
+
+export const updateExpense = (
+  companyId: number,
+  expenseId: number,
+  payload: DocumentEdit & { reviewed?: boolean; category?: string; status?: 'pending' | 'paid' },
+) =>
   api.patch<Expense>(`/api/v1/companies/${companyId}/expenses/${expenseId}`, payload)
 
 export const listCounterparties = (companyId: number) =>
@@ -374,8 +397,11 @@ export const createObligation = (
 export const updateObligation = (
   companyId: number,
   obligationId: number,
-  payload: { status?: Obligation['status']; notes?: string; estimated_amount?: string | null },
+  payload: { name?: string; period?: string; due_date?: string; status?: Obligation['status']; notes?: string; estimated_amount?: string | null },
 ) => api.patch<Obligation>(`/api/v1/companies/${companyId}/obligations/${obligationId}`, payload)
+
+export const deleteObligation = (companyId: number, obligationId: number) =>
+  api.delete<{ status: string }>(`/api/v1/companies/${companyId}/obligations/${obligationId}`)
 
 export const listPlans = (companyId: number) => api.get<ListResponse<Plan>>(`/api/v1/companies/${companyId}/plans`)
 
@@ -512,3 +538,9 @@ export const getMonthlyTotals = (companyId: number) =>
 
 export const saveMonthlyTotals = (companyId: number, months: Array<{ month: string; income: string; expenses: string }>) =>
   api.post<MonthlyTotals>(`/api/v1/companies/${companyId}/monthly-totals`, { months })
+
+export const deleteMonthlyTotal = (companyId: number, month: string) =>
+  api.delete<MonthlyTotals>(`/api/v1/companies/${companyId}/monthly-totals/${month}`)
+
+export const updateCompany = (companyId: number, payload: { name?: string; nit?: string; sector?: string; size?: string }) =>
+  api.patch<Company>(`/api/v1/companies/${companyId}`, payload)

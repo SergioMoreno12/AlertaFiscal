@@ -11,13 +11,13 @@ import {
   Cpu, Database, FileText, Flag, Layers, LineChart, LogIn, Menu, ShieldCheck, Sparkles,
   Target, UserPlus, Users, X,
 } from "lucide-react";
-import { login as apiLogin, register as apiRegister, type SessionUser } from "../api/auth.api";
+import { confirmPasswordReset, login as apiLogin, passwordResetAvailable, register as apiRegister, requestPasswordReset, type SessionUser } from "../api/auth.api";
 import { ApiError } from "../api/client";
 import { COMPANY_SECTORS, COMPANY_SIZES } from "../api/fiscal.api";
 import type { Lang } from "../i18n";
 import { C, font } from "./theme";
 
-export type PublicView = "home" | "phases" | "pgc" | "login" | "register";
+export type PublicView = "home" | "phases" | "pgc" | "login" | "register" | "forgot" | "reset";
 
 type Props = {
   lang: Lang;
@@ -944,6 +944,14 @@ const LoginForm = ({ lang, onAuthenticated, onView, backendOnline, backendChecke
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [canRecover, setCanRecover] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    passwordResetAvailable().then((available) => alive && setCanRecover(available));
+    return () => {
+      alive = false;
+    };
+  }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (loading) return;
@@ -980,6 +988,118 @@ const LoginForm = ({ lang, onAuthenticated, onView, backendOnline, backendChecke
         {pick(lang, "No account yet?", "¿Aún no tienes cuenta?")}{" "}
         <button type="button" className="lp-link" onClick={() => onView("register")}>{pick(lang, "Create one", "Crea una")}</button>
       </p>
+      <p style={{ textAlign: "center", fontSize: 13, color: C.muted, marginTop: 8 }}>
+        {canRecover ? (
+          <button type="button" className="lp-link" onClick={() => onView("forgot")}>{pick(lang, "Forgot your password?", "¿Olvidaste tu contraseña?")}</button>
+        ) : canRecover === false ? (
+          pick(lang, "Password recovery by email is not set up on this server yet.", "La recuperación de contraseña por correo aún no está configurada en este servidor.")
+        ) : null}
+      </p>
+    </AuthShell>
+  );
+};
+
+const ForgotForm = ({ lang, onView, backendOnline, backendChecked }: { lang: Lang; onView: (v: PublicView) => void; backendOnline: boolean; backendChecked: boolean }) => {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (loading) return;
+    setMessage(null);
+    setLoading(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setSent(true);
+    } catch (error) {
+      setMessage(friendlyError(error, lang));
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <AuthShell lang={lang} title={pick(lang, "Recover your password", "Recuperar tu contraseña")} subtitle={pick(lang, "We send a link to your email", "Te enviamos un enlace a tu correo")} backendOnline={backendOnline} backendChecked={backendChecked}>
+      {sent ? (
+        <p role="status" style={{ fontSize: 14, color: C.text, lineHeight: 1.6 }}>
+          {pick(lang, "If an account uses that email, we sent a link to choose a new password. It expires in 30 minutes. Check the spam folder too.", "Si alguna cuenta usa ese correo, enviamos un enlace para elegir una contraseña nueva. Vence en 30 minutos. Revisa también la carpeta de correo no deseado.")}
+        </p>
+      ) : (
+        <form onSubmit={submit}>
+          <div style={{ marginBottom: 20 }}>
+            <Label htmlFor="fp-email">{pick(lang, "Email", "Correo electrónico")}</Label>
+            <input id="fp-email" className="lp-input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          {message && <FormError message={message} />}
+          <PrimaryButton type="submit" disabled={loading} full>
+            {loading ? pick(lang, "Sending…", "Enviando…") : pick(lang, "Send the link", "Enviar el enlace")}
+          </PrimaryButton>
+        </form>
+      )}
+      <p style={{ textAlign: "center", fontSize: 13.5, color: C.muted, marginTop: 18 }}>
+        <button type="button" className="lp-link" onClick={() => onView("login")}>{pick(lang, "Back to sign in", "Volver a iniciar sesión")}</button>
+      </p>
+    </AuthShell>
+  );
+};
+
+const ResetForm = ({ lang, token, onView, backendOnline, backendChecked }: { lang: Lang; token: string; onView: (v: PublicView) => void; backendOnline: boolean; backendChecked: boolean }) => {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (loading) return;
+    setMessage(null);
+    if (password.length < 10) return setMessage(pick(lang, "The password must have at least 10 characters.", "La contraseña debe tener al menos 10 caracteres."));
+    if (password !== confirm) return setMessage(pick(lang, "The two passwords do not match.", "Las dos contraseñas no coinciden."));
+    setLoading(true);
+    try {
+      await confirmPasswordReset(token, password);
+      setDone(true);
+    } catch (error) {
+      setMessage(
+        error instanceof ApiError && error.code === "invalid_token"
+          ? pick(lang, "The link is not valid or has expired. Ask for a new one.", "El enlace no es válido o ya venció. Pide uno nuevo.")
+          : friendlyError(error, lang),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <AuthShell lang={lang} title={pick(lang, "Choose a new password", "Elige una contraseña nueva")} subtitle={pick(lang, "Every open session of the account is closed", "Se cierran todas las sesiones abiertas de la cuenta")} backendOnline={backendOnline} backendChecked={backendChecked}>
+      {done ? (
+        <>
+          <p role="status" style={{ fontSize: 14, color: C.text, lineHeight: 1.6 }}>{pick(lang, "Your password was changed. Sign in with the new one.", "Tu contraseña se cambió. Inicia sesión con la nueva.")}</p>
+          <PrimaryButton type="button" full onClick={() => onView("login")}><LogIn size={16} /> {pick(lang, "Sign in", "Iniciar sesión")}</PrimaryButton>
+        </>
+      ) : (
+        <form onSubmit={submit}>
+          <div style={{ marginBottom: 16 }}>
+            <Label htmlFor="rp-pass">{pick(lang, "New password", "Contraseña nueva")}</Label>
+            <input id="rp-pass" className="lp-input" type={showPassword ? "text" : "password"} required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <Label htmlFor="rp-pass2">{pick(lang, "Repeat the new password", "Repite la contraseña nueva")}</Label>
+            <input id="rp-pass2" className="lp-input" type={showPassword ? "text" : "password"} required minLength={10} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12.5, color: "#4E5F57", cursor: "pointer" }}>
+              <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+              {pick(lang, "Show password", "Mostrar contraseña")}
+            </label>
+          </div>
+          {message && <FormError message={message} />}
+          <PrimaryButton type="submit" disabled={loading} full>
+            {loading ? pick(lang, "Saving…", "Guardando…") : pick(lang, "Change password", "Cambiar contraseña")}
+          </PrimaryButton>
+          <p style={{ textAlign: "center", fontSize: 13.5, color: C.muted, marginTop: 18 }}>
+            <button type="button" className="lp-link" onClick={() => onView("forgot")}>{pick(lang, "Ask for a new link", "Pedir un enlace nuevo")}</button>
+          </p>
+        </form>
+      )}
     </AuthShell>
   );
 };
@@ -1115,19 +1235,31 @@ const RegisterForm = ({ lang, onAuthenticated, onView, backendOnline, backendChe
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-const HASH_VIEWS: Record<string, PublicView> = { "#inicio": "home", "#fases": "phases", "#pgc": "pgc", "#login": "login", "#registro": "register" };
-const VIEW_HASH: Record<PublicView, string> = { home: "#inicio", phases: "#fases", pgc: "#pgc", login: "#login", register: "#registro" };
+const HASH_VIEWS: Record<string, PublicView> = { "#inicio": "home", "#fases": "phases", "#pgc": "pgc", "#login": "login", "#registro": "register", "#recuperar": "forgot" };
+const VIEW_HASH: Record<PublicView, string> = { home: "#inicio", phases: "#fases", pgc: "#pgc", login: "#login", register: "#registro", forgot: "#recuperar", reset: "#restablecer" };
+
+const RESET_PREFIX = "#restablecer=";
+// The reset link carries its token after "#restablecer=". It is read once and removed from
+// the address so it does not stay in the browser history.
+const takeResetToken = () => {
+  const hash = window.location.hash;
+  if (!hash.startsWith(RESET_PREFIX)) return null;
+  const token = hash.slice(RESET_PREFIX.length);
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#restablecer`);
+  return token || null;
+};
 
 export default function PublicSite({ lang, onLang, onAuthenticated, backendOnline, backendChecked, initialView }: Props) {
-  const [view, setView] = useState<PublicView>(() => initialView ?? HASH_VIEWS[window.location.hash] ?? "home");
+  const [resetToken] = useState<string | null>(takeResetToken);
+  const [view, setView] = useState<PublicView>(() => (resetToken ? "reset" : initialView ?? HASH_VIEWS[window.location.hash] ?? "home"));
 
   // The tabs are reflected in the address (#fases, #pgc…) so they can be shared and the
   // browser's back button works.
   useEffect(() => {
-    const onHash = () => setView(HASH_VIEWS[window.location.hash] ?? "home");
+    const onHash = () => setView(window.location.hash === "#restablecer" && resetToken ? "reset" : HASH_VIEWS[window.location.hash] ?? "home");
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  }, [resetToken]);
 
   const go = (next: PublicView) => {
     if (window.location.hash !== VIEW_HASH[next]) window.location.hash = VIEW_HASH[next];
@@ -1143,6 +1275,8 @@ export default function PublicSite({ lang, onLang, onAuthenticated, backendOnlin
         {view === "phases" && <PhasesView lang={lang} />}
         {view === "pgc" && <PgcView lang={lang} />}
         {view === "login" && <LoginForm lang={lang} onAuthenticated={onAuthenticated} onView={go} backendOnline={backendOnline} backendChecked={backendChecked} />}
+        {view === "forgot" && <ForgotForm lang={lang} onView={go} backendOnline={backendOnline} backendChecked={backendChecked} />}
+        {view === "reset" && resetToken && <ResetForm lang={lang} token={resetToken} onView={go} backendOnline={backendOnline} backendChecked={backendChecked} />}
         {view === "register" && <RegisterForm lang={lang} onAuthenticated={onAuthenticated} onView={go} backendOnline={backendOnline} backendChecked={backendChecked} />}
       </main>
       <footer className="lp-footer">

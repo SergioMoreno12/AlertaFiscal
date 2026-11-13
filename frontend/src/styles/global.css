@@ -76,3 +76,35 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* Printing a screen (forecast, plan): only the content, on a white page. */
+@media print {
+  aside,
+  header,
+  footer,
+  button,
+  .af-no-print {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    background: #fff;
+  }
+
+  .af-main {
+    margin-left: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .af-main table {
+    min-width: 0 !important;
+  }
+
+  details {
+    display: none;
+  }
+}

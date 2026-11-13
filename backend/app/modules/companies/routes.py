@@ -106,6 +106,43 @@ def create_company_for(user: User, data: dict):
     return company
 
 
+@companies_bp.patch("/<int:company_id>")
+def update_company(company_id: int):
+    company = authorized_company(company_id, min_role="admin")
+    data = get_json()
+    changed = {}
+    if "name" in data:
+        name = str(data["name"] or "").strip()
+        if len(name) < 2 or len(name) > 200:
+            return error(
+                "invalid_payload", "The company name must have between 2 and 200 characters", 422, {"name": "invalid"}
+            )
+        company.name = changed["name"] = name
+    if "nit" in data:
+        nit = str(data["nit"] or "").strip()
+        if not NIT_RE.match(nit):
+            return error("invalid_payload", "Enter a valid NIT (digits, dots and a dash)", 422, {"nit": "invalid"})
+        taken = db.session.query(Company.id).filter(Company.nit == nit, Company.id != company_id).first()
+        if taken is not None:
+            return error("nit_taken", "A company with that NIT is already registered", 409, {"nit": "taken"})
+        company.nit = changed["nit"] = nit
+    if "sector" in data:
+        if data["sector"] not in SECTORS:
+            return error("invalid_payload", "Invalid sector", 422, {"sector": "invalid"})
+        company.sector = changed["sector"] = data["sector"]
+    if "size" in data:
+        if data["size"] not in SIZES:
+            return error("invalid_payload", "Invalid company size", 422, {"size": "invalid"})
+        company.size = changed["size"] = data["size"]
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return error("nit_taken", "A company with that NIT is already registered", 409, {"nit": "taken"})
+    record_audit(company_id, "company.update", f"company:{company_id}", changed)
+    return jsonify(_company_dict(company, g.membership.role))
+
+
 @companies_bp.post("")
 def create_company():
     user = getattr(g, "current_user", None)

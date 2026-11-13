@@ -9,13 +9,14 @@ import {
   ChevronRight, CheckCircle, AlertCircle, User, Menu, X,
   Plus, Download, RefreshCw, Eye, Edit3, Save, ArrowLeft,
   Info, Flag, Layers, Search, Filter, BarChart2, MessageSquare,
-  LogOut, LogIn, ChevronDown, BookOpen, Database, ExternalLink,
+  LogOut, LogIn, ChevronDown, BookOpen, Database, ExternalLink, KeyRound, Printer, CalendarPlus,
 } from "lucide-react";
 import { login as apiLogin, logout as apiLogout, me as apiMe, type SessionUser } from "../api/auth.api";
 import { backendStatus } from "../api/system.api";
 import PublicSite from "./PublicSite";
 import { MonthlyDataScreen, NewCompanyCard, RoleBadge, TeamScreen } from "./Workspace";
 import { MlBadge, MlNote } from "./ui";
+import { AccountScreen, ConfirmDialog, EditCompanyModal, ObligationCalendar, ObligationTemplateModal, RowActions, type ObligationDraft } from "./Records";
 import {
   Badge, Btn, Card, Field, InlineError, SectionHeader, currentPeriod, errorMessage, fmt, fmtDate, fmtM,
   inputStyle, num, roleLabel, shortMonth, todayISO,
@@ -40,6 +41,9 @@ import {
   createPlan,
   createPlanVersion,
   createReserve,
+  deleteExpense,
+  deleteIncome,
+  deleteObligation,
   evaluateAlerts,
   getAlert,
   getCompanies,
@@ -60,6 +64,7 @@ import {
   reviewPlanVersion,
   updateAlert,
   updateExpense,
+  updateIncome,
   updateObligation,
   type Alert as ApiAlert,
   type AuditEvent,
@@ -83,7 +88,7 @@ import {
 type Screen =
   | "login" | "empresas" | "resumen" | "ingresos" | "gastos"
   | "proyecciones" | "planificacion" | "escenarios" | "obligaciones"
-  | "alertas" | "alerta-detalle" | "historial" | "contexto" | "datos" | "equipo";
+  | "alertas" | "alerta-detalle" | "historial" | "contexto" | "datos" | "equipo" | "cuenta";
 
 type AlertPriority = "alta" | "media" | "baja";
 type AlertStatus = "pendiente" | "en-revision" | "revisada";
@@ -265,6 +270,7 @@ const NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType; badge?: n
 // operational flow. It creates no alerts or tasks.
 const SECONDARY_NAV_ITEMS: { id: Screen; label: string; icon: React.ElementType }[] = [
   { id: "equipo", label: "Team", icon: User },
+  { id: "cuenta", label: "My account", icon: KeyRound },
   { id: "contexto", label: "Context and sources", icon: Database },
 ];
 
@@ -275,7 +281,7 @@ const NAV_GROUPS: { title?: string; items: { id: Screen; label: string; icon: Re
   { title: "1 · Your data", items: [navItem("datos"), navItem("ingresos"), navItem("gastos")] },
   { title: "2 · Forecast and plan", items: [navItem("proyecciones"), navItem("planificacion"), navItem("obligaciones")] },
   { title: "3 · Follow-up", items: [navItem("alertas"), navItem("historial")] },
-  { title: "Settings and reference", items: [navItem("empresas"), navItem("equipo"), navItem("contexto")] },
+  { title: "Settings and reference", items: [navItem("empresas"), navItem("equipo"), navItem("cuenta"), navItem("contexto")] },
 ];
 
 // Below this width the sidebar floats over the content instead of pushing it.
@@ -389,12 +395,18 @@ const EmpresasScreen = ({
   companies,
   onSelect,
   onCreated,
+  onUpdated,
+  canEdit,
 }: {
   companies: Array<{ id: number; nombre: string; nit: string; sector: string; tamaño: string; role?: string; estado?: string }>;
   onSelect: (id: number) => void;
   onCreated: (company: Company) => void;
+  onUpdated: (company: Company) => void;
+  canEdit: boolean;
 }) => {
   const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const editingCompany = companies.find((company) => company.id === editingId) ?? null;
   const [creatingRequested, setCreating] = useState(false);
   // Without companies the form is the only useful thing on the screen, so it stays open.
   const creating = creatingRequested || companies.length === 0;
@@ -451,12 +463,24 @@ const EmpresasScreen = ({
                   </div>
                 </div>
                 <Badge label={st.label} color={st.color} bg={st.bg} border={st.border} />
+                {canEdit && emp.role === "admin" && <Btn variant="ghost" small icon={<Edit3 size={13} />} onClick={() => setEditingId(emp.id)}>Edit</Btn>}
                 <Btn variant="primary" small onClick={() => onSelect(emp.id)}>Select</Btn>
               </div>
             </Card>
           );
         })}
       </div>
+
+      {editingCompany && (
+        <EditCompanyModal
+          company={{ id: editingCompany.id, name: editingCompany.nombre, nit: editingCompany.nit, sector: editingCompany.sector, size: editingCompany.tamaño }}
+          onClose={() => setEditingId(null)}
+          onSaved={(company) => {
+            onUpdated(company);
+            setEditingId(null);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -851,12 +875,19 @@ const IngresosScreen = ({
   companyId,
   companyName,
   demoMode,
+  canManage,
 }: {
   companyId: number | null;
   companyName: string;
   demoMode: boolean;
+  canManage: boolean;
 }) => {
   const [rows, setRows] = useState<Income[]>([]);
+  const [editing, setEditing] = useState<Income | null>(null);
+  const [toDelete, setToDelete] = useState<Income | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const showActions = !demoMode && canManage;
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState<Pagination | null>(null);
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
@@ -945,7 +976,40 @@ const IngresosScreen = ({
     });
     setFormError(null);
     setConfirmed(false);
+    setEditing(null);
     setShowForm(true);
+  };
+
+  const openEdit = (row: Income) => {
+    setForm({
+      doc_number: row.doc_number,
+      issue_date: row.issue_date,
+      party: "",
+      counterparty_id: row.counterparty_id ? String(row.counterparty_id) : "",
+      description: row.description,
+      subtotal: String(num(row.subtotal)),
+      tax_amount: String(num(row.tax_amount)),
+      status: row.status === "collected" ? "collected" : "pending",
+    });
+    setFormError(null);
+    setConfirmed(false);
+    setEditing(row);
+    setShowForm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!companyId || !toDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteIncome(companyId, toDelete.id);
+      setToDelete(null);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setDeleteError(errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const totalPreview = num(form.subtotal) + num(form.tax_amount);
@@ -990,7 +1054,7 @@ const IngresosScreen = ({
     if (!companyId) return;
     setSaving(true);
     try {
-      await createIncome(companyId, {
+      const payload = {
         doc_number: form.doc_number.trim(),
         issue_date: form.issue_date,
         description: form.description.trim(),
@@ -999,9 +1063,11 @@ const IngresosScreen = ({
         tax_amount: tax,
         total,
         status: form.status,
-      });
+      };
+      if (editing) await updateIncome(companyId, editing.id, payload);
+      else await createIncome(companyId, payload);
       setConfirmed(true);
-      setPage(1);
+      if (!editing) setPage(1);
       setReloadKey((key) => key + 1);
     } catch (err) {
       setFormError(errorMessage(err));
@@ -1060,7 +1126,7 @@ const IngresosScreen = ({
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ backgroundColor: "#F5F8F6" }}>
-                {["Date", "Client", "Document", "Description", "VAT base", "VAT", "Total", "Collection status"].map((header) => (
+                {["Date", "Client", "Document", "Description", "VAT base", "VAT", "Total", "Collection status", ...(showActions ? [""] : [])].map((header) => (
                   <th key={header} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", whiteSpace: "nowrap", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>{header}</th>
                 ))}
               </tr>
@@ -1078,12 +1144,22 @@ const IngresosScreen = ({
                     <td style={{ padding: "13px 16px", textAlign: "right", color: "#66786F" }}>{fmt(row.tax)}</td>
                     <td style={{ padding: "13px 16px", textAlign: "right", fontWeight: 700, color: "#1B5E3F" }}>{fmt(row.total)}</td>
                     <td style={{ padding: "13px 16px" }}><Badge label={row.status} color={style.color} bg={style.bg} border={style.border} /></td>
+                    {showActions && (
+                      <td style={{ padding: "13px 16px" }}>
+                        {row.doc.startsWith("MONTH-")
+                          ? <span style={{ fontSize: 11, color: "#9AABA2", whiteSpace: "nowrap" }}>In Monthly data</span>
+                          : (() => {
+                              const raw = rows.find((item) => item.id === row.id);
+                              return raw ? <RowActions label={row.doc} onEdit={raw.status === "void" ? undefined : () => openEdit(raw)} onDelete={() => { setDeleteError(null); setToDelete(raw); }} /> : null;
+                            })()}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {displayRows.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
+                  <td colSpan={9} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No income recorded for this company.
                   </td>
                 </tr>
@@ -1103,9 +1179,9 @@ const IngresosScreen = ({
             {confirmed ? (
               <div style={{ textAlign: "center" }}>
                 <CheckCircle size={48} color="#2E8A5C" style={{ margin: "0 auto 16px" }} />
-                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Record confirmed</h3>
+                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>{editing ? "Changes saved" : "Record confirmed"}</h3>
                 <p style={{ fontSize: 13, color: "#66786F" }}>
-                  {demoMode ? "The income was recorded only in this demo view." : "The income was recorded in the database."}
+                  {demoMode ? "The income was recorded only in this demo view." : editing ? "The income record was updated." : "The income was recorded in the database."}
                 </p>
                 {demoMode && <DemoBanner />}
                 <div style={{ marginTop: 20 }}><Btn variant="primary" onClick={() => setShowForm(false)} fullWidth>Close</Btn></div>
@@ -1113,7 +1189,7 @@ const IngresosScreen = ({
             ) : (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>Record income or sale</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>{editing ? "Edit income" : "Record income or sale"}</h3>
                   <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
                 </div>
 
@@ -1171,12 +1247,23 @@ const IngresosScreen = ({
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
                   <Btn variant="ghost" onClick={() => setShowForm(false)} fullWidth>Cancel</Btn>
-                  <Btn variant="primary" onClick={save} fullWidth>{saving ? "Saving…" : "Save record"}</Btn>
+                  <Btn variant="primary" onClick={save} fullWidth disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Save record"}</Btn>
                 </div>
               </>
             )}
           </div>
         </div>
+      )}
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Delete this income record?"
+          detail={`${toDelete.doc_number} · ${fmtDate(toDelete.issue_date)} · ${fmt(num(toDelete.total))}`}
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
       )}
     </div>
   );
@@ -1216,12 +1303,19 @@ const GastosScreen = ({
   companyId,
   companyName,
   demoMode,
+  canManage,
 }: {
   companyId: number | null;
   companyName: string;
   demoMode: boolean;
+  canManage: boolean;
 }) => {
   const [rows, setRows] = useState<Expense[]>([]);
+  const [editing, setEditing] = useState<Expense | null>(null);
+  const [toDelete, setToDelete] = useState<Expense | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const showActions = !demoMode && canManage;
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [demoRows, setDemoRows] = useState<ExpenseDisplayRow[]>(DEMO_EXPENSE_ROWS);
   const [loading, setLoading] = useState(false);
@@ -1311,7 +1405,41 @@ const GastosScreen = ({
     });
     setFormError(null);
     setConfirmed(false);
+    setEditing(null);
     setShowForm(true);
+  };
+
+  const openEdit = (row: Expense) => {
+    setForm({
+      doc_number: row.doc_number,
+      issue_date: row.issue_date,
+      party: "",
+      counterparty_id: row.counterparty_id ? String(row.counterparty_id) : "",
+      category: row.category || "Other",
+      description: row.description,
+      subtotal: String(num(row.subtotal)),
+      tax_amount: String(num(row.tax_amount)),
+      status: row.status === "paid" ? "paid" : "pending",
+    });
+    setFormError(null);
+    setConfirmed(false);
+    setEditing(row);
+    setShowForm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!companyId || !toDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteExpense(companyId, toDelete.id);
+      setToDelete(null);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setDeleteError(errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const totalPreview = num(form.subtotal) + num(form.tax_amount);
@@ -1358,7 +1486,7 @@ const GastosScreen = ({
     if (!companyId) return;
     setSaving(true);
     try {
-      await createExpense(companyId, {
+      const payload = {
         doc_number: form.doc_number.trim(),
         issue_date: form.issue_date,
         category: form.category,
@@ -1368,9 +1496,11 @@ const GastosScreen = ({
         tax_amount: tax,
         total,
         status: form.status,
-      });
+      };
+      if (editing) await updateExpense(companyId, editing.id, payload);
+      else await createExpense(companyId, payload);
       setConfirmed(true);
-      setPage(1);
+      if (!editing) setPage(1);
       setReloadKey((key) => key + 1);
     } catch (err) {
       setFormError(errorMessage(err));
@@ -1469,6 +1599,10 @@ const GastosScreen = ({
                     <button onClick={() => toggleReviewed(row)} disabled={busyId === row.id} style={{ background: "none", border: "none", color: "#1B5E3F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", opacity: busyId === row.id ? 0.5 : 1 }}>
                       {row.reviewed ? "Reopen" : "Review"}
                     </button>
+                    {showActions && !row.doc.startsWith("MONTH-") && (() => {
+                      const raw = rows.find((item) => item.id === row.id);
+                      return raw ? <span style={{ marginLeft: 8 }}><RowActions label={row.doc} onEdit={raw.status === "void" ? undefined : () => openEdit(raw)} onDelete={() => { setDeleteError(null); setToDelete(raw); }} /></span> : null;
+                    })()}
                   </td>
                 </tr>
               ))}
@@ -1491,9 +1625,9 @@ const GastosScreen = ({
             {confirmed ? (
               <div style={{ textAlign: "center" }}>
                 <CheckCircle size={48} color="#2E8A5C" style={{ margin: "0 auto 16px" }} />
-                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>Expense recorded</h3>
+                <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: "0 0 8px" }}>{editing ? "Changes saved" : "Expense recorded"}</h3>
                 <p style={{ fontSize: 13, color: "#66786F", marginBottom: 16 }}>
-                  {demoMode ? "The expense was recorded only in this demo view." : "The expense was recorded. Pending accounting review."}
+                  {demoMode ? "The expense was recorded only in this demo view." : editing ? "The expense record was updated." : "The expense was recorded. Pending accounting review."}
                 </p>
                 {demoMode && <DemoBanner />}
                 <div style={{ marginTop: 20 }}><Btn variant="primary" onClick={() => setShowForm(false)} fullWidth>Close</Btn></div>
@@ -1501,7 +1635,7 @@ const GastosScreen = ({
             ) : (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>Record expense or purchase</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>{editing ? "Edit expense" : "Record expense or purchase"}</h3>
                   <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
                 </div>
 
@@ -1563,12 +1697,23 @@ const GastosScreen = ({
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
                   <Btn variant="ghost" onClick={() => setShowForm(false)} fullWidth>Cancel</Btn>
-                  <Btn variant="primary" onClick={save} fullWidth>{saving ? "Saving…" : "Save record"}</Btn>
+                  <Btn variant="primary" onClick={save} fullWidth disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Save record"}</Btn>
                 </div>
               </>
             )}
           </div>
         </div>
+      )}
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Delete this expense record?"
+          detail={`${toDelete.doc_number} · ${fmtDate(toDelete.issue_date)} · ${fmt(num(toDelete.total))}`}
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
       )}
     </div>
   );
@@ -1747,6 +1892,21 @@ const ProyeccionesScreen = ({
     })),
   ];
 
+  const exportForecast = () => {
+    downloadCsv(
+      `forecast-${companyName.toLowerCase().replace(/\s+/g, "-")}.csv`,
+      ["Month", "Type", "Income", "Expenses", "Result", "Typical income range (±)"],
+      tableRows.map((row) => [
+        row.mes,
+        tr(row.tipo),
+        Math.round(row.ingresos),
+        Math.round(row.gastos),
+        Math.round(row.ingresos - row.gastos),
+        showRange && row.tipo === "Forecast" ? Math.round(incomeMargin) : "",
+      ]),
+    );
+  };
+
   // The last recorded month also starts the dashed forecast lines, so both segments join.
   const chartRows: Array<Record<string, string | number | number[] | null>> = pastHistory.map((point, index) => ({
     mes: point.mes,
@@ -1775,9 +1935,13 @@ const ProyeccionesScreen = ({
         subtitle={`${companyName} · Estimate of the coming months from your recorded history`}
         actions={
           estado === "done" && result?.available ? (
-            <Btn variant="primary" icon={<Calculator size={13} />} small onClick={() => onUseForecast(result)}>
-              Use this forecast in my planning
-            </Btn>
+            <>
+              <Btn variant="ghost" icon={<Download size={13} />} small onClick={exportForecast}>Export CSV</Btn>
+              <Btn variant="ghost" icon={<Printer size={13} />} small onClick={() => window.print()}>Print or save as PDF</Btn>
+              <Btn variant="primary" icon={<Calculator size={13} />} small onClick={() => onUseForecast(result)}>
+                Use this forecast in my planning
+              </Btn>
+            </>
           ) : undefined
         }
       />
@@ -2393,6 +2557,28 @@ const PlanificacionScreen = ({
     }
   };
 
+  const exportPlan = () => {
+    const pendingReserve = Math.max(reserveTargetInput - reservesTotal, 0);
+    downloadCsv(
+      `plan-${companyName.toLowerCase().replace(/\s+/g, "-")}-${form.period}.csv`,
+      ["Concept", "Value"],
+      [
+        [tr("Company"), companyName],
+        [tr("Plan period"), form.period],
+        [tr("Expected income"), Math.round(projectedIncome)],
+        [tr("Expected expenses"), Math.round(projectedExpenses)],
+        [tr("Expected result"), Math.round(projectedResult)],
+        [tr("Reserve target"), Math.round(reserveTargetInput)],
+        [tr("Reserved so far"), Math.round(reservesTotal)],
+        [tr("Still to reserve"), Math.round(pendingReserve)],
+        ...pendingObligations.map((item) => [
+          `${tr("Obligation")}: ${item.name} ${item.period}`.trim(),
+          `${item.due_date ?? ""}${item.estimated_amount ? ` · ${Math.round(num(item.estimated_amount))}` : ""}`,
+        ]),
+      ],
+    );
+  };
+
   const stepLabels = ["Review information", "Assumptions and parameters", "Reserve plan"];
 
   return (
@@ -2400,7 +2586,13 @@ const PlanificacionScreen = ({
       <SectionHeader
         title="Tax planning"
         subtitle={`${companyName} · Period ${form.period}`}
-        actions={<Btn variant="ghost" icon={<Layers size={13} />} small onClick={() => onNav("escenarios")}>Compare scenarios</Btn>}
+        actions={
+          <>
+            <Btn variant="ghost" icon={<Download size={13} />} small onClick={exportPlan}>Export CSV</Btn>
+            <Btn variant="ghost" icon={<Printer size={13} />} small onClick={() => window.print()}>Print or save as PDF</Btn>
+            <Btn variant="ghost" icon={<Layers size={13} />} small onClick={() => onNav("escenarios")}>Compare scenarios</Btn>
+          </>
+        }
       />
 
       {loading && <div style={{ marginBottom: 16, fontSize: 12, color: "#66786F" }}>Loading planning information…</div>}
@@ -2792,6 +2984,12 @@ const ObligacionesScreen = ({
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<Obligation | null>(null);
+  const [toDelete, setToDelete] = useState<Obligation | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showTemplate, setShowTemplate] = useState(false);
+  const showActions = !demoMode && canManage;
 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -2835,7 +3033,47 @@ const ObligacionesScreen = ({
   const openForm = () => {
     setForm({ name: "", period: currentPeriod(), due_date: todayISO(), estimated_amount: "", notes: "" });
     setFormError(null);
+    setEditing(null);
     setShowForm(true);
+  };
+
+  const openEdit = (row: Obligation) => {
+    setForm({
+      name: row.name,
+      period: row.period,
+      due_date: row.due_date,
+      estimated_amount: row.estimated_amount !== null ? String(num(row.estimated_amount)) : "",
+      notes: row.notes,
+    });
+    setFormError(null);
+    setEditing(row);
+    setShowForm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!companyId || !toDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteObligation(companyId, toDelete.id);
+      setToDelete(null);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setDeleteError(errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const createFromTemplate = async (drafts: ObligationDraft[]) => {
+    if (!companyId) return;
+    try {
+      for (const draft of drafts) await createObligation(companyId, draft);
+    } finally {
+      // Some may have been created before a failure: show what is saved.
+      setReloadKey((key) => key + 1);
+    }
+    setShowTemplate(false);
   };
 
   const save = async () => {
@@ -2870,13 +3108,15 @@ const ObligacionesScreen = ({
 
     setSaving(true);
     try {
-      await createObligation(companyId, {
+      const payload = {
         name: form.name.trim(),
         period: form.period,
         due_date: form.due_date,
         estimated_amount: estimated,
         notes: form.notes,
-      });
+      };
+      if (editing) await updateObligation(companyId, editing.id, payload);
+      else await createObligation(companyId, payload);
       setShowForm(false);
       setReloadKey((key) => key + 1);
     } catch (err) {
@@ -2913,7 +3153,12 @@ const ObligacionesScreen = ({
       <SectionHeader
         title="Obligations and calendar"
         subtitle={`Manually recorded dates · ${companyName}`}
-        actions={canManage && <Btn variant="primary" icon={<Plus size={13} />} small onClick={openForm}>Record obligation</Btn>}
+        actions={canManage && (
+          <>
+            {!demoMode && <Btn variant="secondary" icon={<CalendarPlus size={13} />} small onClick={() => setShowTemplate(true)}>Add a whole year</Btn>}
+            <Btn variant="primary" icon={<Plus size={13} />} small onClick={openForm}>Record obligation</Btn>
+          </>
+        )}
       />
 
       <div style={{ backgroundColor: "#FBF4E2", border: "1px solid #E9D49C", borderRadius: 10, padding: "10px 16px", marginBottom: 24, fontSize: 12, color: "#8A6400", display: "flex", gap: 8 }}>
@@ -2944,15 +3189,17 @@ const ObligacionesScreen = ({
         </div>
       )}
 
+      <ObligationCalendar rows={displayRows} today={today} />
+
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B" }}>Recorded calendar</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#33433B" }}>All the obligations</div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ backgroundColor: "#F5F8F6" }}>
-                {["Obligation", "Period", "Due date", "Estimate", "Status", "Notes", "Actions"].map((header) => (
+                {["Obligation", "Period", "Due date", "Estimate", "Status", "Notes", "Actions", ...(showActions ? [""] : [])].map((header) => (
                   <th key={header} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#66786F", borderBottom: "1px solid rgba(0,0,0,0.06)", whiteSpace: "nowrap" }}>{header}</th>
                 ))}
               </tr>
@@ -2991,12 +3238,17 @@ const ObligacionesScreen = ({
                         </div>
                       )}
                     </td>
+                    {showActions && (
+                      <td style={{ padding: "12px 14px" }}>
+                        <RowActions label={row.name} onEdit={() => openEdit(row)} onDelete={() => { setDeleteError(null); setToDelete(row); }} />
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {displayRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
+                  <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", color: "#66786F", fontSize: 12 }}>
                     No obligations recorded for this company.
                   </td>
                 </tr>
@@ -3013,7 +3265,7 @@ const ObligacionesScreen = ({
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: "32px 36px", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(0,0,0,0.16)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>Record obligation</h3>
+              <h3 style={{ fontWeight: 700, fontSize: 18, color: "#33433B", margin: 0 }}>{editing ? "Edit obligation" : "Record obligation"}</h3>
               <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#66786F" }}><X size={18} /></button>
             </div>
 
@@ -3042,10 +3294,23 @@ const ObligacionesScreen = ({
 
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <Btn variant="ghost" onClick={() => setShowForm(false)} fullWidth>Cancel</Btn>
-              <Btn variant="primary" onClick={save} fullWidth>{saving ? "Saving…" : "Save obligation"}</Btn>
+              <Btn variant="primary" onClick={save} fullWidth disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Save obligation"}</Btn>
             </div>
           </div>
         </div>
+      )}
+
+      {showTemplate && <ObligationTemplateModal onCreate={createFromTemplate} onClose={() => setShowTemplate(false)} />}
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Delete this obligation?"
+          detail={`${toDelete.name} · ${toDelete.period || "—"} · ${fmtDate(toDelete.due_date)}`}
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
       )}
     </div>
   );
@@ -4202,7 +4467,7 @@ const toCompanyCards = (items: Company[]): CompanyCard[] =>
   }));
 
 const PLACE_KEY = "af_place";
-const SAVED_SCREENS: Screen[] = ["empresas", "resumen", "ingresos", "gastos", "datos", "proyecciones", "planificacion", "escenarios", "obligaciones", "alertas", "historial", "contexto", "equipo"];
+const SAVED_SCREENS: Screen[] = ["empresas", "resumen", "ingresos", "gastos", "datos", "proyecciones", "planificacion", "escenarios", "obligaciones", "alertas", "historial", "contexto", "equipo", "cuenta"];
 
 const readSavedPlace = (): { screen: Screen | null; companyId: number | null } => {
   try {
@@ -4420,6 +4685,10 @@ export default function App() {
     setScreen("datos");
   };
 
+  const handleCompanyUpdated = (company: Company) => {
+    setCompanies((current) => current.map((c) => (c.id === company.id ? { ...c, nombre: company.name, nit: company.nit, sector: company.sector, tamaño: company.size } : c)));
+  };
+
   const handleSelectCompany = (id: number) => {
     setActiveCompanyId(id);
     setScreen("resumen");
@@ -4476,9 +4745,11 @@ export default function App() {
         <Topbar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen((value) => !value)} empresa={needsCompany ? "AlertaFiscal" : companyName} companySubtitle={companySubtitle} backend={backend} demoMode={demoMode} onLogout={handleLogout} compact={narrow} lang={lang} onLang={changeLang} />
 
         <div style={{ flex: 1 }}>
-          {screen === "empresas" && <EmpresasScreen companies={companies} onSelect={handleSelectCompany} onCreated={handleCompanyCreated} />}
+          {screen === "empresas" && <EmpresasScreen companies={companies} onSelect={handleSelectCompany} onCreated={handleCompanyCreated} onUpdated={handleCompanyUpdated} canEdit={!demoMode} />}
 
-          {screen !== "empresas" && screen !== "contexto" && needsCompany && (
+          {screen === "cuenta" && <AccountScreen userName={user?.full_name ?? ""} userEmail={user?.email ?? ""} demoMode={demoMode} />}
+
+          {screen !== "empresas" && screen !== "contexto" && screen !== "cuenta" && needsCompany && (
             <div style={{ padding: "28px 32px" }}>
               <Card style={{ textAlign: "center", padding: "48px 24px" }}>
                 <Building2 size={40} color="#9CCDB1" style={{ margin: "0 auto 12px" }} />
@@ -4490,8 +4761,8 @@ export default function App() {
           )}
 
           {screen === "resumen" && !needsCompany && <ResumenScreen onNav={handleNav} companyId={companyId} companyName={companyName} demoMode={demoMode} />}
-          {screen === "ingresos" && !needsCompany && <IngresosScreen companyId={companyId} companyName={companyName} demoMode={demoMode} />}
-          {screen === "gastos" && !needsCompany && <GastosScreen companyId={companyId} companyName={companyName} demoMode={demoMode} />}
+          {screen === "ingresos" && !needsCompany && <IngresosScreen companyId={companyId} companyName={companyName} demoMode={demoMode} canManage={canManage} />}
+          {screen === "gastos" && !needsCompany && <GastosScreen companyId={companyId} companyName={companyName} demoMode={demoMode} canManage={canManage} />}
           {screen === "proyecciones" && !needsCompany && <ProyeccionesScreen onNav={handleNav} companyId={companyId} companyName={companyName} demoMode={demoMode} onUseForecast={handleUseForecast} />}
           {screen === "planificacion" && !needsCompany && <PlanificacionScreen onNav={handleNav} companyId={companyId} companyName={companyName} demoMode={demoMode} draft={planDraft} initialStep={planInitialStep} />}
           {screen === "escenarios" && !needsCompany && <EscenariosScreen companyId={companyId} companyName={companyName} onNav={handleNav} />}
@@ -4511,7 +4782,7 @@ export default function App() {
           )}
           {screen === "historial" && !needsCompany && <HistorialScreen companyId={companyId} companyName={companyName} demoMode={demoMode} />}
           {screen === "contexto" && <ContextoScreen demoMode={demoMode} />}
-          {screen === "datos" && !needsCompany && <MonthlyDataScreen key={companyId ?? 0} companyId={companyId} companyName={companyName} onNav={handleNav} />}
+          {screen === "datos" && !needsCompany && <MonthlyDataScreen key={companyId ?? 0} companyId={companyId} companyName={companyName} onNav={handleNav} canManage={canManage} />}
           {screen === "equipo" && !needsCompany && <TeamScreen key={companyId ?? 0} companyId={companyId} companyName={companyName} isAdmin={activeCompany?.role === "admin"} currentUserId={user?.id ?? null} />}
         </div>
 
