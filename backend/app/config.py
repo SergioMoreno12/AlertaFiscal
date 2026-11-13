@@ -167,6 +167,11 @@ class Config:
         }
     )
 
+    # Password recovery by email (optional). Without RESEND_API_KEY and MAIL_FROM no email
+    # is sent and the sign-in page does not offer the recovery link.
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+    MAIL_FROM = os.environ.get("MAIL_FROM", "").strip()
+
     # Limits
     MAX_PAGE_SIZE = 100
     DEFAULT_PAGE_SIZE = 20

@@ -113,3 +113,27 @@ Every relevant operation writes an `AuditEvent` with company, actor, action, res
 ## Vulnerability reports
 
 This is an academic project without a formal channel. Never publish real credentials in issues.
+
+## Passwords: change and recovery
+
+- **Change (signed in).** `POST /api/v1/auth/password` asks for the current password, applies the
+  same minimum length as sign-up (10 characters) and closes every other session of the user.
+  Wrong attempts count against the same in-memory limiter as sign-in.
+- **Recovery by email.** `POST /api/v1/auth/password-reset/request` always answers the same,
+  whether the email exists or not. The link is sent by email only: it is never in the response
+  or in the log. `POST /api/v1/auth/password-reset/confirm` sets the new password and closes
+  every session of the user.
+- **Token.** Stateless: `user id . expiry . HMAC(SECRET_KEY, id, expiry, current password hash)`.
+  It lasts 30 minutes and stops working as soon as the password changes, so it is single use
+  and needs no table. The frontend reads it from `#restablecer=<token>` and removes it from
+  the address at once.
+- **Email provider.** Sending needs `RESEND_API_KEY` and `MAIL_FROM` (Resend HTTP API; the free
+  Render plan blocks SMTP ports). Without them no email is sent, `GET
+  /api/v1/auth/password-reset/available` answers `false` and the sign-in page says recovery is
+  not set up. The link points to `FRONTEND_ORIGIN`.
+
+## Deleting records
+
+Income, expenses, obligations and the totals of a month are deleted for real (role `contador`
+or `admin`), together with their receipts or payments. Each deletion writes an audit event
+with the document number, date and total, which is what remains of the record.

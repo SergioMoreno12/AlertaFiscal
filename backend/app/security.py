@@ -85,7 +85,15 @@ def set_csrf_cookie(response, token: str):
     return response
 
 
-SESSION_UNBOUND_PATHS = frozenset({"/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/register"})
+SESSION_UNBOUND_PATHS = frozenset(
+    {
+        "/api/v1/auth/login",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/register",
+        "/api/v1/auth/password-reset/request",
+        "/api/v1/auth/password-reset/confirm",
+    }
+)
 
 
 def validate_csrf() -> bool:
@@ -106,6 +114,39 @@ def validate_csrf() -> bool:
     if session is not None:
         return hmac.compare_digest(session.csrf_hash, _hash_token(header))
     return True
+
+
+# ── Password reset (stateless, single use) ──
+# The token is signed with SECRET_KEY and with the current password hash, so it stops
+# working as soon as the password changes: no table and nothing to clean up.
+
+PASSWORD_RESET_MINUTES = 30
+
+
+def _reset_signature(user: User, expires: int) -> str:
+    message = f"reset:{user.id}:{expires}:{user.password_hash}".encode()
+    return hmac.new(current_app.config["SECRET_KEY"].encode(), message, hashlib.sha256).hexdigest()
+
+
+def new_password_reset_token(user: User) -> str:
+    expires = int((datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_MINUTES)).timestamp())
+    return f"{user.id}.{expires}.{_reset_signature(user, expires)}"
+
+
+def user_for_reset_token(token: str) -> User | None:
+    try:
+        raw_id, raw_expires, signature = token.split(".")
+        user_id, expires = int(raw_id), int(raw_expires)
+    except (AttributeError, ValueError):
+        return None
+    if expires < datetime.now(timezone.utc).timestamp():
+        return None
+    user = db.session.get(User, user_id)
+    if user is None or not user.is_active:
+        return None
+    if not hmac.compare_digest(signature, _reset_signature(user, expires)):
+        return None
+    return user
 
 
 # ── Sessions ──

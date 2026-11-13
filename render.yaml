@@ -35,6 +35,12 @@ services:
       # Filled in with the Static Site URL after the first deploy.
       - key: FRONTEND_ORIGIN
         sync: false
+      # Optional: password recovery by email through the Resend HTTP API.
+      # Without both values the app does not offer the recovery link.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: SESSION_IDLE_MINUTES
         value: "120"
       - key: SESSION_ABSOLUTE_HOURS

@@ -21,6 +21,10 @@ from ...models import Counterparty, ExpenseDocument, ExpensePayment, IncomeDocum
 
 movements_bp = Blueprint("movements", __name__, url_prefix="/api/v1/companies/<int:company_id>")
 
+# Document numbers of the monthly totals form (see "Monthly totals" below).
+MONTHLY_INCOME_PREFIX = "MONTH-I-"
+MONTHLY_EXPENSE_PREFIX = "MONTH-E-"
+
 
 def _refresh_monitoring(company_id: int) -> None:
     """Resolve forecast months whose actual value just arrived (Phase 6). Never breaks the ERP."""
@@ -74,6 +78,60 @@ def _validate_counterparty(company_id: int, raw) -> int | None:
     if exists is None:
         raise ValueError("The counterparty does not belong to the company")
     return cid
+
+
+def _settled(model, fk: str, doc_id: int) -> Decimal:
+    column = getattr(model, fk)
+    value = db.session.query(func.coalesce(func.sum(model.amount), 0)).filter(column == doc_id).scalar()
+    return Decimal(str(value or 0))
+
+
+def _apply_document_edit(company_id: int, row, data: dict, settled_model, settled_fk: str, settled_status: str):
+    """Apply the editable fields of an income or expense document. Raises ValueError."""
+    if "doc_number" in data:
+        doc_number = str(data["doc_number"] or "").strip()
+        if not doc_number:
+            raise ValueError("doc_number is required")
+        if len(doc_number) > 60:
+            raise ValueError("doc_number is too long")
+        if doc_number.startswith((MONTHLY_INCOME_PREFIX, MONTHLY_EXPENSE_PREFIX)):
+            raise ValueError("That document number is reserved for monthly totals")
+        row.doc_number = doc_number
+    if "issue_date" in data:
+        issue_date = parse_date(str(data["issue_date"] or ""))
+        if issue_date is None:
+            raise ValueError("Invalid issue_date (YYYY-MM-DD)")
+        row.issue_date = issue_date
+    if "description" in data:
+        row.description = str(data["description"] or "")[:255]
+    if "counterparty_id" in data:
+        row.counterparty_id = _validate_counterparty(company_id, data["counterparty_id"])
+
+    if any(key in data for key in ("subtotal", "tax_amount", "total")):
+        subtotal = parse_money(data["subtotal"], "subtotal") if "subtotal" in data else Decimal(str(row.subtotal))
+        tax_amount = (
+            parse_money(data["tax_amount"], "tax_amount") if "tax_amount" in data else Decimal(str(row.tax_amount))
+        )
+        if data.get("total") not in (None, ""):
+            total = parse_money(data["total"], "total")
+        else:
+            total = subtotal + tax_amount
+        settled = _settled(settled_model, settled_fk, row.id)
+        if total < settled:
+            raise ValueError(f"total cannot be lower than the amount already settled ({money(settled)})")
+        row.subtotal, row.tax_amount, row.total = subtotal, tax_amount, total
+        if settled > 0:
+            row.status = settled_status if settled >= total else "pending"
+
+    if "status" in data:
+        status = str(data["status"])
+        if status not in ("pending", settled_status):
+            raise ValueError("Invalid status")
+        row.status = status
+
+
+def _is_monthly_total(row) -> bool:
+    return row.doc_number.startswith((MONTHLY_INCOME_PREFIX, MONTHLY_EXPENSE_PREFIX))
 
 
 # ───────────────────────── Income ─────────────────────────
@@ -157,6 +215,45 @@ def income_detail(company_id: int, income_id: int):
     return jsonify(payload)
 
 
+@movements_bp.patch("/income/<int:income_id>")
+def update_income(company_id: int, income_id: int):
+    authorized_company(company_id, min_role="contador")
+    row = db.session.get(IncomeDocument, income_id)
+    if row is None or row.company_id != company_id:
+        return error("not_found", "Income document not found", 404)
+    if row.status == "void":
+        return error("invalid_state", "A void income document cannot be edited", 409)
+    if _is_monthly_total(row):
+        return error("invalid_state", "Monthly totals are edited in the monthly data form", 409)
+    try:
+        _apply_document_edit(company_id, row, get_json(), IncomeReceipt, "income_id", "collected")
+    except ValueError as exc:
+        return error("invalid_payload", str(exc), 422)
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return error("duplicate_document", "An income document with that number already exists", 409)
+    record_audit(company_id, "income.update", f"income:{row.id}", {"total": money(row.total)})
+    _refresh_monitoring(company_id)
+    return jsonify(_income_dict(row))
+
+
+@movements_bp.delete("/income/<int:income_id>")
+def delete_income(company_id: int, income_id: int):
+    authorized_company(company_id, min_role="contador")
+    row = db.session.get(IncomeDocument, income_id)
+    if row is None or row.company_id != company_id:
+        return error("not_found", "Income document not found", 404)
+    detail = {"doc_number": row.doc_number, "issue_date": date_iso(row.issue_date), "total": money(row.total)}
+    db.session.query(IncomeReceipt).filter_by(company_id=company_id, income_id=income_id).delete()
+    db.session.delete(row)
+    db.session.flush()
+    record_audit(company_id, "income.delete", f"income:{income_id}", detail)
+    _refresh_monitoring(company_id)
+    return jsonify({"status": "deleted", "id": income_id})
+
+
 # ───────────────────────── Expenses ─────────────────────────
 
 
@@ -237,14 +334,40 @@ def update_expense(company_id: int, expense_id: int):
     if row.status == "void":
         return error("invalid_state", "A void expense cannot be edited", 409)
     data = get_json()
+    document_fields = ("doc_number", "issue_date", "counterparty_id", "subtotal", "tax_amount", "total", "status")
+    if _is_monthly_total(row) and any(key in data for key in document_fields):
+        return error("invalid_state", "Monthly totals are edited in the monthly data form", 409)
+    try:
+        _apply_document_edit(company_id, row, data, ExpensePayment, "expense_id", "paid")
+    except ValueError as exc:
+        return error("invalid_payload", str(exc), 422)
     if "reviewed" in data:
         row.reviewed = bool(data["reviewed"])
     if "category" in data:
-        row.category = str(data["category"])[:80]
-    if "description" in data:
-        row.description = str(data["description"])[:255]
-    record_audit(company_id, "expense.update", f"expense:{row.id}")
+        row.category = str(data["category"] or "Other")[:80]
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return error("duplicate_document", "An expense document with that number already exists", 409)
+    record_audit(company_id, "expense.update", f"expense:{row.id}", {"total": money(row.total)})
+    _refresh_monitoring(company_id)
     return jsonify(_expense_dict(row))
+
+
+@movements_bp.delete("/expenses/<int:expense_id>")
+def delete_expense(company_id: int, expense_id: int):
+    authorized_company(company_id, min_role="contador")
+    row = db.session.get(ExpenseDocument, expense_id)
+    if row is None or row.company_id != company_id:
+        return error("not_found", "Expense document not found", 404)
+    detail = {"doc_number": row.doc_number, "issue_date": date_iso(row.issue_date), "total": money(row.total)}
+    db.session.query(ExpensePayment).filter_by(company_id=company_id, expense_id=expense_id).delete()
+    db.session.delete(row)
+    db.session.flush()
+    record_audit(company_id, "expense.delete", f"expense:{expense_id}", detail)
+    _refresh_monitoring(company_id)
+    return jsonify({"status": "deleted", "id": expense_id})
 
 
 # ───────────────────────── Receipts and payments ─────────────────────────
@@ -394,8 +517,6 @@ def create_counterparty(company_id: int):
 # month. They are ordinary ERP documents (the forecast reads them like any other), with a
 # fixed number per month so saving the same month again replaces its amounts.
 
-MONTHLY_INCOME_PREFIX = "MONTH-I-"
-MONTHLY_EXPENSE_PREFIX = "MONTH-E-"
 MAX_MONTHS_PER_REQUEST = 120
 
 
@@ -498,5 +619,32 @@ def save_monthly_totals(company_id: int):
 
     db.session.flush()
     record_audit(company_id, "monthly_totals.save", f"company:{company_id}", {"months": sorted(parsed)})
+    _refresh_monitoring(company_id)
+    return list_monthly_totals(company_id)
+
+
+@movements_bp.delete("/monthly-totals/<string:month>")
+def delete_monthly_total(company_id: int, month: str):
+    """Remove the totals entered for one month through the monthly form."""
+    authorized_company(company_id, min_role="contador")
+    try:
+        month = _parse_month(month)
+    except ValueError as exc:
+        return error("invalid_payload", str(exc), 422)
+    removed = 0
+    for model, settled, fk, prefix in (
+        (IncomeDocument, IncomeReceipt, "income_id", MONTHLY_INCOME_PREFIX),
+        (ExpenseDocument, ExpensePayment, "expense_id", MONTHLY_EXPENSE_PREFIX),
+    ):
+        row = db.session.query(model).filter_by(company_id=company_id, doc_number=f"{prefix}{month}").first()
+        if row is None:
+            continue
+        db.session.query(settled).filter(getattr(settled, fk) == row.id).delete()
+        db.session.delete(row)
+        removed += 1
+    if not removed:
+        return error("not_found", "That month has no totals entered through the monthly form", 404)
+    db.session.flush()
+    record_audit(company_id, "monthly_totals.delete", f"company:{company_id}", {"month": month})
     _refresh_monitoring(company_id)
     return list_monthly_totals(company_id)
