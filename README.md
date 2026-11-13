@@ -87,7 +87,7 @@ cd backend
 python -m pytest -q
 ```
 
-By default the PostgreSQL integration tests are skipped. To run them, set `TEST_DATABASE_URL` to a **separate, disposable** database (the tests recreate its schema; never point it at a shared or cloud database). Frontend: `cd frontend && npm ci && npm run build`.
+By default the PostgreSQL integration tests are skipped. To run them, set `TEST_DATABASE_URL` to a **separate, disposable** database (the tests recreate its schema; never point it at a shared or cloud database). Frontend: `cd frontend && npm ci && npm test && npm run build` (Vitest with jsdom; the tests live next to the code as `*.test.ts(x)`).
 
 ## How the machine learning module works
 

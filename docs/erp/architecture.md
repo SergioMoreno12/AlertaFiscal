@@ -119,7 +119,7 @@ Manual planning works without any model. `POST /forecasts` computes a simple ave
 ## Frontend
 
 - React 18 + TypeScript + Vite 6.
-- Local navigation state (no router): `Screen` in `App.tsx`.
+- Local navigation state (no router): `Screen` in `shared.tsx`, switched in `App.tsx`. Each screen is one file in `src/app/screens/`; `Layout.tsx` holds the menu and the top bar.
 - Central HTTP client in `src/api/client.ts`:
   - `credentials: "include"` (session cookie),
   - CSRF token in memory (never in `localStorage`),

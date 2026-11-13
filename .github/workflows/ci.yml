@@ -89,7 +89,7 @@ jobs:
           PY
 
   frontend:
-    name: Frontend (TypeScript + build)
+    name: Frontend (tests + TypeScript + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -106,6 +106,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Tests
+        run: npm test
 
       - name: Check types and build
         run: npm run build
