@@ -127,8 +127,9 @@ This is an academic project without a formal channel. Never publish real credent
   It lasts 30 minutes and stops working as soon as the password changes, so it is single use
   and needs no table. The frontend reads it from `#restablecer=<token>` and removes it from
   the address at once.
-- **Email provider.** Sending needs `RESEND_API_KEY` and `MAIL_FROM` (Resend HTTP API; the free
-  Render plan blocks SMTP ports). Without them no email is sent, `GET
+- **Email provider.** Sending needs `BREVO_API_KEY` and `MAIL_FROM` (Brevo HTTP API; the free
+  Render plan blocks SMTP ports). `MAIL_FROM` must be a sender verified in Brevo, which needs
+  no domain of our own. Without them no email is sent, `GET
   /api/v1/auth/password-reset/available` answers `false` and the sign-in page says recovery is
   not set up. The link points to `FRONTEND_ORIGIN`.
 

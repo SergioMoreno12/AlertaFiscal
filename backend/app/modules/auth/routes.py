@@ -303,23 +303,37 @@ def change_password():
 
 
 def mail_configured() -> bool:
-    return bool(current_app.config.get("RESEND_API_KEY") and current_app.config.get("MAIL_FROM"))
+    return bool(current_app.config.get("BREVO_API_KEY") and _mail_sender() is not None)
+
+
+def _mail_sender() -> dict[str, str] | None:
+    """MAIL_FROM as Brevo expects it. Accepts "Name <address>" or a bare address."""
+    from email.utils import parseaddr
+
+    name, address = parseaddr(current_app.config.get("MAIL_FROM", ""))
+    if "@" not in address:
+        return None
+    return {"name": name or "AlertaFiscal", "email": address}
 
 
 def send_mail(to: str, subject: str, text: str) -> bool:
-    """Send a plain-text email through the Resend HTTP API. Returns False when it fails."""
+    """Send a plain-text email through the Brevo HTTP API. Returns False when it fails."""
     import json
     import urllib.request
 
+    sender = _mail_sender()
+    if sender is None:
+        return False
     body = json.dumps(
-        {"from": current_app.config["MAIL_FROM"], "to": [to], "subject": subject, "text": text}
+        {"sender": sender, "to": [{"email": to}], "subject": subject, "textContent": text}
     ).encode()
     req = urllib.request.Request(
-        "https://api.resend.com/emails",
+        "https://api.brevo.com/v3/smtp/email",
         data=body,
         method="POST",
         headers={
-            "Authorization": f"Bearer {current_app.config['RESEND_API_KEY']}",
+            "api-key": current_app.config["BREVO_API_KEY"],
+            "Accept": "application/json",
             "Content-Type": "application/json",
         },
     )
