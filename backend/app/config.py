@@ -167,9 +167,10 @@ class Config:
         }
     )
 
-    # Password recovery by email (optional). Without RESEND_API_KEY and MAIL_FROM no email
-    # is sent and the sign-in page does not offer the recovery link.
-    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+    # Password recovery by email (optional). Without BREVO_API_KEY and MAIL_FROM no email
+    # is sent and the sign-in page does not offer the recovery link. MAIL_FROM must be a
+    # sender verified in Brevo.
+    BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
     MAIL_FROM = os.environ.get("MAIL_FROM", "").strip()
 
     # Limits

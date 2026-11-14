@@ -261,7 +261,7 @@ def test_password_reset_link_works_once(app, monkeypatch):
 
     _client, _token, email = _new_user(app)
     sent = []
-    monkeypatch.setitem(app.config, "RESEND_API_KEY", "test-key")
+    monkeypatch.setitem(app.config, "BREVO_API_KEY", "test-key")
     monkeypatch.setitem(app.config, "MAIL_FROM", "AlertaFiscal <no-reply@example.com>")
     monkeypatch.setattr(auth_routes, "send_mail", lambda to, subject, text: sent.append((to, text)) or True)
 
@@ -305,10 +305,56 @@ def test_password_reset_sends_nothing_when_mail_is_not_configured(app, monkeypat
 
     _client, _token, email = _new_user(app)
     sent = []
-    monkeypatch.setitem(app.config, "RESEND_API_KEY", "")
+    monkeypatch.setitem(app.config, "BREVO_API_KEY", "")
     monkeypatch.setattr(auth_routes, "send_mail", lambda *args: sent.append(args) or True)
     anon = app.test_client()
     csrf = anon.get("/api/v1/auth/csrf").get_json()["csrf_token"]
     assert anon.get("/api/v1/auth/password-reset/available").get_json() == {"available": False}
     assert anon.post("/api/v1/auth/password-reset/request", json={"email": email}, headers=_h(csrf)).status_code == 200
     assert sent == []
+
+
+def test_send_mail_builds_the_brevo_request(app, monkeypatch):
+    import json
+    import urllib.request
+
+    from app.modules.auth import routes as auth_routes
+
+    captured = {}
+
+    class _Response:
+        status = 201
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        captured["url"] = req.full_url
+        captured["headers"] = {key.lower(): value for key, value in req.header_items()}
+        captured["body"] = json.loads(req.data)
+        return _Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    with app.app_context():
+        monkeypatch.setitem(app.config, "BREVO_API_KEY", "test-key")
+        monkeypatch.setitem(app.config, "MAIL_FROM", "AlertaFiscal <no-reply@example.com>")
+        assert auth_routes.mail_configured() is True
+        assert auth_routes.send_mail("someone@example.com", "Subject", "Body") is True
+        assert captured["url"] == "https://api.brevo.com/v3/smtp/email"
+        assert captured["headers"]["api-key"] == "test-key"
+        assert captured["body"] == {
+            "sender": {"name": "AlertaFiscal", "email": "no-reply@example.com"},
+            "to": [{"email": "someone@example.com"}],
+            "subject": "Subject",
+            "textContent": "Body",
+        }
+
+        # A bare address works too; something that is not an address counts as not configured.
+        monkeypatch.setitem(app.config, "MAIL_FROM", "no-reply@example.com")
+        assert auth_routes.mail_configured() is True
+        monkeypatch.setitem(app.config, "MAIL_FROM", "AlertaFiscal")
+        assert auth_routes.mail_configured() is False
+        assert auth_routes.send_mail("someone@example.com", "Subject", "Body") is False
