@@ -140,6 +140,104 @@ const Header = ({ view, onView, lang, onLang }: { view: PublicView; onView: (v: 
 
 // ─── Overview ────────────────────────────────────────────────────────────────
 
+/**
+ * Validation results of the four candidate models (months 25–30, docs/03_model_selection.md).
+ * MAE in millions of COP per month; normalized error = MAE / company's mean monthly income.
+ */
+const MODEL_COMPARISON: Array<{
+  name: [string, string];
+  income: [string, string];
+  expenses: [string, string];
+  normalized: [string, string];
+  vsBaseline: [string, string];
+  exportable: boolean;
+  chosen?: boolean;
+  why: [string, string];
+}> = [
+  {
+    name: ["Random forest", "Random forest"],
+    income: ["17.2", "17,2"], expenses: ["17.4", "17,4"], normalized: ["10.0 %", "10,0 %"], vsBaseline: ["−38 %", "−38 %"],
+    exportable: true, chosen: true,
+    why: [
+      "Chosen. Lowest error in income and in expenses, stable over the 6 months (15.6 to 18.9), and it can be exported to a 1.41 MB JSON file that the server runs.",
+      "Elegido. Menor error en ingresos y en gastos, estable en los 6 meses (15,6 a 18,9), y se puede exportar a un JSON de 1,41 MB que ejecuta el servidor.",
+    ],
+  },
+  {
+    name: ["Seasonal naive (baseline)", "Seasonal naive (baseline)"],
+    income: ["28.0", "28,0"], expenses: ["27.8", "27,8"], normalized: ["15.2 %", "15,2 %"], vsBaseline: ["—", "—"],
+    exportable: true,
+    why: [
+      "Reference to beat. It repeats the same month of last year: simple and strong for seasonal series.",
+      "Referencia a superar. Repite el mismo mes del año anterior: simple y fuerte en series estacionales.",
+    ],
+  },
+  {
+    name: ["Linear regression", "Regresión lineal"],
+    income: ["35.1", "35,1"], expenses: ["36.8", "36,8"], normalized: ["21.3 %", "21,3 %"], vsBaseline: ["+29 %", "+29 %"],
+    exportable: true,
+    why: [
+      "Rejected. Worse than the baseline: the trend extrapolates and the error jumps in month +6 (53.6).",
+      "Descartado. Peor que el baseline: la tendencia se extrapola y el error se dispara en el mes +6 (53,6).",
+    ],
+  },
+  {
+    name: ["Neural network (MLP)", "Red neuronal (MLP)"],
+    income: ["49.5", "49,5"], expenses: ["41.5", "41,5"], normalized: ["29.8 %", "29,8 %"], vsBaseline: ["+63 %", "+63 %"],
+    exportable: false,
+    why: [
+      "Rejected. The highest error, it explodes in month +6 (107.9), and the backend cannot run a neural network.",
+      "Descartado. El mayor error, se dispara en el mes +6 (107,9), y el backend no puede ejecutar una red neuronal.",
+    ],
+  },
+];
+
+const ModelComparison = ({ lang }: { lang: Lang }) => {
+  const t = (pair: [string, string]) => (lang === "es" ? pair[1] : pair[0]);
+  return (
+    <div className="lp-card lp-models" style={{ padding: 0 }}>
+      <div className="lp-table-wrap">
+        <table className="lp-table lp-model-table" aria-describedby="model-table-note">
+          <thead>
+            <tr>
+              <th scope="col">{pick(lang, "Model", "Modelo")}</th>
+              <th scope="col" className="lp-num">{pick(lang, "MAE income", "MAE ingresos")}</th>
+              <th scope="col" className="lp-num">{pick(lang, "MAE expenses", "MAE gastos")}</th>
+              <th scope="col" className="lp-num">{pick(lang, "Normalized error", "Error normalizado")}</th>
+              <th scope="col" className="lp-num">{pick(lang, "vs. baseline", "vs. baseline")}</th>
+              <th scope="col">{pick(lang, "Exportable", "Exportable")}</th>
+              <th scope="col">{pick(lang, "Decision and why", "Decisión y por qué")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MODEL_COMPARISON.map((row) => (
+              <tr key={row.name[0]} className={row.chosen ? "lp-model-chosen" : undefined}>
+                <th scope="row">
+                  {t(row.name)}
+                  {row.chosen && <span className="lp-model-badge">{pick(lang, "Chosen", "Elegido")}</span>}
+                </th>
+                <td className="lp-num">{t(row.income)}</td>
+                <td className="lp-num">{t(row.expenses)}</td>
+                <td className="lp-num">{t(row.normalized)}</td>
+                <td className="lp-num">{t(row.vsBaseline)}</td>
+                <td>{row.exportable ? pick(lang, "Yes", "Sí") : pick(lang, "No", "No")}</td>
+                <td className="lp-model-why">{t(row.why)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p id="model-table-note" className="lp-model-caption">
+        {pick(
+          lang,
+          "Validation, months 25–30, 425 companies. MAE in millions of COP per month (lower is better). Normalized error: income MAE divided by the company's mean monthly income.",
+          "Validación, meses 25–30, 425 empresas. MAE en millones de COP por mes (menor es mejor). Error normalizado: MAE de ingresos dividido por el ingreso mensual medio de la empresa.",
+        )}
+      </p>
+    </div>
+  );
+};
+
 const HomeView = ({ lang, onView }: { lang: Lang; onView: (v: PublicView) => void }) => {
   const steps = [
     { icon: <Database size={20} />, title: pick(lang, "1. Enter your data", "1. Ingresa tus datos"), text: pick(lang, "Record the income and expenses of each month (at least 6 closed months), one by one or as monthly totals.", "Registra los ingresos y gastos de cada mes (mínimo 6 meses cerrados), uno a uno o como totales mensuales.") },
@@ -234,6 +332,21 @@ const HomeView = ({ lang, onView }: { lang: Lang; onView: (v: PublicView) => voi
               </div>
             ))}
           </div>
+        </div>
+      </Section>
+
+      <Section id="models">
+        <Eyebrow>{pick(lang, "Model evaluation", "Evaluación de los modelos")}</Eyebrow>
+        <H2>{pick(lang, "Four models compared: why the random forest", "Cuatro modelos comparados: por qué el random forest")}</H2>
+        <Lead>
+          {pick(
+            lang,
+            "Each model forecast months 25–30 of 425 companies after training on months 1–24, in 40 fits. The model was chosen with these validation results only; the test data was used once, afterwards, to evaluate the chosen model.",
+            "Cada modelo pronosticó los meses 25–30 de 425 empresas después de entrenar con los meses 1–24, en 40 ajustes. El modelo se eligió solo con estos resultados de validación; los datos de prueba se usaron una vez, después, para evaluar el modelo elegido.",
+          )}
+        </Lead>
+        <div style={{ marginTop: 24 }}>
+          <ModelComparison lang={lang} />
         </div>
       </Section>
 
@@ -627,6 +740,13 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
               </ul>
             </section>
           </div>
+
+          {phase.n === 3 && (
+            <section style={{ marginTop: 28 }}>
+              <DetailHeading icon={<Brain size={16} />}>{pick(lang, "Evaluation of each model", "Evaluación de cada modelo")}</DetailHeading>
+              <ModelComparison lang={lang} />
+            </section>
+          )}
 
           <section style={{ marginTop: 28 }}>
             <DetailHeading icon={<Target size={16} />}>{pick(lang, "Key decisions and why", "Decisiones clave y por qué")}</DetailHeading>

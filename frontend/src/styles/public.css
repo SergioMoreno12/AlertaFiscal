@@ -80,6 +80,17 @@
 .lp-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #66786f; padding: 10px 12px; background: #f2f8f4; border-bottom: 1px solid #dce5e0; }
 .lp-table td { padding: 10px 12px; border-bottom: 1px solid #dce5e0; }
 .lp-table td:first-child { font-weight: 800; color: #1b5e3f; width: 80px; }
+.lp-model-table { min-width: 680px; }
+.lp-model-table th[scope="row"] { text-align: left; font-size: 14px; font-weight: 800; color: #1b5e3f; text-transform: none; letter-spacing: 0; background: transparent; padding: 12px; vertical-align: top; min-width: 120px; }
+.lp-model-table td { vertical-align: top; }
+.lp-model-table td:first-child { width: auto; }
+.lp-model-table .lp-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lp-model-table tbody tr:last-child th, .lp-model-table tbody tr:last-child td { border-bottom: 0; }
+.lp-model-chosen { background: #f2f8f4; }
+.lp-model-chosen td.lp-num { font-weight: 800; color: #154d33; }
+.lp-model-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #1b5e3f; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+.lp-model-why { font-size: 13.5px; line-height: 1.55; color: #33433b; min-width: 200px; }
+.lp-model-caption { margin: 0; font-size: 12.5px; line-height: 1.5; color: #66786f; padding: 12px 16px; border-top: 1px solid #dce5e0; }
 .lp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .lp-product { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #dce5e0; font-size: 13.5px; color: #66786f; }
 .lp-product-on { border-color: #9ccdb1; background: #f2f8f4; color: #154d33; font-weight: 600; }
