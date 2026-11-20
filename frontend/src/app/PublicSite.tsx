@@ -238,6 +238,140 @@ const ModelComparison = ({ lang }: { lang: Lang }) => {
   );
 };
 
+/**
+ * Tests of Phase 4 (docs/04_evaluation_protocol.md, 04_leakage_review.md, 04_evaluation_report.md).
+ * MAE in millions of COP per month; normalized error = MAE / company's mean monthly income.
+ */
+const PHASE4_TESTS: Array<{ name: [string, string]; how: [string, string]; result: [string, string] }> = [
+  {
+    name: ["1. Leakage review", "1. Revisión de fuga de información"],
+    how: [
+      "Before the run, the Phase 3 code was read file by file: no test or holdout row, no generator parameter and no future month may reach training or model selection.",
+      "Antes de la corrida se revisó el código de la Fase 3 archivo por archivo: ninguna fila de prueba u holdout, ningún parámetro del generador y ningún mes futuro puede llegar al entrenamiento ni a la selección.",
+    ],
+    result: ["No leakage found.", "No se encontró fuga."],
+  },
+  {
+    name: ["2. Parity test", "2. Prueba de paridad"],
+    how: [
+      "The pure-Python predictor that the app runs is compared with scikit-learn on 50 companies, before any test row is read. Allowed difference: 1e-6. If it fails, the run stops.",
+      "El predictor en Python puro que usa la app se compara con scikit-learn en 50 empresas, antes de leer cualquier fila de prueba. Diferencia permitida: 1e-6. Si falla, la corrida se detiene.",
+    ],
+    result: ["Maximum difference 0.0: passed.", "Diferencia máxima 0,0: superada."],
+  },
+  {
+    name: ["3. Temporal test", "3. Prueba temporal"],
+    how: [
+      "425 known companies. The model receives months 1–30 and forecasts months 31–36, which nobody used to train or choose it.",
+      "425 empresas conocidas. El modelo recibe los meses 1–30 y pronostica los meses 31–36, que nadie usó para entrenarlo ni elegirlo.",
+    ],
+    result: [
+      "MAE income 21.5 vs. 38.2 of the baseline; expenses 22.6 vs. 37.4.",
+      "MAE ingresos 21,5 vs. 38,2 del baseline; gastos 22,6 vs. 37,4.",
+    ],
+  },
+  {
+    name: ["4. Holdout test", "4. Prueba holdout"],
+    how: [
+      "75 companies reserved from the start, never seen by the model: the situation of a new user. Same procedure: history of months 1–30, forecast of months 31–36.",
+      "75 empresas reservadas desde el inicio, que el modelo nunca vio: la situación de un usuario nuevo. Mismo procedimiento: historial de los meses 1–30, pronóstico de los meses 31–36.",
+    ],
+    result: [
+      "MAE income 23.7 vs. 39.7 of the baseline (−40 %); expenses 23.8 vs. 40.6.",
+      "MAE ingresos 23,7 vs. 39,7 del baseline (−40 %); gastos 23,8 vs. 40,6.",
+    ],
+  },
+  {
+    name: ["5. Comparison with the baseline and metrics", "5. Comparación con el baseline y métricas"],
+    how: [
+      "The seasonal naive baseline is scored with the same companies, months and formulas. Metrics: MAE, RMSE, normalized MAE (median and 90th percentile), MAPE and bias, broken down by month of the forecast, sector and company size.",
+      "El baseline seasonal naive se mide con las mismas empresas, meses y fórmulas. Métricas: MAE, RMSE, MAE normalizado (mediana y percentil 90), MAPE y sesgo, desglosados por mes del pronóstico, sector y tamaño de empresa.",
+    ],
+    result: [
+      "Less error than the baseline in every month and size group. One exception: agriculture in the holdout test (4 companies).",
+      "Menos error que el baseline en cada mes y grupo de tamaño. Una excepción: agricultura en la prueba holdout (4 empresas).",
+    ],
+  },
+  {
+    name: ["6. Run-once rule", "6. Regla de una sola corrida"],
+    how: [
+      "The protocol was tagged in Git (eval-protocol-v1) before any result. The official run needs an explicit flag, refuses a second run and records the SHA-256 of the evaluated file.",
+      "El protocolo se etiquetó en Git (eval-protocol-v1) antes de cualquier resultado. La corrida oficial necesita una opción explícita, rechaza una segunda corrida y registra el SHA-256 del archivo evaluado.",
+    ],
+    result: [
+      "One official run, November 4, 2026 (eval-final-run).",
+      "Una sola corrida oficial, 4 de noviembre de 2026 (eval-final-run).",
+    ],
+  },
+];
+
+const ACCEPTANCE_CHECKS: Array<{ id: string; rule: [string, string]; values: [string, string][] }> = [
+  {
+    id: "C1",
+    rule: ["Model MAE ≤ 0.90 × baseline MAE", "MAE del modelo ≤ 0,90 × MAE del baseline"],
+    values: [["0.56", "0,56"], ["0.61", "0,61"], ["0.60", "0,60"], ["0.59", "0,59"]],
+  },
+  {
+    id: "C2",
+    rule: ["Median normalized MAE ≤ 15 %", "Mediana del MAE normalizado ≤ 15 %"],
+    values: [["10.2 %", "10,2 %"], ["10.7 %", "10,7 %"], ["12.3 %", "12,3 %"], ["11.8 %", "11,8 %"]],
+  },
+  {
+    id: "C3",
+    rule: ["90th percentile of normalized MAE ≤ 30 %", "Percentil 90 del MAE normalizado ≤ 30 %"],
+    values: [["20.7 %", "20,7 %"], ["20.7 %", "20,7 %"], ["21.3 %", "21,3 %"], ["19.9 %", "19,9 %"]],
+  },
+];
+
+const Phase4Tests = ({ lang }: { lang: Lang }) => {
+  const t = (pair: [string, string]) => (lang === "es" ? pair[1] : pair[0]);
+  return (
+    <>
+      <div className="lp-tests">
+        {PHASE4_TESTS.map((test) => (
+          <div key={test.name[0]} className="lp-test">
+            <div className="lp-test-name">{t(test.name)}</div>
+            <p className="lp-test-how">{t(test.how)}</p>
+            <div className="lp-test-result"><CheckCircle2 size={15} /> <span>{t(test.result)}</span></div>
+          </div>
+        ))}
+      </div>
+      <div className="lp-card lp-models" style={{ padding: 0, marginTop: 16 }}>
+        <div className="lp-table-wrap">
+          <table className="lp-table lp-model-table lp-checks-table" aria-describedby="checks-table-note">
+            <thead>
+              <tr>
+                <th scope="col">{pick(lang, "Check", "Comprobación")}</th>
+                <th scope="col" className="lp-num">{pick(lang, "Temporal · income", "Temporal · ingresos")}</th>
+                <th scope="col" className="lp-num">{pick(lang, "Temporal · expenses", "Temporal · gastos")}</th>
+                <th scope="col" className="lp-num">{pick(lang, "Holdout · income", "Holdout · ingresos")}</th>
+                <th scope="col" className="lp-num">{pick(lang, "Holdout · expenses", "Holdout · gastos")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ACCEPTANCE_CHECKS.map((check) => (
+                <tr key={check.id}>
+                  <th scope="row">{check.id} · {t(check.rule)}</th>
+                  {check.values.map((value, index) => (
+                    <td key={index} className="lp-num">{t(value)} <span className="lp-pass">{pick(lang, "Pass", "Pasa")}</span></td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p id="checks-table-note" className="lp-model-caption">
+          {pick(
+            lang,
+            "3 rules × 2 targets × 2 tests = 12 acceptance checks, fixed in Phase 1 before any model existed. The model is accepted only if all 12 pass: they all did.",
+            "3 reglas × 2 objetivos × 2 pruebas = 12 comprobaciones de aceptación, fijadas en la Fase 1 antes de que existiera un modelo. El modelo se acepta solo si pasan las 12: pasaron todas.",
+          )}
+        </p>
+      </div>
+    </>
+  );
+};
+
 const HomeView = ({ lang, onView }: { lang: Lang; onView: (v: PublicView) => void }) => {
   const steps = [
     { icon: <Database size={20} />, title: pick(lang, "1. Enter your data", "1. Ingresa tus datos"), text: pick(lang, "Record the income and expenses of each month (at least 6 closed months), one by one or as monthly totals.", "Registra los ingresos y gastos de cada mes (mínimo 6 meses cerrados), uno a uno o como totales mensuales.") },
@@ -745,6 +879,13 @@ const PhasesView = ({ lang }: { lang: Lang }) => {
             <section style={{ marginTop: 28 }}>
               <DetailHeading icon={<Brain size={16} />}>{pick(lang, "Evaluation of each model", "Evaluación de cada modelo")}</DetailHeading>
               <ModelComparison lang={lang} />
+            </section>
+          )}
+
+          {phase.n === 4 && (
+            <section style={{ marginTop: 28 }}>
+              <DetailHeading icon={<ShieldCheck size={16} />}>{pick(lang, "Tests used in this phase", "Pruebas utilizadas en esta fase")}</DetailHeading>
+              <Phase4Tests lang={lang} />
             </section>
           )}
 

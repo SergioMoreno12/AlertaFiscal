@@ -91,6 +91,16 @@
 .lp-model-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #1b5e3f; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
 .lp-model-why { font-size: 13.5px; line-height: 1.55; color: #33433b; min-width: 200px; }
 .lp-model-caption { margin: 0; font-size: 12.5px; line-height: 1.5; color: #66786f; padding: 12px 16px; border-top: 1px solid #dce5e0; }
+.lp-tests { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.lp-test { display: flex; flex-direction: column; border: 1px solid #dce5e0; border-radius: 14px; padding: 16px; background: #fff; }
+.lp-test-name { font-weight: 800; color: #154d33; font-size: 15px; }
+.lp-test-how { margin: 6px 0 12px; font-size: 13.5px; line-height: 1.55; color: #33433b; flex: 1; }
+.lp-test-result { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; font-weight: 700; color: #1b5e3f; background: #f2f8f4; border-radius: 10px; padding: 8px 10px; }
+.lp-test-result svg { flex-shrink: 0; margin-top: 1px; }
+.lp-checks-table th[scope="row"] { white-space: normal; min-width: 220px; }
+.lp-pass { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #e3f1e8; color: #1b5e3f; font-size: 11px; font-weight: 700; }
+@media (max-width: 1020px) { .lp-tests { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) { .lp-tests { grid-template-columns: 1fr; } }
 .lp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .lp-product { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #dce5e0; font-size: 13.5px; color: #66786f; }
 .lp-product-on { border-color: #9ccdb1; background: #f2f8f4; color: #154d33; font-weight: 600; }
